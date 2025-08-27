@@ -56,6 +56,11 @@ static void __gps_hw_init(void) {
     HAL_UART_RegisterCallback(&GPS_huart, HAL_UART_RX_COMPLETE_CB_ID, gps_RxCpltCallback);
 	HAL_UART_RegisterCallback(&GPS_huart, HAL_UART_RX_HALFCOMPLETE_CB_ID, gps_RxCpltCallback);
     HAL_GPIO_WritePin(GPS_PWR_EN_GPIO_Output_GPIO_Port, GPS_PWR_EN_GPIO_Output_Pin, GPIO_PIN_SET);
+
+    /* ToDo: reconfigure baudrate */
+   
+    /* ToDo: reconfigure message filters */
+
 }
 
 static void __gps_log_init(void) {
@@ -254,3 +259,5 @@ int gps_get_latest_position(struct minmea_float *pLatitude, struct minmea_float 
     }
     return 0;
 }
+
+// ToDo: gps_sleep

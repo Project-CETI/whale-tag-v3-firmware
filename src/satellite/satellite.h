@@ -9,6 +9,8 @@
 #define CETI_SATELLITE_H
 
 void satellite_init(void);
+void satellite_wait_for_programming(void);
+void satellite_transmit(char *message, size_t message_len);
 
 #endif // CETI_SATELLITE_H
 

@@ -15,6 +15,7 @@
 // Possible values for HW_VERSION, defined in makefile by sem
 #define HW_VERSION_NUCLEO_DEV 0
 #define HW_VERSION_3_1_0 1
+#define HW_VERSION_3_1_0_MSH 2 //3.1.0 with 16 MHz HSE XTal
 
 // Hardware Configuration
 

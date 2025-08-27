@@ -51,6 +51,15 @@ ifeq ($(BOARD), v3_1)
 	C_DEFS += -DHW_VERSION=1
 endif
 
+ifeq ($(BOARD), msh)
+	CPU = -mcpu=cortex-m33
+	FPU = -mfpu=fpv4-sp-d16
+	FLOAT-ABI = -mfloat-abi=hard
+	MCU = $(CPU) -mthumb $(FPU) $(FLOAT-ABI)
+	C_DEFS += -DSTM32U595xx
+	C_DEFS += -DHW_VERSION=2
+endif
+
 C_DEFS +=  \
 -DFX_INCLUDE_USER_DEFINE_FILE \
 -DUSE_HAL_DRIVER
@@ -208,9 +217,13 @@ lint_fix:
 
 include Test.mk
 
+# Per file specific flags
+$(BUILD_DIR)/lib/minmea/minmea.c.o: CFLAGS += -Dtimegm=mktime
+
 $(DOCKER_IMAGE): Dockerfile packages.txt
 	$(call print0, Building docker image)
 	docker build -t $(DOCKER_IMAGE) .
+
 
 .PHONY: all \
 	release \

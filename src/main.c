@@ -118,6 +118,13 @@ int main(void) {
 
     /* Initialize all configured peripherals */
     MX_GPIO_Init();
+
+//#define PROGRAM_ARRIBADA //uncomment this line to get the tag in a state to program the arribada module
+#ifdef PROGRAM_ARRIBADA
+    /* this is an infinite loop*/
+    satellite_wait_for_programming();
+#endif
+
     MX_I2C3_Init(); // BMS / LEDs
     led_init();
     led_idle();
@@ -157,7 +164,9 @@ int main(void) {
 
 #ifdef USB_ENABLED
     /* Detect if the external interface is present to enable USB for offload/debug/DFU */
+#if VERSION != HW_VERSION_3_1_0_MSH
     if (usb_iface_present()) {
+#endif
         CETI_LOG("Key detected. Starting USB Device Interface");
       
         /* initialize USB hardware */
@@ -202,7 +211,9 @@ int main(void) {
         
         /* reboot system to return to capture state once key is removed */
         NVIC_SystemReset();
+#if VERSION != HW_VERSION_3_1_0_MSH
     }
+#endif
 #endif // USB_ENABLED
       
 #ifdef AUDIO_ENABLED

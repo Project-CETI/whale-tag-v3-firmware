@@ -9,8 +9,8 @@
 // #define IMU_ENABLED
 // #define GPS_ENABLED
 #define PRESSURE_ENABLED
-//#define SATELLITE_ENABLED
-// #define USB_ENABLED
+#define SATELLITE_ENABLED
+//  #define USB_ENABLED
 
 
 #ifndef AUDIO_ENABLED
