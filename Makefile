@@ -118,14 +118,13 @@ C_BUILD_DIRS := $(sort $(dir $(C_OBJS)))
 ASM_BUILD_DIRS := $(sort $(dir $(ASM_OBJS)))
 ALL_DIRS := $(BUILD_DIR) $(C_BUILD_DIRS) $(ASM_BUILD_DIRS)
 
+DOCKER_IMAGE = stm32_build_img
 
 ### Rules ###
 
+
 # default target
-DOCKER_IMAGE = stm32_build_img
-
-all: $(C_SRCS_FILE) $(BUILD_DIR)/$(TARGET).bin $(BUILD_DIR)/$(TARGET).elf $(BUILD_DIR)/$(TARGET).hex
-
+all: .gitmodules_updated $(C_SRCS_FILE) $(BUILD_DIR)/$(TARGET).bin $(BUILD_DIR)/$(TARGET).elf $(BUILD_DIR)/$(TARGET).hex
 
 build: $(DOCKER_IMAGE)
 	$(call print0, Running make inside docker)
@@ -143,6 +142,12 @@ $(VERSION_H):
 	@echo "#define FW_VERSION_TEXT \"$(GIT_VERSION_INFO)\"" >> $@
 	@echo "#endif // CETI_WHALE_TAG_VERSIONING_H" >> $@
 
+#update git submodules
+.gitmodules_updated: .gitmodules
+	$(call print0,Updating git submodules)
+	@git submodule update --init --recursive
+	@touch .gitmodules_updated
+
 # mkdirs
 $(ALL_DIRS):
 	$(call print1,Making Folder:,$@)
@@ -153,7 +158,7 @@ $(BUILD_DIR)/%.s.o : %.s | $(ASM_BUILD_DIRS)
 	$(call print2,Assembling:,$<,$@)
 	@$(CC) -x assembler-with-cpp -c $(CFLAGS) $< -o $@
 	
-#main.c -> main.o
+# main.c -> main.o
 $(BUILD_DIR)/%/main.c.o : %/main.c src/config.h | $(C_BUILD_DIRS)
 	$(call print2,Compiling:,$<,$@)
 	@$(CC) -c $(CFLAGS) $< -o $@ 
@@ -163,19 +168,28 @@ $(BUILD_DIR)/%.c.o : %.c | $(C_BUILD_DIRS)
 	$(call print2,Compiling:,$<,$@)
 	@$(CC) -c $(CFLAGS) $< -o $@ 
 
+# .o -> .elf
 $(BUILD_DIR)/$(TARGET).elf: $(VERSION_H) $(ALL_OBJS) | $(BUILD_DIR)
 	$(call print1,Linking elf:,$@)
 	@$(CC) $^ $(LDFLAGS) -o $@
 	$(SZ) $@
 	@$(PRINT) "\n$$(cat logo.ansi.txt)\n"	
 
+# .elf -> .hex
 $(BUILD_DIR)/$(TARGET).hex: $(BUILD_DIR)/$(TARGET).elf 
 	$(call print1,Creating hex:,$@)
 	@$(CP) -O ihex $< $@
 
+# .elf -> .bin
 $(BUILD_DIR)/$(TARGET).bin: $(BUILD_DIR)/$(TARGET).elf 
 	$(call print1,Creating bin:,$@)
 	@$(CP) -O binary -S $< $@
+
+# Per file specific flags
+$(BUILD_DIR)/lib/minmea/minmea.c.o: CFLAGS += -Dtimegm=mktime
+
+# Unit testing framework
+include Test.mk
 
 flash: $(BUILD_DIR)/$(TARGET).elf
 	$(call print0, Flashing via stlink)
@@ -184,8 +198,7 @@ flash: $(BUILD_DIR)/$(TARGET).elf
 clean: 
 	$(call print0, Cleaning build artifacts)
 	@$(RM) -rf $(BUILD_ROOT)
-
-
+	@$(RM) -f .gitmodules_updated
 
 lint:
 	docker run \
@@ -215,22 +228,18 @@ lint_fix:
 		-v $(shell pwd):/tmp/lint \
 		--rm ghcr.io/super-linter/super-linter:latest
 
-include Test.mk
-
-# Per file specific flags
-$(BUILD_DIR)/lib/minmea/minmea.c.o: CFLAGS += -Dtimegm=mktime
-
 $(DOCKER_IMAGE): Dockerfile packages.txt
 	$(call print0, Building docker image)
 	docker build -t $(DOCKER_IMAGE) .
 
-
 .PHONY: all \
-	release \
+	build \
+	clean \
 	debug \
 	docker \
-	clean \
 	flash \
-	build \
+	lint \
+	lint_fix \
+	release \
 	$(DOCKER_IMAGE) \
 	$(VERSION_H) 
