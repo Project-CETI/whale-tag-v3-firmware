@@ -1,3 +1,8 @@
+//-----------------------------------------------------------------------------
+// Project: CETI Tag Electronics
+// Copyright: Harvard University Wood Lab
+// Contributors: Michael Salino-Hugg, [TODO: Add other contributors here]
+//-----------------------------------------------------------------------------
 #include "main.h"
 
 #include "usart.h"
@@ -161,7 +166,7 @@ void satellite_init(void) {
     int established_comms = satellite_ping();
     
     if (!established_comms) {
-        // error
+        //ToDo: error handle
     	__NOP();
     }
 
@@ -176,3 +181,4 @@ void satellite_init(void) {
     __satellite_write(SMD_CMD_INIT_MAC_CONFIG, strlen(SMD_CMD_INIT_MAC_CONFIG));
     __satellite_write(SMD_CMD_SAVE_MAC_CONFIG, strlen(SMD_CMD_SAVE_MAC_CONFIG));
 }
+

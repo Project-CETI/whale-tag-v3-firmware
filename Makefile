@@ -99,7 +99,16 @@ VERSION_H := $(SRC_DIR)/version.h
 
 C_SRCS = $(shell find src -type f -iname '*.c' 2> /dev/null)
 C_SRCS += $(shell find board/$(BOARD) -type f -iname '*.c' 2> /dev/null)
-C_SRCS += $(shell find lib/tinyusb/src -type f -iname '*.c' 2> /dev/null) #tinyusb
+
+C_SRCS += \
+$(shell find lib/tinyusb/src/class 	-type f -iname '*.c' 2> /dev/null) \
+$(shell find lib/tinyusb/src/common -type f -iname '*.c' 2> /dev/null) \
+$(shell find lib/tinyusb/src/device -type f -iname '*.c' 2> /dev/null) \
+$(shell find lib/tinyusb/src/host 	-type f -iname '*.c' 2> /dev/null) \
+$(shell find lib/tinyusb/src/typec 	-type f -iname '*.c' 2> /dev/null) \
+$(shell find lib/tinyusb/src/portable/synopsys 	-type f -iname '*.c' 2> /dev/null) \
+lib/tinyusb/src/tusb.c
+
 C_SRCS += $(shell find lib/sh2 -type f -iname '*.c' 2> /dev/null) #sh2 for BNO08x
 C_SRCS += lib/minmea/minmea.c #nmea parser
 
