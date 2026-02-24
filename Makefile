@@ -1,4 +1,4 @@
-BOARD ?= v3_1
+BOARD ?= msh
 DEBUG ?= 1
 
 BUILD_ROOT = build
@@ -73,17 +73,29 @@ endif
 
 # Generate dependency information
 C_INCLUDES += $(addprefix -I,$(shell find board/$(BOARD) -type d \( -iname 'inc' -o -iname 'include' -o -iwholename '*/inc/legacy' -o -iname 'app' \) 2> /dev/null))
+C_INCLUDES += -Iboard/$(BOARD)/Core/Inc
+C_INCLUDES += -Iboard/$(BOARD)/Filex/App
+C_INCLUDES += -Iboard/$(BOARD)/Filex/Target
+C_INCLUDES += -Ilib/stm32-mw-filex/ports/generic/inc
+C_INCLUDES += -Ilib/stm32-mw-filex/common/inc
+
+C_INCLUDES += -Ilib/cmsis_device_u5/Include
+C_INCLUDES += -Ilib/stm32u5xx-hal-driver/Inc
+C_INCLUDES += -Ilib/stm32u5xx-hal-driver/Inc/Legacy
+C_INCLUDES += -Ilib/CMSIS_5/CMSIS/Core/Include
+
 C_INCLUDES += -Ilib/tinyusb/src
 C_INCLUDES += -Ilib/sh2
-C_INCLUDES += -Ilib/minmea
+# C_INCLUDES += -Ilib/minmea
 C_INCLUDES += -Isrc
 C_INCLUDES += -Iboard/$(BOARD)/FileX/Target
 CFLAGS += $(MCU) $(C_DEFS) $(C_INCLUDES) $(COPT) -Wall -fdata-sections -ffunction-sections
-CFLAGS += -MMD -MP -MF"$(@:%.o=%.d)"
+# CFLAGS += -MMD -MP -MF"$(@:%.o=%.d)"
 CFLAGS += -DCFG_TUSB_CONFIG_FILE="\"usb/tusb_config.h\""
+CFLAGS += -funsigned-char
 
 # link script
-LDSCRIPT = $(addprefix -T,$(shell find board/$(BOARD) -type f -iname '*_FLASH.ld'))
+LDSCRIPT = -TSTM32U595xx_FLASH.ld
 
 # libraries
 LIBS = -lc -lm -lnosys 
@@ -96,10 +108,15 @@ LDFLAGS = $(MCU) -u _printf_float $(LDSCRIPT) $(LIBDIR) $(LIBS) -Wl,-Map=$(BUILD
 # source files
 SRC_DIR = src
 VERSION_H := $(SRC_DIR)/version.h
+AOP_H := $(SRC_DIR)/satellite/aop.h
 
 C_SRCS = $(shell find src -type f -iname '*.c' 2> /dev/null)
 C_SRCS += $(shell find board/$(BOARD) -type f -iname '*.c' 2> /dev/null)
+C_SRCS += $(shell find lib/stm32u5xx-hal-driver/Src -type f -iname '*.c' -not -name '*_template.c' 2> /dev/null)
+C_SRCS += $(shell find lib/stm32-mw-filex/common/src -type f -iname '*.c' 2> /dev/null)
+C_SRCS += lib/stm32-mw-filex/common/drivers/fx_stm32_sd_driver.c
 
+# lib/tinyusb
 C_SRCS += \
 $(shell find lib/tinyusb/src/class 	-type f -iname '*.c' 2> /dev/null) \
 $(shell find lib/tinyusb/src/common -type f -iname '*.c' 2> /dev/null) \
@@ -109,13 +126,17 @@ $(shell find lib/tinyusb/src/typec 	-type f -iname '*.c' 2> /dev/null) \
 $(shell find lib/tinyusb/src/portable/synopsys 	-type f -iname '*.c' 2> /dev/null) \
 lib/tinyusb/src/tusb.c
 
+# lib/sh2 (for imu)
 C_SRCS += $(shell find lib/sh2 -type f -iname '*.c' 2> /dev/null) #sh2 for BNO08x
-C_SRCS += lib/minmea/minmea.c #nmea parser
+
+# C_SRCS += lib/minmea/minmea.c #nmea parser
 
 ASM_SRCS = $(shell find board/$(BOARD) src -type f -iname '*.s' 2> /dev/null)
 C_OBJS = $(addprefix $(BUILD_DIR)/,$(patsubst %.c, %.c.o, $(C_SRCS)))
 ASM_OBJS = $(addprefix $(BUILD_DIR)/,$(patsubst %.s, %.s.o, $(ASM_SRCS)))
 ALL_OBJS = $(C_OBJS) $(ASM_OBJS)
+
+C_DEPS = $(addprefix $(BUILD_DIR)/,$(patsubst %.c, %.d, $(C_SRCS)))
 
 # Build folders
 ifeq ($(DEBUG), 1)
@@ -128,9 +149,6 @@ ASM_BUILD_DIRS := $(sort $(dir $(ASM_OBJS)))
 ALL_DIRS := $(BUILD_DIR) $(C_BUILD_DIRS) $(ASM_BUILD_DIRS)
 
 DOCKER_IMAGE = stm32_build_img
-
-### Rules ###
-
 
 # default target
 all: .gitmodules_updated $(C_SRCS_FILE) $(BUILD_DIR)/$(TARGET).bin $(BUILD_DIR)/$(TARGET).elf $(BUILD_DIR)/$(TARGET).hex
@@ -149,6 +167,7 @@ $(VERSION_H):
 	@echo "#ifndef CETI_WHALE_TAG_VER_H" > $@
 	@echo "#define CETI_WHALE_TAG_VER_H" >> $@
 	@echo "#define FW_VERSION_TEXT \"$(GIT_VERSION_INFO)\"" >> $@
+	@echo "#define FW_COMPILATION_DATE \"$$(date)\"" >> $@
 	@echo "#endif // CETI_WHALE_TAG_VERSIONING_H" >> $@
 
 #update git submodules
@@ -162,6 +181,11 @@ $(ALL_DIRS):
 	$(call print1,Making Folder:,$@)
 	@$(MKDIR) -p $@
 
+# satellite header
+$(AOP_H): 
+	$(call print1,Generating:,$@)
+	@./tools/update_aop.sh
+
 # .s -> .o
 $(BUILD_DIR)/%.s.o : %.s | $(ASM_BUILD_DIRS)
 	$(call print2,Assembling:,$<,$@)
@@ -170,19 +194,19 @@ $(BUILD_DIR)/%.s.o : %.s | $(ASM_BUILD_DIRS)
 # main.c -> main.o
 $(BUILD_DIR)/%/main.c.o : %/main.c src/config.h | $(C_BUILD_DIRS)
 	$(call print2,Compiling:,$<,$@)
-	@$(CC) -c $(CFLAGS) $< -o $@ 
+	@$(CC) -c $(CFLAGS) $< -o $@ -MMD -MP -MF $(BUILD_DIR)/$*/main.d
 
 # .c -> .o
 $(BUILD_DIR)/%.c.o : %.c | $(C_BUILD_DIRS)
 	$(call print2,Compiling:,$<,$@)
-	@$(CC) -c $(CFLAGS) $< -o $@ 
+	@$(CC) -c $(CFLAGS) $< -o $@ -MMD -MP -MF $(BUILD_DIR)/$*.d
 
 # .o -> .elf
 $(BUILD_DIR)/$(TARGET).elf: $(VERSION_H) $(ALL_OBJS) | $(BUILD_DIR)
 	$(call print1,Linking elf:,$@)
 	@$(CC) $^ $(LDFLAGS) -o $@
 	$(SZ) $@
-	@$(PRINT) "\n$$(cat logo.ansi.txt)\n"	
+	$(call logo_with_text,Build Complete!)	
 
 # .elf -> .hex
 $(BUILD_DIR)/$(TARGET).hex: $(BUILD_DIR)/$(TARGET).elf 
@@ -195,18 +219,25 @@ $(BUILD_DIR)/$(TARGET).bin: $(BUILD_DIR)/$(TARGET).elf
 	@$(CP) -O binary -S $< $@
 
 # Per file specific flags
-$(BUILD_DIR)/lib/minmea/minmea.c.o: CFLAGS += -Dtimegm=mktime
+# $(BUILD_DIR)/lib/minmea/minmea.c.o: CFLAGS += -Dtimegm=mktime
+
+# ADDITIONAL DEPENDENCIES
+-include $(C_DEPS)
+
+src/satellite/argos_tx_mgr.c: $(AOP_H)
 
 # Unit testing framework
 include Test.mk
 
-flash: $(BUILD_DIR)/$(TARGET).elf
+flash: # $(BUILD_DIR)/$(TARGET).elf
 	$(call print0, Flashing via stlink)
-	STM32_Programmer_CLI --connect port=swd --write $< --go
+	STM32_Programmer_CLI --connect port=swd --write $(BUILD_DIR)/$(TARGET).elf --go
+	$(call logo_with_text,Tag Flashed!)	
 
 clean: 
 	$(call print0, Cleaning build artifacts)
 	@$(RM) -rf $(BUILD_ROOT)
+	@$(RM) -f $(AOP_H)
 	@$(RM) -f .gitmodules_updated
 
 lint:
@@ -250,5 +281,8 @@ $(DOCKER_IMAGE): Dockerfile packages.txt
 	lint \
 	lint_fix \
 	release \
+	deps \
 	$(DOCKER_IMAGE) \
-	$(VERSION_H) 
+	$(AOP_H) \
+	$(VERSION_H)
+

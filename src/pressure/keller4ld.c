@@ -32,6 +32,8 @@ typedef enum {
 static uint8_t s_raw_buffer[5] = {};
 static Keller4LD_Measurement *s_measurement_location = NULL;
 
+
+
 static void __keller4ld_read_measurement_it_complete(I2C_HandleTypeDef *hi2c) {
 	// unregister callback
 	HAL_I2C_UnRegisterCallback(&KELLER_hi2c, HAL_I2C_MASTER_RX_COMPLETE_CB_ID);

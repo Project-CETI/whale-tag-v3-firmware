@@ -1,6 +1,8 @@
 # Description this file contains helper definitions for printing within make 
 PRINT := printf
 
+LOGO := logo.ansi.txt
+
 ### Functions ###
 # Colorful text printing
 NO_COL  := \033[0m
@@ -29,4 +31,8 @@ endef
 # Print message with two arguments (i.e. message arg1 -> arg2)
 define todo1
   @$(PRINT) "$(RED)TODO: $(1) $(NO_COL)\n"
+endef
+
+define logo_with_text
+  @$(PRINT) "\n$$(sed "9s|\(.*\)|\1    \\\033[0;33m$(1)\\\033[0m|" $(LOGO))\n"
 endef

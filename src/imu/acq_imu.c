@@ -133,7 +133,7 @@ void acq_imu_spi_complete_callback(void) {
 }
 
 void acq_imu_EXTI_Callback(void) {
-    s_rx_timestamp_us = timing_get_us_since_on();
+    s_rx_timestamp_us = timing_get_time_since_on_us();
     inReset = 0;
     s_rx_ready = 1;
     acq_imu_start_spi_transfer();
@@ -158,10 +158,10 @@ static void acq_imu_enable_interrupts(void) {
 }
 
 static void usDelay(uint32_t delay) {
-	volatile uint32_t now = timing_get_us_since_on();
+	volatile uint32_t now = timing_get_time_since_on_us();
 	uint32_t start = now;
 	while ((now - start) < delay) {
-		now = timing_get_us_since_on();
+		now = timing_get_time_since_on_us();
 	}
 }
 
@@ -170,7 +170,7 @@ static void usDelay(uint32_t delay) {
  */
 
 static uint32_t acq_imu_get_time_us(sh2_Hal_t *self) {
-    return timing_get_us_since_on();
+    return timing_get_time_since_on_us();
 }
 
 static int acq_imu_spi_open(sh2_Hal_t *self) {

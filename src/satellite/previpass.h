@@ -1,7 +1,7 @@
 // -------------------------------------------------------------------------- //
 //! @file   previpass.h
 //! @brief  Satellite pass prediction algorithms defines
-//! @author Kineis, Michael Salino-Hugg
+//! @author Kineis
 //! @date   2020-01-14
 // -------------------------------------------------------------------------- //
 
@@ -288,11 +288,304 @@ struct NextPassTransceiverCapacity_t {
 };
 
 
+// -------------------------------------------------------------------------- //
+//! Values for default AOP entry
+// -------------------------------------------------------------------------- //
+
+struct AopSatelliteEntry_t
+PREVIPASS_default_aop_satellite_entry(void);
+
+
+// -------------------------------------------------------------------------- //
+//! \brief Conversion between constellation status type A and generic status.
+//!
+//! This function convert allcast status information of format type A into the
+//! generic status format which covers all configurations.
+//!
+//! * "Downlink operating status" conversion
+//!     * 0 -> SAT_DNLK_OFF
+//!     * 1 -> SAT_DNLK_ON_WITH_A4
+//!     * 2 -> SAT_DNLK_ON_WITH_SPARE
+//!     * 3 -> SAT_DNLK_ON_WITH_A3
+//!     * over -> SAT_DNLK_ON_WITH_SPARE
+//!     * If sat ID is NOAA_K (0x5) or NOAA_N (0x8) -> SAT_DNLK_OFF
+//!
+//! * "Uplink operating status" conversion
+//!     * 0 -> If sat ID NOAA_K (0x5) or NOAA_N (0x8), SAT_UPLK_ON_WITH_A2 else SAT_UPLK_ON_WITH_A3
+//!     * 1 -> If sat ID NOAA_K (0x5) or NOAA_N (0x8), SAT_UPLK_ON_WITH_A2 else SAT_UPLK_ON_WITH_NEO
+//!     * 2 -> If sat ID NOAA_K (0x5) or NOAA_N (0x8), SAT_UPLK_ON_WITH_A2 else SAT_UPLK_ON_WITH_A4
+//!     * 3 -> SAT_UPLK_OFF
+//!
+//! @note Satellite heaxdecimal Id is expected since NOAA K and NOAA N
+//!    satellites have special meaning for these fields (see Arogs messages
+//!    specification).
+//!
+//! \param[in] downlinkStatusFormatA
+//!    Format A constellation status downlink info
+//! \param[in] uplinkStatusFormatA
+//!    Format A constellation status uplink info
+//! \param[in] satHexId
+//!    Satellite hexadecimal Id
+//! \param[out] downlinkStatusGeneric
+//!    Generic status downlink info
+//! \param[out] uplinkStatusGeneric
+//!    Generic status uplink info
+// -------------------------------------------------------------------------- //
+
+void
+PREVIPASS_status_format_a_to_generic(
+	enum SatDownlinkStatusFormatA_t downlinkStatusFormatA,
+	enum SatUplinkStatusFormatA_t   uplinkStatusFormatA,
+	SatHexId_t                      satHexId,
+	enum SatDownlinkStatus_t       *downlinkStatusGeneric,
+	enum SatUplinkStatus_t         *uplinkStatusGeneric
+);
+
+
+// -------------------------------------------------------------------------- //
+//! \brief Conversion between constellation status type B and generic status.
+//!
+//! This function convert allcast status information of format type B into the
+//! generic status format which covers all configurations.
+//!
+//! \param[in] downlinkStatusFormatB
+//!    Format B constellation status downlink info
+//! \param[in] operatingStatusFormatB
+//!    Format B constellation status uplink info
+//! \param[out] downlinkStatusGeneric
+//!    Generic status downlink info
+//! \param[out] uplinkStatusGeneric
+//!    Generic status uplink info
+// -------------------------------------------------------------------------- //
+
+void PREVIPASS_status_format_b_to_generic(
+	enum SatDownlinkStatusFormatB_t  downlinkStatusFormatB,
+	enum SatOperatingStatusFormatB_t operatingStatusFormatB,
+	enum SatDownlinkStatus_t        *downlinkStatusGeneric,
+	enum SatUplinkStatus_t          *uplinkStatusGeneric
+);
+
+// -------------------------------------------------------------------------- //
+//! \brief Conversion between constellation generic status and status type A.
+//!
+//! This function convert generic status into allcast status information of
+//! format type A.
+//!
+//! \param[in] downlinkStatusGeneric
+//!    Generic status downlink info
+//! \param[in] uplinkStatusGeneric
+//!    Generic status uplink info
+//! \param[out] downlinkStatusFormatA
+//!    Format A constellation status downlink info
+//! \param[out] uplinkStatusFormatA
+//!    Format A constellation status uplink info
+// -------------------------------------------------------------------------- //
+
+void
+PREVIPASS_status_generic_to_format_a
+(
+	enum SatDownlinkStatus_t         downlinkStatusGeneric,
+	enum SatUplinkStatus_t           uplinkStatusGeneric,
+	enum SatDownlinkStatusFormatA_t *downlinkStatusFormatA,
+	enum SatUplinkStatusFormatA_t   *uplinkStatusFormatA
+);
+
+
 bool PREVIPASS_estimate_next_pass_with_status
 (
 	const struct PredictionPassConfiguration_stu90_t *config,
 	const struct AopSatelliteEntry_t           *aopTableEntry,
 	struct SatelliteNextPassPrediction_t  *passPtrPtr
+);
+
+// -------------------------------------------------------------------------- //
+//! \brief Main Prepas library function
+//!
+//! Build a sorted linked list of satellites passes above a location.
+//! Configuration is given in a dedicated structure. Then passes are analysed
+//! in order to extract the various configurations present in the list.
+//!
+//! Information about satellite orbits are given in a array of type
+//! AopSatelliteEntry_t. This structure contains orbit period, semi-major axis,
+//! etc.
+//!
+//! Once the list is built and analyzed, one can use
+//! PREVIPASS_process_existing_sorted_passes with a date to known which
+//! satellites are currently above the beacon with which downlink and uplink
+//! capacities.
+//!
+//! Linked list is allocated in the static variable __mallocBytesPool.
+//! MY_MALLOC_MAX_BYTES should be set to fit number of passes corresponding
+//! to the configuration.
+//!
+//! \see PredictionPassConfiguration_t
+//! \see AopSatelliteEntry_t
+//! \see PREVIPASS_process_existing_sorted_passes
+//!
+//! \param[in] config
+//!    Configuration of passes computation
+//! \param[in] aopTable
+//!    Array of info about each satellite
+//! \param[in] nbSatsInAopTable
+//!    Number of satellite in AOP table
+//! \param[out] retStatus
+//!    Computation status:
+//!         * true means: ok prediction is fine. previsionPassesList equals NULL means there is no
+//!           prediction found in interval, this is not an error.
+//!         * false means error such as:
+//!           * detection of incompatible bulletin. All birthday is in the future
+//!           compared to config.start, the prediction cannot be done
+//!           * memory pool overflow
+//!
+//! \return Pointer to the first pass of the linked list. NULL if no pass has
+//!    been inserted into the list.
+// -------------------------------------------------------------------------- //
+
+struct SatPassLinkedListElement_t*
+PREVIPASS_compute_new_prediction_pass_times
+(
+	const struct PredictionPassConfiguration_t *config,
+	const struct AopSatelliteEntry_t           *aopTable,
+	bool                                 *retStatus
+);
+
+
+// -------------------------------------------------------------------------- //
+//! \brief Main Prepas library function with status filtering
+//!
+//! Satellites are filtered on their downlink and uplink capacities.
+//!
+//! \see PREVIPASS_compute_new_prediction_pass_times
+//!
+//! \param[in] config
+//!    Configuration of passes computation
+//! \param[in] aopTable
+//!    Array of info about each satellite
+//! \param[in] nbSatsInAopTable
+//!    Number of satellite in AOP table
+//! \param[in] downlinkStatus
+//!    donwlink capacity to be selected
+//! \param[in] uplinkStatus
+//!    Minimum uplink capacity
+//! \param[out] retStatus
+//!    Computation status:
+//!         * true means: ok prediction is fine. previsionPassesList equals NULL means there is no
+//!           prediction found in interval, this is not an error.
+//!         * false means error such as:
+//!           * detection of incompatible bulletin. All birthday is in the future
+//!           compared to config.start, the prediction cannot be done
+//!           * memory pool overflow
+//!
+//! \return Pointer to the first pass of the linked list. NULL if no pass has
+//!    been inserted into the list.
+// -------------------------------------------------------------------------- //
+
+struct SatPassLinkedListElement_t*
+PREVIPASS_compute_new_prediction_pass_times_with_status
+(
+	const struct PredictionPassConfiguration_t *config,
+	const struct AopSatelliteEntry_t           *aopTable,
+	enum SatDownlinkStatus_t              downlinkStatus,
+	enum SatUplinkStatus_t                uplinkStatus,
+	bool                                 *retStatus
+);
+
+
+// -------------------------------------------------------------------------- //
+//! \brief Define transmitter action based on passes list.
+//!
+//! Process the sorted list of passes to get the new TX/RX activity information
+//! according to pass information and current time.
+//!
+//! Transition since next call can be:
+//! - Enable or disable TX and/or RX
+//! - Change current status modulation
+//!
+//! \note The function shall be executed periodically.
+//!
+//! \see NextPassTransceiverCapacity_t
+//! \see PREVIPASS_compute_new_prediction_pass_times
+//!
+//! \param[in] currentTime
+//!    Current epoch time
+//! \param[in] previsionPassesList
+//!    Input data of passes to be processed
+//!
+//! \return Which action to be done on transceiver for next transmit occasion
+//!    with some information of supported RX/TX modulations.
+// -------------------------------------------------------------------------- //
+
+struct NextPassTransceiverCapacity_t
+PREVIPASS_process_existing_sorted_passes
+(
+	uint32_t                           currentTime,
+	struct SatPassLinkedListElement_t *previsionPassesList
+);
+
+
+// -------------------------------------------------------------------------- //
+//! \brief Get next pass
+//!
+//! This function returns information about the next pass of a satellite above
+//! a beacon location. If a pass is in progress, it is considered to determine
+//! the transceiver status.
+//!
+//! \note Current date is given in the start field of the configuration
+//!    structure. The computation searches for a maximum of 24h. If this limit
+//!    is reached, it is likely because of a misconfiguration.
+//!
+//! \param[in] config
+//!    Configuration of passes computation
+//! \param[in] aopTable
+//!    Array of info about each satellite
+//! \param[in] nbSatsInAopTable
+//!    Number of satellite in AOP table
+//! \param[out] nextPass
+//!    Pointer to the structure where transceiver status will be stored
+//!
+//! \return True if a pass has been found.
+// -------------------------------------------------------------------------- //
+
+bool
+PREVIPASS_compute_next_pass
+(
+	const struct PredictionPassConfiguration_t *config,
+	const struct AopSatelliteEntry_t           *aopTable,
+	struct SatelliteNextPassPrediction_t *nextPass
+);
+
+
+// -------------------------------------------------------------------------- //
+//! \brief Get next pass depending on configuration
+//!
+//! Satellites are filtered on their downlink and uplink capacities.
+//!
+//! \see PREVIPASS_compute_next_pass
+//!
+//! \param[in] config
+//!    Configuration of passes computation
+//! \param[in] aopTable
+//!    Array of info about each satellite
+//! \param[in] nbSatsInAopTable
+//!    Number of satellite in AOP table
+//! \param[in] downlinkStatus
+//!    donwlink capacity to be selected
+//! \param[in] uplinkStatus
+//!    Minimum uplink capacity
+//! \param[out] nextPass
+//!    Pointer to the structure where transceiver status will be stored
+//!
+//! \return True if a pass has been found.
+// -------------------------------------------------------------------------- //
+
+bool
+PREVIPASS_compute_next_pass_with_status
+(
+	const struct PredictionPassConfiguration_t *config,
+	const struct AopSatelliteEntry_t           *aopTable,
+	enum SatDownlinkStatus_t              downlinkStatus,
+	enum SatUplinkStatus_t                uplinkStatus,
+	struct SatelliteNextPassPrediction_t *nextPass
 );
 
 

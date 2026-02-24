@@ -30,3 +30,5 @@ board/nucleo/*/
 
 #ignore this to ensure .gitmodules get initiallized
 .gitmodules_updated
+
+tools/perf_preprocessor/

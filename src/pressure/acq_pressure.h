@@ -27,5 +27,6 @@ void acq_pressure_init(void);
 void acq_pressure_disable(void);
 void acq_pressure_start(void);
 void acq_pressure_stop(void);
+CetiPressureSample *acq_pressure_get_latest(void);
 
 #endif // CETI_ACQ_PRESSURE_H

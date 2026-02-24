@@ -5,6 +5,7 @@
 #include <stdarg.h>
 
 #include "main.h"
+#include "version.h"
 
 #define SYSLOG_FILENAME "syslog.log"
 
@@ -19,15 +20,9 @@ void syslog_init(void) {
     	Error_Handler();
     }
 
-    fx_result = fx_file_open(&sdio_disk, &syslog_file, SYSLOG_FILENAME, FX_OPEN_FOR_WRITE);
-    if (fx_result != FX_SUCCESS) {
-    	Error_Handler();
-    }
-
-    //seek to send of file
-    fx_result = fx_file_seek(&syslog_file, -1);
-
     syslog_write("system log initialized");
+    syslog_write("Firmware Compiled:" FW_COMPILATION_DATE);
+    syslog_write(FW_VERSION_TEXT);
 }
 
 // // call this function to write to the system log
@@ -46,7 +41,6 @@ UINT __syslog_write(const str *identifier, const char *fmt, ...) {
         date.Year, date.Month, date.Date, time.Hours, time.Minutes, time.Seconds
     );
 
-
     // add calling identifier to data buffer
     memcpy(position, identifier->ptr, identifier->length);
     position += identifier->length;
@@ -62,6 +56,14 @@ UINT __syslog_write(const str *identifier, const char *fmt, ...) {
     *position = '\n';
     position++;
 
-    UINT fx_result = fx_file_write(&syslog_file, scratch_buffer, (position - scratch_buffer));
+    UINT fx_result = fx_file_open(&sdio_disk, &syslog_file, SYSLOG_FILENAME, FX_OPEN_FOR_WRITE);
+    if (FX_SUCCESS == fx_result) { fx_result = fx_file_seek(&syslog_file, -1); }
+    if (FX_SUCCESS == fx_result) {fx_result = fx_file_write(&syslog_file, scratch_buffer, (position - scratch_buffer));}
+    if (fx_result != FX_SUCCESS) {
+        fx_file_close(&syslog_file);
+    	Error_Handler();
+    }
+    fx_file_close(&syslog_file);
+
     return fx_result;
 }

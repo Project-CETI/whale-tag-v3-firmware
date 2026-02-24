@@ -64,15 +64,6 @@ struct SatelliteConfiguration_t {
 // Static variables for prepas function
 // -------------------------------------------------------------------------- //
 
-//! Memory pool
-#ifndef UNIT_TEST
-static
-#endif
-uint8_t  __mallocBytesPool[MY_MALLOC_MAX_BYTES];
-
-//! Memory pool index
-static uint16_t __mallocIdx;
-
 // Fill up max value of each field of a satellite pass prediction.
 // As fields are unsigned types, maximum found with -1
 static const struct SatelliteNextPassPrediction_t SatPassMaxValues = {
