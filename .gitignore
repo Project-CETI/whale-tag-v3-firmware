@@ -14,8 +14,6 @@ src/version.h
 src/satellite/arribada_secret.h
 
 # MxCube ignore generated files
-board/beta/*/
-board/nucleo/*/
 
 # ignore eclipse files
 .settings/

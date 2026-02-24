@@ -41,18 +41,21 @@ MCU = $(CPU) -mthumb $(FPU) $(FLOAT-ABI)
 ifeq ($(BOARD), nucleo)
 	C_DEFS += -DSTM32U5A5xx
 	C_DEFS += -DHW_VERSION=0
+# link script
 	LDSCRIPT = -Tboard/STM32U5A5ZJTXQ_FLASH.ld
 endif
 
 ifeq ($(BOARD), v3_1)
 	C_DEFS += -DSTM32U595xx
 	C_DEFS += -DHW_VERSION=1
+# link script
 	LDSCRIPT = -Tboard/STM32U595xx_FLASH.ld
 endif
 
 ifeq ($(BOARD), msh)
 	C_DEFS += -DSTM32U595xx
 	C_DEFS += -DHW_VERSION=2
+# link script
 	LDSCRIPT = -Tboard/STM32U595xx_FLASH.ld
 endif
 
@@ -89,9 +92,6 @@ CFLAGS += $(MCU) $(C_DEFS) $(C_INCLUDES) $(COPT) -Wall -fdata-sections -ffunctio
 # CFLAGS += -MMD -MP -MF"$(@:%.o=%.d)"
 CFLAGS += -DCFG_TUSB_CONFIG_FILE="\"usb/tusb_config.h\""
 CFLAGS += -funsigned-char
-
-# link script
-LDSCRIPT = -Tboard/$(BOARD)/STM32U595xx_FLASH.ld
 
 # libraries
 LIBS = -lc -lm -lnosys 
