@@ -33,31 +33,27 @@ GIT_VERSION_INFO = $(shell if !(git log -1 --format="%at: %h - %s"); then echo "
 
 ### C Compilation settings ###
 # Board specific 
+CPU = -mcpu=cortex-m33
+FPU = -mfpu=fpv4-sp-d16
+FLOAT-ABI = -mfloat-abi=hard
+MCU = $(CPU) -mthumb $(FPU) $(FLOAT-ABI)
+
 ifeq ($(BOARD), nucleo)
-	CPU = -mcpu=cortex-m33
-	FPU = -mfpu=fpv4-sp-d16
-	FLOAT-ABI = -mfloat-abi=hard
-	MCU = $(CPU) -mthumb $(FPU) $(FLOAT-ABI)
 	C_DEFS += -DSTM32U5A5xx
 	C_DEFS += -DHW_VERSION=0
+	LDSCRIPT = -Tboard/STM32U5A5ZJTXQ_FLASH.ld
 endif
 
 ifeq ($(BOARD), v3_1)
-	CPU = -mcpu=cortex-m33
-	FPU = -mfpu=fpv4-sp-d16
-	FLOAT-ABI = -mfloat-abi=hard
-	MCU = $(CPU) -mthumb $(FPU) $(FLOAT-ABI)
 	C_DEFS += -DSTM32U595xx
 	C_DEFS += -DHW_VERSION=1
+	LDSCRIPT = -Tboard/STM32U595xx_FLASH.ld
 endif
 
 ifeq ($(BOARD), msh)
-	CPU = -mcpu=cortex-m33
-	FPU = -mfpu=fpv4-sp-d16
-	FLOAT-ABI = -mfloat-abi=hard
-	MCU = $(CPU) -mthumb $(FPU) $(FLOAT-ABI)
 	C_DEFS += -DSTM32U595xx
 	C_DEFS += -DHW_VERSION=2
+	LDSCRIPT = -Tboard/STM32U595xx_FLASH.ld
 endif
 
 C_DEFS +=  \
@@ -95,7 +91,7 @@ CFLAGS += -DCFG_TUSB_CONFIG_FILE="\"usb/tusb_config.h\""
 CFLAGS += -funsigned-char
 
 # link script
-LDSCRIPT = -TSTM32U595xx_FLASH.ld
+LDSCRIPT = -Tboard/$(BOARD)/STM32U595xx_FLASH.ld
 
 # libraries
 LIBS = -lc -lm -lnosys 
