@@ -4,6 +4,15 @@
 [submodule "lib/sh2"]
 	path = lib/sh2
 	url = https://github.com/ceva-dsp/sh2.git
-[submodule "lib/minmea"]
-	path = lib/minmea
-	url = https://github.com/kosma/minmea.git
+[submodule "lib/stm32u5xx-hal-driver"]
+	path = lib/stm32u5xx-hal-driver
+	url = https://github.com/STMicroelectronics/stm32u5xx-hal-driver.git
+[submodule "lib/cmsis_device_u5"]
+	path = lib/cmsis_device_u5
+	url = https://github.com/STMicroelectronics/cmsis_device_u5.git
+[submodule "lib/CMSIS_5"]
+	path = lib/CMSIS_5
+	url = https://github.com/ARM-software/CMSIS_5.git
+[submodule "lib/stm32-mw-filex"]
+	path = lib/stm32-mw-filex
+	url = https://github.com/STMicroelectronics/stm32-mw-filex.git

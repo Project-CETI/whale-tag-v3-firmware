@@ -29,22 +29,16 @@ typedef enum {
 #define AUDIO_LOG_TYPE AUDIO_LOG_RAW
 static uint8_t s_log_audio_enabled = 0;
 static int s_audio_log_page = 0;
-static uint8_t sd_card_busy = 0;
 
 static time_t s_audio_start_time_us;
+static char audiofilename[32] = {};
 
 extern FX_MEDIA sdio_disk;
 FX_FILE audio_file = {};
 
-void audio_SDWriteComplete(FX_FILE *file) {
-	sd_card_busy = 0;
-	s_audio_log_page ^= 1; // advance read head
-}
-
 #if AUDIO_LOG_TYPE == AUDIO_LOG_RAW
 static void log_audio_create_raw_file(void) {
     /* Create file based on RTC time */
-    char audiofilename[32] = {};
     s_audio_start_time_us = rtc_get_epoch_us();
     snprintf(audiofilename, sizeof(audiofilename) - 1, "%lld.bin", s_audio_start_time_us);
 
@@ -56,32 +50,25 @@ static void log_audio_create_raw_file(void) {
     }
 
     CETI_LOG("Created new audio file \"%s\"", audiofilename);
-
-    fx_result = fx_file_open(&sdio_disk, &audio_file, audiofilename, FX_OPEN_FOR_WRITE);
-    if (fx_result != FX_SUCCESS) {
-    	Error_Handler();
-    }
-
-    fx_result = fx_file_seek(&audio_file, 0);
-
-    // Set "write complete" "callback"
-    fx_result = fx_file_write_notify_set(&audio_file, audio_SDWriteComplete);
-    if(fx_result != FX_SUCCESS){
-        Error_Handler();
-    }
 }
 
-int log_audio_raw_write(uint8_t *pData, uint32_t size) {    
+int log_audio_raw_write(uint8_t *pData, uint32_t size) {
+    static uint16_t write_count = 0;
+
     // copy data directly to SD card
-    UINT fx_result = fx_file_write(&audio_file, pData, size);
-    if (fx_result != FX_SUCCESS) {
-        //  ToDo: Handle Errors
+    UINT fx_result = fx_file_open(&sdio_disk, &audio_file, audiofilename, FX_OPEN_FOR_WRITE);
+    if (FX_SUCCESS == fx_result) { fx_result = fx_file_seek(&audio_file, -1); };
+    // if (FX_SUCCESS == fx_result) { fx_result = fx_file_write_notify_set(&audio_file, audio_SDWriteComplete); };
+    if (FX_SUCCESS == fx_result) { fx_result = fx_file_write(&audio_file, pData, size); };
+    if (FX_SUCCESS != fx_result) {
+        #warning ToDo: handle log_audio_raw_write error
     }
+    fx_file_close(&audio_file);
+    write_count++;
 
     // check if new file needs to be created
-    uint32_t now_us = rtc_get_epoch_us(); 
+    time_t now_us = rtc_get_epoch_us();
     if (now_us - s_audio_start_time_us >= 5*60*1000000) {
-        fx_file_close(&audio_file);
         log_audio_create_raw_file();
     }
     return 0;
@@ -102,18 +89,7 @@ void log_audio_disable(void) {
 		return;
 	}
 
-	//stop data acquisition
-	acq_audio_disable();
-
-    // ToDo: flush buffered data
-
-	// ToDo: Close file
-    fx_file_close(&audio_file);
+#warning ToDo: log_audio_disable  flush partial audio buffer
 
     s_log_audio_enabled = 0;
-}
-
-void log_audio_task(void) {
-    // check if audio needs to be written to disk
-    acq_audio_task();
 }

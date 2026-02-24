@@ -120,14 +120,14 @@ int bms_ctl_reset_FETs(void) {
     WTResult hw_result = WT_OK;
     hw_result = max17320_enable_discharging();
     if (hw_result != WT_OK) {
-        char err_str[512];
+        // char err_str[512];
         // CETI_ERR("Could not enable discharging FET: %s", wt_strerror_r(hw_result, err_str, sizeof(err_str)));
         return hw_result;
     }
     discharging_disabled = 0;
     hw_result = max17320_enable_charging();
     if (hw_result != WT_OK) {
-        char err_str[512];
+        // char err_str[512];
         // CETI_ERR("Could not enable charging FET: %s", wt_strerror_r(hw_result, err_str, sizeof(err_str)));
         return hw_result;
     }

@@ -1,14 +1,15 @@
 /*****************************************************************************
- *   @file      audio/log_audio.h
- *   @brief     Audio sample processing and logging code
+ *   @file      burnwire.h
+ *   @brief     
  *   @project   Project CETI
  *   @copyright Harvard University Wood Lab
  *   @authors   Michael Salino-Hugg, [TODO: Add other contributors here]
  *****************************************************************************/
-#ifndef CETI_LOG_AUDIO_H
-#define CETI_LOG_AUDIO_H
+#ifndef CETI_BURNWIRE_H
+#define CETI_BURNWIRE_H
 
-void log_audio_init(void);
-void log_audio_disable(void);
+void burnwire_init(void);
+void burnwire_on(void);
+void burnwire_off(void);
 
-#endif // CETI_LOG_AUDIO_H
+#endif
