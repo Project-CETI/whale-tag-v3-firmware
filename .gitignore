@@ -7,8 +7,6 @@ tmp/
 #ignore design docs
 design/
 
-board/msh/
-
 #ignore version file
 src/version.h
 
@@ -16,8 +14,6 @@ src/version.h
 src/satellite/arribada_secret.h
 
 # MxCube ignore generated files
-board/beta/*/
-board/nucleo/*/
 
 # ignore eclipse files
 .settings/

@@ -19,7 +19,6 @@
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 #include "app_filex.h"
-#include "flash.h"
 #include "gpdma.h"
 #include "i2c.h"
 #include "icache.h"
