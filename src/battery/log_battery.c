@@ -8,7 +8,7 @@
 #include "main.h"
 
 #include "acq_battery.h"
-#include "log/log_syslog.h"
+#include "syslog.h"
 
 #include <app_filex.h>
 #include <stdio.h>

@@ -7,6 +7,7 @@
 #include <stm32u5xx_hal.h>
 #include <tusb.h>
 
+#include "cdc.h"
 
 // Configure only USB-specific clocks on top of existing SystemClock_Config.
 static void __usb_clock_config(void) {
@@ -72,6 +73,7 @@ void usb_init(void) {
     HAL_Delay(100);
 
     tusb_init(BOARD_TUD_RHPORT, &dev_init);
+    usb_cdc_init();
 }
 
 int usb_iface_present(void) {

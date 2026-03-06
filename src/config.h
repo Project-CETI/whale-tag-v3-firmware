@@ -13,21 +13,20 @@
 // #define ECG_ENABLED
 // #define IMU_ENABLED
 #define GPS_ENABLED
-//#define PRESSURE_ENABLED
 #define SATELLITE_ENABLED
 #define USB_ENABLED
+// #define FLASHER_ENABLED
 
 
 #ifndef AUDIO_ENABLED
 #warning "Audio is currently disabled"
 #endif
-#define AUDIO_SAMPLE_BITDEPTH (24)
-// #define AUDIO_SAMPLE_BITDEPTH (16)
+#define AUDIO_SAMPLE_BITDEPTH (16)
 #define AUDIO_SAMPLERATE_SPS  (96000)
 #define AUDIO_CH_0_EN         (1)
 #define AUDIO_CH_1_EN         (1)
 #define AUDIO_CH_2_EN         (1)
-#define AUDIO_CH_3_EN         (1)
+#define AUDIO_CH_3_EN         (0)
 #define AUDIO_CHANNEL_MASK    (((AUDIO_CH_0_EN) << 0) | ((AUDIO_CH_1_EN) << 0) | ((AUDIO_CH_2_EN) << 0) | (AUDIO_CH_3_EN << 0))
 #define AUDIO_CH_COUNT        (AUDIO_CH_0_EN + AUDIO_CH_1_EN + AUDIO_CH_2_EN + AUDIO_CH_3_EN)
 #define AUDIO_DATARATE_BPS    (AUDIO_CH_COUNT * (AUDIO_SAMPLE_BITDEPTH/8) * AUDIO_SAMPLERATE_SPS)
@@ -41,9 +40,6 @@
 #define AUDIO_FILTER_TYPE AUDIO_FILTER_WIDEBAND
 
 /* BMS CONFIG */
-#ifndef BMS_ENABLED
-#warning "BMS is currently disabled"
-#endif
 #define BMS_SAMPLERATE_HZ (1)
 
 /* ECG CONFIG */
@@ -56,26 +52,9 @@
 #warning "IMU is currently disabled"
 #endif
 
-/* GPS CONFIG */
-#ifndef GPS_ENABLED
-#warning "GPS is currently disabled"
-#endif
-
 /* PRESSURE CONFIG */
-#ifndef PRESSURE_ENABLED
-#warning "Pressure is currently disabled"
-#endif
+#define PRESSURE_ENABLED
 #define PRESSURE_SAMPLERATE_HZ (1)
-
-/* SATELLITE CONFIG */
-#ifndef SATELLITE_ENABLED
-#warning "Satellite communication is currently disabled"
-#endif
-
-/* USB CONFIG */
-#ifndef USB_ENABLED
-#warning "USB is currently disabled"
-#endif
 
 typedef struct {
     uint8_t bitdepth;
@@ -91,6 +70,8 @@ typedef struct {
 } CetiTagRuntimeConfiguration;
 
 extern CetiTagRuntimeConfiguration tag_config;
+
+void aop_update(uint8_t *data, uint16_t data_size);
 
 void config_apply_to_system(void);
 void config_save(void);

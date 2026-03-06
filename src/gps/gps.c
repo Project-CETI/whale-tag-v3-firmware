@@ -156,7 +156,14 @@ void gps_standby(void) {
 	HAL_UART_DMAStop(&GPS_huart);
 }
 
-void gps_init(void) {
+static void __gps_gpio_init(void) {
+	// GPS_PWR_EN
+	// GPS_SAFEBOOT_N
+	// GPS_NRST
+	// GPS_USART1_RX
+	// GPS_USART1_TX
+	
+	/* GPS_EXT_INT */
 	GPIO_InitTypeDef GPIO_InitStruct;
 
 	// toggle external interrupt to exit standby mode
@@ -166,8 +173,32 @@ void gps_init(void) {
 	GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
 	GPIO_InitStruct.Pull = GPIO_NOPULL;
 	HAL_GPIO_Init(GPS_EXT_INT_GPIO_Input_GPIO_Port, &GPIO_InitStruct);
+}
 
-	// 
+static HAL_StatusTypeDef __gps_uart_init(void) {
+	HAL_StatusTypeDef result = HAL_OK;
+	GPS_huart.Instance = USART1;
+	GPS_huart.Init.BaudRate = 9600;
+	GPS_huart.Init.WordLength = UART_WORDLENGTH_8B;
+	GPS_huart.Init.StopBits = UART_STOPBITS_1;
+	GPS_huart.Init.Parity = UART_PARITY_NONE;
+	GPS_huart.Init.Mode = UART_MODE_TX_RX;
+	GPS_huart.Init.HwFlowCtl = UART_HWCONTROL_NONE;
+	GPS_huart.Init.OverSampling = UART_OVERSAMPLING_16;
+	GPS_huart.Init.OneBitSampling = UART_ONE_BIT_SAMPLE_DISABLE;
+	GPS_huart.Init.ClockPrescaler = UART_PRESCALER_DIV1;
+	GPS_huart.AdvancedInit.AdvFeatureInit = UART_ADVFEATURE_NO_INIT;
+	result = HAL_UART_Init(&GPS_huart);
+	if (HAL_OK == result) {result = HAL_UARTEx_SetTxFifoThreshold(&GPS_huart, UART_TXFIFO_THRESHOLD_1_8);}
+	if (HAL_OK == result) {result = HAL_UARTEx_SetRxFifoThreshold(&GPS_huart, UART_RXFIFO_THRESHOLD_1_8);}
+	if (HAL_OK == result) {result = HAL_UARTEx_DisableFifoMode(&GPS_huart);}
+	return result;
+}
+
+void gps_init(void) {
+	__gps_gpio_init();
+	__gps_uart_init();
+
     uint8_t buffer[512] = {};
 	uint16_t msg_length = m10s_disable_i2c_output(buffer, sizeof(buffer));
 	HAL_UART_Transmit(&GPS_huart, buffer, msg_length, 1000);

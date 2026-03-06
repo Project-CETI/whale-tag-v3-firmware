@@ -9,7 +9,7 @@
 #include "log_audio.h"
 #include "acq_audio.h"
 
-#include "log/log_syslog.h"
+#include "syslog.h"
 #include "timing.h"
 
 // stm libraries
@@ -28,7 +28,6 @@ typedef enum {
 
 #define AUDIO_LOG_TYPE AUDIO_LOG_RAW
 static uint8_t s_log_audio_enabled = 0;
-static int s_audio_log_page = 0;
 
 static time_t s_audio_start_time_us;
 static char audiofilename[32] = {};
@@ -48,22 +47,25 @@ static void log_audio_create_raw_file(void) {
     if ((fx_result != FX_SUCCESS) && (fx_result != FX_ALREADY_CREATED)) {
     	Error_Handler();
     }
-
     CETI_LOG("Created new audio file \"%s\"", audiofilename);
+
+    /* Try to allocate expected file size */
+    fx_result = fx_file_open(&sdio_disk, &audio_file, audiofilename, FX_OPEN_FOR_WRITE);
+    // if (FX_SUCCESS == fx_result) {fx_result = fx_file_allocate(&audio_file, EXPECTED_FILE_SIZE)};
+}
+
+log_audio_deinit(void) {
+    fx_file_close(&audio_file);
 }
 
 int log_audio_raw_write(uint8_t *pData, uint32_t size) {
     static uint16_t write_count = 0;
 
     // copy data directly to SD card
-    UINT fx_result = fx_file_open(&sdio_disk, &audio_file, audiofilename, FX_OPEN_FOR_WRITE);
-    if (FX_SUCCESS == fx_result) { fx_result = fx_file_seek(&audio_file, -1); };
-    // if (FX_SUCCESS == fx_result) { fx_result = fx_file_write_notify_set(&audio_file, audio_SDWriteComplete); };
-    if (FX_SUCCESS == fx_result) { fx_result = fx_file_write(&audio_file, pData, size); };
+    UINT fx_result = fx_file_write(&audio_file, pData, size);
     if (FX_SUCCESS != fx_result) {
         #warning ToDo: handle log_audio_raw_write error
     }
-    fx_file_close(&audio_file);
     write_count++;
 
     // check if new file needs to be created

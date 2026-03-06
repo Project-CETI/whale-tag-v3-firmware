@@ -32,9 +32,20 @@ cat << EOF > $HEADER_PATH/aop.h
 #include "previpass.h"
 #include <stdint.h>
 
-const uint64_t aop_timestamp_s = $(date +%s);
-const struct AopSatelliteEntry_t aopTable[] = {
+__attribute__((section(".tag_aop_flash")))
+const struct {
+  uint64_t timestamp_s;
+  uint16_t table_count;
+  uint16_t reserve_0A;
+  uint16_t reserve_0C;
+  uint16_t reserve_0E;
+  struct AopSatelliteEntry_t aopTable[(8*1024 - 2*sizeof(uint64_t))/sizeof(struct AopSatelliteEntry_t)];
+} nv_aop_data =  {
+  .timestamp_s = $(date +%s),
+  .table_count = $(echo "$FORMATTED_AOP_TABLE" | wc -l ),
+  .aopTable = {
 $(echo "$FORMATTED_AOP_TABLE")
+  },
 };
 #endif // CETI_AOP_H
 EOF

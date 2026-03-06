@@ -4,7 +4,7 @@ This repository contains the firmware suite for the STM32 based CETI whale tags.
 
 # Building
 
-## Docker
+### Building (Docker)
 
 To run the build process in docker run:
 
@@ -19,11 +19,11 @@ docker build -t ceti-img . # create image
 docker run --rm --volume $(pwd):/ceti-firmware ceti-img make #run make inside image
 ```
 
-## Local(Linux)
+### Building (Linux)
 
 Works with Ubuntu 22.04 or higher
 
-### 1. Initialize subrepositories:
+#### 1. Initialize subrepositories:
 
 This repository uses submodule. Clone it with the `--recursive` flag:
 
@@ -31,13 +31,13 @@ This repository uses submodule. Clone it with the `--recursive` flag:
 git clone --recursive https://github.com/Project-CETI/ceti-whale-tag-v3-fw.git
 ```
 
-or
+or, if you've already cloned the repo but forgot the `--recursive` flag:
 
 ```
 git submodule update --init --rcursive
 ```
 
-### 2. Install dependencies
+#### 2. Install dependencies
 
 Required package are listed in [`packages.txt`](packages.txt) and can be install with the following command:
 
@@ -45,7 +45,15 @@ Required package are listed in [`packages.txt`](packages.txt) and can be install
 sudo apt-get update && sudo apt-get install --no-install-recommends -y $(cat ./packages.txt)
 ```
 
-### Compiling
+### Building (Windows)
+
+Building locally on Windows is not currently supported.
+
+### Building (Mac)
+
+Building locally on mac is not currently supported.
+
+## Compiling
 
 The .elf file can be compile with the `make` command:
 
@@ -55,11 +63,11 @@ make DEBUG=0 # Build release version of .elf file
 ```
 
 # Flashing
-
-### Prerequirements:
+### Command line
+#### Prerequirements:
 The requirement for flashing from command line is `STM32_Programmer_CLI`. This software is a CLI version of the [`STM32CubeProgrammer`](https://www.st.com/en/development-tools/stm32cubeprog.html) GUI and is included in that [software suite's download](https://www.st.com/en/development-tools/stm32cubeprog.html#get-software)
-### Flashing
 
+#### Flashing
 ```sh
 make flash
 ```

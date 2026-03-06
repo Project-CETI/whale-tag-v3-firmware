@@ -9,13 +9,13 @@
 #include "bms_ctl.h"
 #include "max17320.h"
 
-#include "log/log_syslog.h"
+#include "syslog.h"
 
 #include "main.h"
 #include "tim.h"
 
 
-extern TIM_HandleTypeDef BATTERY_htim;
+extern TIM_HandleTypeDef battery_htim;
 
 #define ACQ_BATTERY_BUFFER_SIZE (8)
 
@@ -102,14 +102,16 @@ void acq_battery_peak_latest_sample(CetiBatterySample * const pSample) {
  */
 void acq_battery_init(void) {
     //Note: consider not using MX_TIM2 generated code to move easily swap timers 
+    HAL_TIM_RegisterCallback(&battery_htim, HAL_TIM_BASE_MSPINIT_CB_ID, HAL_TIM_Base_MspInit);
+    HAL_TIM_RegisterCallback(&battery_htim, HAL_TIM_BASE_MSPDEINIT_CB_ID, HAL_TIM_Base_MspDeInit);
     MX_TIM2_Init();
-    HAL_TIM_RegisterCallback(&BATTERY_htim, HAL_TIM_PERIOD_ELAPSED_CB_ID, __acq_battery_timer_complete_cb);
+    HAL_TIM_RegisterCallback(&battery_htim, HAL_TIM_PERIOD_ELAPSED_CB_ID, __acq_battery_timer_complete_cb);
 }
 
 void acq_battery_start(void) {
-    HAL_TIM_Base_Start_IT(&BATTERY_htim);
+    HAL_TIM_Base_Start_IT(&battery_htim);
 }
 
 void acq_battery_stop(void) {
-    HAL_TIM_Base_Stop_IT(&BATTERY_htim);
+    HAL_TIM_Base_Stop_IT(&battery_htim);
 }

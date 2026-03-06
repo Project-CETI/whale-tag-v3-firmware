@@ -11,7 +11,6 @@ typedef uint16_t PerfEventId;
 #define PERF_EVENT_QUEUE_LENGTH (512)
 #define PERF_FILENAME "perf.bin"
 
-
 typedef struct {
     uint32_t system_clock_us;
     uint16_t event_type;

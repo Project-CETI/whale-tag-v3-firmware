@@ -157,10 +157,13 @@ void Error_Handler(void);
 #define ECG_hi2c hi2c2
 #define KELLER_hi2c hi2c1
 
-#define BATTERY_htim htim2
-#define PRESSURE_htim htim3
+#define BATTERY_TIM TIM2
+#define PRESSURE_TIM TIM3
+#define uS_TIM TIM4
+
+#define battery_htim htim2
+#define pressure_htim htim2
 #define uS_htim htim4
-//#define FLASHER_htim htim5
 
 #define GPS_huart huart1
 

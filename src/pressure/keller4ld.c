@@ -5,9 +5,8 @@
 //               MIT CSAIL
 // Contributors: Matt Cummings, Peter Malkin, Joseph DelPreto,
 //               Michael Salino-Hugg, [TODO: Add other contributors here]
-// Description: PDevice driver for Keller 4LD pressure transmitter
+// Description: Device driver for Keller 4LD pressure transmitter
 //-----------------------------------------------------------------------------
-
 #include "keller4ld.h"
 
 
@@ -16,12 +15,6 @@
 
 extern I2C_HandleTypeDef KELLER_hi2c;
 
-typedef enum {
-    KELLER4LD_MODE_DELAY,
-    KELLER4LD_MODE_POLL,
-    KELLER4LD_MODE_INTERRUPT,
-} Keller4ldMode;
-
 #define KELLER4LD_DEVICE_ADDR_DEFAULT 0x40
 
 #define KELLER4LD_REG_SLAVE_ADDRESS 0x42
@@ -29,38 +22,55 @@ typedef enum {
 #define KELLER4LD_CMD_COMMAND_MODE 0xA9
 #define KELLER4LD_CMD_REQUEST_MEASUREMENT 0xAC
 
-static uint8_t s_raw_buffer[5] = {};
-static Keller4LD_Measurement *s_measurement_location = NULL;
+static void (*s_measurement_complete_callback)(uint8_t raw_packet[static 5]) = NULL;
 
-
-
-static void __keller4ld_read_measurement_it_complete(I2C_HandleTypeDef *hi2c) {
-	// unregister callback
-	HAL_I2C_UnRegisterCallback(&KELLER_hi2c, HAL_I2C_MASTER_RX_COMPLETE_CB_ID);
-
-	// convert raw to measurement
-	if (s_measurement_location != NULL) {
-		s_measurement_location->status = s_raw_buffer[0];
-		if (((s_measurement_location->status >> 6) & 0b11) != 0b01) {
-			// ToDo: invalid packet
-		}
-		s_measurement_location->pressure = (((uint16_t)s_raw_buffer[1] << 8) | (uint16_t)s_raw_buffer[2]);
-		s_measurement_location->temperature = (((uint16_t)s_raw_buffer[3] << 8) | (uint16_t)s_raw_buffer[4]);
-	}
-}
-
-HAL_StatusTypeDef keller4ld_request_measurement_it(void) {
-    uint8_t req = KELLER4LD_CMD_REQUEST_MEASUREMENT;
-	return HAL_I2C_Master_Transmit_IT(&KELLER_hi2c, (KELLER4LD_DEVICE_ADDR_DEFAULT << 1), &req, 1);
-}
-
+/// @brief blocking read of 
+/// @param pStatus 
+/// @return 
 HAL_StatusTypeDef keller4ld_read_status(uint8_t *pStatus){
     return HAL_I2C_Master_Receive(&KELLER_hi2c, (KELLER4LD_DEVICE_ADDR_DEFAULT << 1), pStatus, 1, 8);
 }
 
-HAL_StatusTypeDef keller4ld_read_measurement_it(Keller4LD_Measurement *pData){
-	s_measurement_location = pData;
-    HAL_I2C_RegisterCallback(&KELLER_hi2c, HAL_I2C_MASTER_RX_COMPLETE_CB_ID, __keller4ld_read_measurement_it_complete);
-    HAL_I2C_Master_Receive_IT(&KELLER_hi2c, (KELLER4LD_DEVICE_ADDR_DEFAULT << 1), s_raw_buffer, sizeof(s_raw_buffer));
-    return HAL_OK;
+/// @brief initialize a pressure/temperature measurement
+/// @param  
+/// @return 
+HAL_StatusTypeDef keller4ld_request_measurement(void) {
+    uint8_t req = KELLER4LD_CMD_REQUEST_MEASUREMENT;
+	return HAL_I2C_Master_Transmit(&KELLER_hi2c, (KELLER4LD_DEVICE_ADDR_DEFAULT << 1), &req, 1, 10);
+}
+
+/// @brief  convert a raw pressure sensor measurement in to a 
+/// `Keller4LD_Measurement` struct.
+/// @param p_measurement output measurement pointer
+/// @param p_raw input raw measurement
+void keller4ld_raw_to_measurement(const uint8_t p_raw[static 5], Keller4LD_Measurement *p_measurement) {
+	p_measurement->status = p_raw[0];
+	if (((p_measurement->status >> 6) & 0b11) != 0b01) {
+		// ToDo: invalid packet
+	}
+	p_measurement->pressure = (((uint16_t)p_raw[1] << 8) | (uint16_t)p_raw[2]);
+	p_measurement->temperature = (((uint16_t)p_raw[3] << 8) | (uint16_t)p_raw[4]);
+}
+
+/// @brief Callback to be called at the end of conversion, when data is ready 
+/// to be read.
+/// @param  
+/// @note Connect keller4ld_eoc_callback to related external interrupt callback
+/// or 8mS timer callback, or call manually after after 8mS or after detecting 
+/// eoc from `keller4ld_read_status()`.
+void keller4ld_eoc_callback(void) {
+	uint8_t raw_buffer[5] = {};
+	
+	// start measurement 
+    HAL_I2C_Master_Receive(&KELLER_hi2c, (KELLER4LD_DEVICE_ADDR_DEFAULT << 1), raw_buffer, sizeof(raw_buffer), 10);
+	if (NULL != s_measurement_complete_callback) {
+		s_measurement_complete_callback(raw_buffer);
+	}
+}
+
+
+/// @brief Register a function to be called once measurement in complete
+/// @param p_callback callback function pointer
+void keller4ld_register_measurement_complete_callback(void (*p_callback)(uint8_t raw_packet[static 5])) {
+	s_measurement_complete_callback = p_callback;
 }

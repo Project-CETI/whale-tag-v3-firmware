@@ -128,8 +128,10 @@ extern __IO UINT sd_tx_cplt;
                                               UINT start = HAL_GetTick(); \
                                               while (HAL_GetTick() - start < FX_STM32_SD_DEFAULT_TIMEOUT) \
                                               {\
-                                                if (sd_rx_cplt == 1) \
+                                                if (sd_rx_cplt == 1) {\
                                                   break;\
+                                                }\
+                                                __WFI();\
                                               }\
                                               if (sd_rx_cplt == 0) \
                                                 return FX_IO_ERROR; \
@@ -144,8 +146,10 @@ extern __IO UINT sd_tx_cplt;
                                               UINT start = HAL_GetTick(); \
                                               while (HAL_GetTick() - start < FX_STM32_SD_DEFAULT_TIMEOUT) \
                                               {\
-                                                if (sd_tx_cplt == 1) \
+                                                if (sd_tx_cplt == 1) {\
                                                   break;\
+                                                }\
+                                                __WFI();\
                                               }\
                                               if (sd_tx_cplt == 0) \
                                                 return FX_IO_ERROR;\

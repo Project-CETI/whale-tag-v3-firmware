@@ -16,8 +16,8 @@
 
 #if ARGOS_TX_STRATEGY == ARGOS_TX_STRATEGY_PATH_PREDICTOR
 #include "previpass.h"
-#include "aop.h" // run update_aop.sh to update this header
 #endif
+#include "aop.h" // run update_aop.sh to update this header
 
 /* MACROS */
 #define TX_TIMER_PERIOD_MS (30000)
@@ -37,7 +37,7 @@ volatile uint8_t s_argos_tx_ready = 0;
 /* PRIVATE GLOBAL VARIABLES */
 #if ARGOS_TX_STRATEGY == ARGOS_TX_STRATEGY_PATH_PREDICTOR
 
-#define NUM_SATS_IN_AOP_TABLE (sizeof(aopTable)/sizeof(struct AopSatelliteEntry_t))
+#define NUM_SATS_IN_AOP_TABLE (sizeof(aop_data.aopTable)/sizeof(struct AopSatelliteEntry_t))
 #endif
 
 static volatile uint8_t s_enabled = 0;
@@ -194,14 +194,14 @@ void __update_next_satellite_pass_alarms(void) {
     // Perform next pass prediction for each satellite
     uint32_t pass_start_epoch = 0xFFFFFFFF;
     uint32_t pass_end_epoch = 0;
-    uint32_t pass_start[NUM_SATS_IN_AOP_TABLE];
-    uint32_t pass_end[NUM_SATS_IN_AOP_TABLE];
-    for (int sat_num = 0; sat_num < NUM_SATS_IN_AOP_TABLE; sat_num++){
+    uint32_t pass_start[aop_data.table_count];
+    uint32_t pass_end[aop_data.table_count];
+    for (int sat_num = 0; sat_num < aop_data.table_count; sat_num++){
         struct SatelliteNextPassPrediction_t current_sat;
         bool memoryPoolOverflow;
         memoryPoolOverflow = PREVIPASS_estimate_next_pass_with_status(
             &prepasConfiguration,
-            &aopTable[sat_num],
+            &aop_data.aopTable[sat_num],
             &current_sat
         );
 

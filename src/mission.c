@@ -14,7 +14,7 @@
 #include "audio/acq_audio.h"
 #include "burnwire.h"
 #include "error.h"
-#include "led/led_ctl.h"
+#include "led/led.h"
 #include "satellite/satellite.h"
 #include "satellite/argos_tx_mgr.h"
 
@@ -22,9 +22,13 @@
 #include "battery/log_battery.h"
 #include "gps/gps.h"
 #include "imu/acq_imu.h"
-#include "log/log_syslog.h"
-#include "pressure/log_pressure.h"
+#include "syslog.h"
+
 #include "main.h"
+#include <usart.h>
+
+#define STB_PRESSURE_IMPLEMENTATION // include the header implementations here
+#include "pressure/pressure.h"
 
 #define MISSION_DIVE_THRESHOLD_BAR (5.0)
 #define MISSION_SURFACE_THRESHOLD_BAR (1.0)
@@ -137,8 +141,9 @@ static int __is_battery_in_error(void) {
 
 static int __is_low_pressure(void) {
 #ifdef PRESSURE_ENABLED
-    CetiPressureSample *pressure_sample = acq_pressure_get_latest();
-    return (pressure_sample->data.pressure < KELLER4LD_PRESSURE_BAR_TO_RAW(MISSION_SURFACE_THRESHOLD_BAR));
+    CetiPressureSample pressure_sample;
+    pressure_get(&pressure_sample);
+    return (pressure_sample.data.pressure < KELLER4LD_PRESSURE_BAR_TO_RAW(MISSION_SURFACE_THRESHOLD_BAR));
 #else
     return 1;
 #endif //PRESSURE_ENABLED
@@ -146,8 +151,9 @@ static int __is_low_pressure(void) {
 
 static int __is_high_pressure(void) {
 #ifdef PRESSURE_ENABLED
-    CetiPressureSample *pressure_sample = acq_pressure_get_latest();
-    return (pressure_sample->data.pressure >= KELLER4LD_PRESSURE_BAR_TO_RAW(MISSION_DIVE_THRESHOLD_BAR));
+    CetiPressureSample pressure_sample;
+    pressure_get(&pressure_sample);
+    return (pressure_sample.data.pressure >= KELLER4LD_PRESSURE_BAR_TO_RAW(MISSION_DIVE_THRESHOLD_BAR));
 #else
     return 0;
 #endif //PRESSURE_ENABLED
@@ -238,12 +244,12 @@ static void __satellite_transmit_from_raw_with_log(RecoveryArgoModulation rconf,
 #include <app_filex.h>
 
 extern FX_MEDIA sdio_disk;
+static FX_FILE s_mission_log_file = {};
 
 /// @brief ititialize mission logging
 /// @param  
 /// @return 
 static int __log_mission_init(void) {
-    static FX_FILE s_mission_log_file = {};
 
     // try to create file
     UINT fx_create_result = fx_file_create(&sdio_disk, MISSION_LOG_CSV_FILENAME);
@@ -263,12 +269,10 @@ static int __log_mission_init(void) {
         UINT fx_write_result = fx_file_write(&s_mission_log_file, MISSION_LOG_CSV_HEADER, strlen(MISSION_LOG_CSV_HEADER));
         if ( FX_SUCCESS != fx_write_result) {
             error_queue_push(CETI_ERROR(ERR_SUBSYS_LOG_MISSION, ERR_TYPE_FILEX, fx_write_result));
-            fx_file_close(&s_mission_log_file);
             return -1;
         }
     }
 
-    fx_file_close(&s_mission_log_file);
     return 0;
 }
 
@@ -276,7 +280,6 @@ static int __log_mission_init(void) {
 /// @param current_state state at the start of the transistion
 /// @param next_state state at the end of the transistion
 static void __log_mission_state_transition(MissionState current_state, MissionState next_state) {
-    static FX_FILE s_mission_log_file = {};    
     time_t transistion_time_us = rtc_get_epoch_us();
     
     // generate log string
@@ -288,9 +291,7 @@ static void __log_mission_state_transition(MissionState current_state, MissionSt
     );
 
     // write to file
-    UINT fx_result = fx_file_open(&sdio_disk, &s_mission_log_file, MISSION_LOG_CSV_FILENAME, FX_OPEN_FOR_WRITE);
-    if (FX_SUCCESS == fx_result) { fx_result = fx_file_seek(&s_mission_log_file, -1); }
-    if (FX_SUCCESS == fx_result) { fx_result = fx_file_write(&s_mission_log_file, transition_string, transistion_string_length); }
+    UINT fx_result = fx_file_write(&s_mission_log_file, transition_string, transistion_string_length);
     if (FX_SUCCESS != fx_result) {
         error_queue_push(CETI_ERROR(ERR_SUBSYS_LOG_MISSION, ERR_TYPE_FILEX, fx_result));
     }
@@ -299,6 +300,7 @@ static void __log_mission_state_transition(MissionState current_state, MissionSt
 }
 
 /* GPS TASKS *****************************************************************/
+static FX_FILE gps_log_file = {};
 
 /// @brief initialize gps logging
 /// @param  
@@ -309,6 +311,14 @@ static void __log_gps_init(void) {
     if ((FX_SUCCESS != fx_create_result) && (FX_ALREADY_CREATED != fx_create_result)) {
         error_queue_push(CETI_ERROR(ERR_SUBSYS_LOG_GPS, ERR_TYPE_FILEX, fx_create_result));
     }
+    UINT fx_result = fx_file_open(&sdio_disk, &gps_log_file, "gps.log", FX_OPEN_FOR_WRITE);
+}
+
+/// @brief initialize gps logging
+/// @param  
+static void __log_gps_deinit(void) {
+    fx_file_close(&gps_log_file);
+
 }
 
 /// @brief performs the task of logging gps coordinates to a file 
@@ -317,21 +327,16 @@ static void __log_gps_task(void) {
 #ifndef GPS_ENABLED
     return;
 #endif
-	FX_FILE gps_log_file = {};
 
 	const uint8_t *gps_bulk_ptr = gps_pop_bulk_transfer();
     if (NULL == gps_bulk_ptr) {
     	return;
     }
 
-    UINT fx_result = fx_file_open(&sdio_disk, &gps_log_file, "gps.log", FX_OPEN_FOR_WRITE);
-    if (FX_SUCCESS == fx_result) { fx_result = fx_file_seek(&gps_log_file, -1); }
-    if (FX_SUCCESS == fx_result) { fx_result = fx_file_write(&gps_log_file, (char *)gps_bulk_ptr, GPS_BULK_TRANSFER_SIZE); }
+    UINT fx_result = fx_file_write(&gps_log_file, (char *)gps_bulk_ptr, GPS_BULK_TRANSFER_SIZE);
     if (FX_SUCCESS != fx_result) { // Catch error
         error_queue_push(CETI_ERROR(ERR_SUBSYS_LOG_MISSION, ERR_TYPE_FILEX, fx_result));
     }
-
-    fx_file_close(&gps_log_file);
 }
 
 /// @brief  Parses RMC NMEA messages extracting relavent fields 
@@ -381,7 +386,7 @@ static int __parse_rmc(const uint8_t *sentence) {
 
 	// check validity
 	next_field();
-	const char *time_str = field; // skip time field for now
+	const char *time_str = (char *)field; // skip time field for now
 
 	next_field();
 	if ('A' != *field) {
@@ -783,6 +788,8 @@ void mission_set_state(MissionState next_state) {
     gps               | X  | X  |    | X |  X  | X | X
     led               | X  | X  |    | X |     | X | 
     recovery_tx       |    | X  |    | X |  X  | X | X
+    bms               | x  | x  | x  | x |  x  | x |
+    pressure          | x  | x  | x  | x |  x  | x |
 */
     if (s_state == next_state) {
         return; // nothing to do
@@ -800,8 +807,8 @@ void mission_set_state(MissionState next_state) {
 #warning ToDo: Disable imu logging
 #endif // IMU_ENABLED
 #ifdef ECG_ENABLED
-#warning "ToDo: Disable ecg acquistion
-#warning "ToDo: Disable ecg logging
+#warning ToDo: Disable ecg acquistion
+#warning ToDo: Disable ecg logging
 #endif // ECG_ENABLED
     } else {
 #ifdef AUDIO_ENABLED
@@ -811,14 +818,23 @@ void mission_set_state(MissionState next_state) {
         // acq_audio_enable(); 
 #endif // AUDIO_ENABLED
 #ifdef IMU_ENABLED
-#warning "ToDo: Enable imu acquistion
-#warning "ToDo: Enable imu logging
+#warning ToDo: Enable imu acquistion
+#warning ToDo: Enable imu logging
 #endif // IMU_ENABLED
 #ifdef ECG_ENABLED
-#warning "ToDo: Enable ecg acquistion
-#warning "ToDo: Enable ecg logging
+#warning ToDo: Enable ecg acquistion
+#warning ToDo: Enable ecg logging
 #endif // ECG_ENABLED
     }
+
+    // Pressure
+#ifdef PRESSURE_ENABLED
+    if (MISSION_STATE_LOW_POWER_RETRIEVE == next_state) {
+        pressure_deinit();
+    } else {
+        pressure_start();
+    }
+#endif
 
     // Burnwire
 #ifdef BURNWIRE_ENABLED
@@ -889,19 +905,73 @@ void mission_set_state(MissionState next_state) {
 /// @brief Initialize mission state machine
 /// @param  
 void mission_init(void) {
-     error_queue_init(); // initialize error queue so we can log when issues occur
-     __initialize_average_voltage_tracker();
-     #warning ToDo: initialize mission hardware
-     time_t now_timestamp_s = rtc_get_epoch_s();
-     // start burn timer
-     s_burn_start_timestamp_s = now_timestamp_s + 4*60*60;
-     
-     // initialize gps log
-     __log_gps_init();
-     
-     // force state transition
-     __log_mission_init();    // initialize mission log prior to performing initial state transistion.
-     s_state = MISSION_STATE_ERROR; 
+#ifdef AUDIO_ENABLED
+    /* enable Audio -5V */
+    CETI_LOG("Initializing Audio");
+    log_audio_init();
+    acq_audio_init();
+#endif // AUDIO_ENABLED
+
+    /* perform runtime system hardware test to detect available systems */
+#ifdef BMS_ENABLED
+    CETI_LOG("Initializing BMS");
+    acq_battery_init();
+    log_battery_enable();
+#endif // BMS_ENABLED
+
+
+#ifdef PRESSURE_ENABLED
+    CETI_LOG("Initializing Pressure");
+#if HW_VERSION == HW_VERSION_3_1_0 || HW_VERSION == HW_VERSION_3_1_0_MSH
+    // Note: on this version of the tag, GPS must be powered to prevent the
+    // shared i2c bus from being pulled low.
+    HAL_GPIO_WritePin(GPS_PWR_EN_GPIO_Output_GPIO_Port, GPS_PWR_EN_GPIO_Output_Pin, GPIO_PIN_SET);
+    HAL_GPIO_WritePin(GPS_NRST_GPIO_Output_GPIO_Port, GPS_NRST_GPIO_Output_Pin, GPIO_PIN_SET);
+#endif
+    pressure_init(1);
+#endif // PRESSURE_ENABLED
+
+#ifdef IMU_ENABLED
+    CETI_LOG("Initializing IMU");
+    // acq_imu_init();
+#endif // IMU_ENABLED
+
+#ifdef ECG_ENABLED
+    CETI_LOG("Initializing ECG");
+    HAL_I2C_RegisterCallback(&hi2c3, HAL_I2C_MSPINIT_CB_ID, HAL_I2C_MspInit);
+    HAL_I2C_RegisterCallback(&hi2c3, HAL_I2C_MSPDEINIT_CB_ID, HAL_I2C_MspDeInit);
+    MX_I2C2_Init(); // ECG ADC
+    // acq_ecg_enable();
+#endif // ECG_ENABLED
+
+#ifdef GPS_ENABLED
+    CETI_LOG("Initializing GPS");
+    gps_init();
+#endif // GPS_ENABLED
+
+#ifdef SATELLITE_ENABLED
+    CETI_LOG("Initializing ARGOS");
+    MX_USART2_UART_Init();
+    satellite_init();
+#endif // SATELLITE_ENABLED
+
+#ifdef FLASHER_ENABLED
+    CETI_LOG("Enabling Antenna Flasher");
+#endif
+
+    error_queue_init(); // initialize error queue so we can log when issues occur
+    __initialize_average_voltage_tracker();
+    #warning ToDo: initialize mission hardware
+    time_t now_timestamp_s = rtc_get_epoch_s();
+    // start burn timer
+    s_burn_start_timestamp_s = now_timestamp_s + 4*60*60;
+    
+    // initialize gps log
+    __log_gps_init();
+    
+    // force state transition
+    __log_mission_init();    // initialize mission log prior to performing initial state transistion.
+    s_state = MISSION_STATE_ERROR; 
     mission_set_state(STARTING_STATE);
 }
 
@@ -922,7 +992,7 @@ void mission_task(void) {
                 log_battery_task,
             #endif
             #ifdef PRESSURE_ENABLED
-                log_pressure_task,
+                pressure_task,
             #endif
             #ifdef IMU_ENABLED
                 // log_imu_task,
@@ -950,7 +1020,7 @@ void mission_task(void) {
         case MISSION_STATE_RECORD_DIVE: {
             const MissionTask record_floating_list[] = {
                 log_battery_task,
-                // log_pressure_task,
+                pressure_task,
                 // log_imu_task,
                 // log_ecg_task,
                 // log_syslog_task,
@@ -968,6 +1038,7 @@ void mission_task(void) {
         case MISSION_STATE_RECORD_FLOATING: {
             const MissionTask record_floating_task_list[] = {
                 log_battery_task,
+                pressure_task,
                 __log_gps_task,
                 __parse_gps_task,
                 __transmit_gps_task,
@@ -982,6 +1053,7 @@ void mission_task(void) {
         case MISSION_STATE_BURN: {
             const MissionTask burn_task_list[] = {
                 log_battery_task,
+                pressure_task,
                 __log_gps_task,
                 __parse_gps_task,
                 __transmit_gps_task,
@@ -1036,10 +1108,10 @@ void mission_task(void) {
     error_queue_flush();
 }
 
-/// @brief call after state_machine_task to puts the system to sleep until
+/// @brief call after mission_task to puts the system to sleep until
 ///        the system receives another input signal
 /// @param 
-void state_machine_sleep(void) {
+void mission_sleep(void) {
     switch (s_state) {
         case MISSION_STATE_MISSION_START:
             break;

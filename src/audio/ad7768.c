@@ -15,7 +15,7 @@
 // #define AD7768_DEBUG
 
 #ifdef AD7768_DEBUG
-#include "log/log_syslog.h"
+#include "syslog.h"
 #endif
 // #include "util.h"
 //#include "audio.h"

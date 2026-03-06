@@ -1,4 +1,11 @@
-#include "led_ctl.h"
+//-----------------------------------------------------------------------------
+// Project:      CETI Tag Electronics
+// Version:      Refer to _versioning.h
+// Copyright:    Harvard University Wood Lab
+// Contributors: Michael Salino-Hugg, [TODO: Add other contributors here]
+// Description:  High-level LED controller
+//-----------------------------------------------------------------------------
+#include "led.h"
 #include "ktd2026ewe.h"
 
 #define LED_RED_CURRENT_mA (20.0)

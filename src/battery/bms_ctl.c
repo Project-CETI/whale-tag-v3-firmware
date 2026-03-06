@@ -7,7 +7,7 @@
  *****************************************************************************/
 #include "max17320.h"
 
-#include "log/log_syslog.h"
+#include "syslog.h"
 #include "util/error.h"
 
 typedef struct {

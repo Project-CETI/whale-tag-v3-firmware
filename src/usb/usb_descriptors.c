@@ -61,9 +61,9 @@ char const *string_desc_arr[] = {
     [STRID_SERIAL] = NULL,                         // 3: Serials will use unique ID if possible
     [STRID_CDC] = "CetiTag CDC",                   // 4: CDC Interface
     [STRID_MSC] = "CetiTag MSC",                   // 5: MSC Interface
-    [STRID_DFU + 0] = "FLASH",                     // 6: DFU Interface
-    [STRID_DFU + 1] = "CONFIG",                    // 7: DFU Interface
-    [STRID_DFU + 2] = "AOP",                       // 8: DFU Interface
+    [STRID_DFU + 0] = "CetiTag FLASH",             // 6: DFU Interface
+    [STRID_DFU + 1] = "CetiTag Config",            // 7: DFU Interface
+    [STRID_DFU + 2] = "CetiTag AOP Table",         // 8: DFU Interface
 };
 
 //--------------------------------------------------------------------+
@@ -72,9 +72,9 @@ char const *string_desc_arr[] = {
 tusb_desc_device_t const desc_device = {.bLength = sizeof(tusb_desc_device_t),
                                         .bDescriptorType = TUSB_DESC_DEVICE,
                                         .bcdUSB = 0x0200,
-                                        .bDeviceClass = 0x00,
-                                        .bDeviceSubClass = 0x00,
-                                        .bDeviceProtocol = 0x00,
+                                        .bDeviceClass = TUSB_CLASS_MISC,
+                                        .bDeviceSubClass = MISC_SUBCLASS_COMMON ,
+                                        .bDeviceProtocol = MISC_PROTOCOL_IAD ,
                                         .bMaxPacketSize0 =
                                             CFG_TUD_ENDPOINT0_SIZE,
 
@@ -99,15 +99,24 @@ uint8_t const *tud_descriptor_device_cb(void) {
 //--------------------------------------------------------------------+
 
 enum {
-  ITF_NUM_DFU,
-  ITF_NUM_MSC,
+#if CFG_TUD_CDC
   ITF_NUM_CDC,
+  ITF_NUM_CDC_DATA,
+#endif
+  ITF_NUM_MSC,
+#if CFG_TUD_DFU
+  ITF_NUM_DFU,
+#endif
   ITF_NUM_TOTAL
 };
 
 #define ALT_COUNT 3
 
-#define CONFIG_TOTAL_LEN (TUD_CONFIG_DESC_LEN + TUD_CDC_DESC_LEN + TUD_MSC_DESC_LEN + TUD_DFU_DESC_LEN(ALT_COUNT))
+#define CONFIG_TOTAL_LEN (TUD_CONFIG_DESC_LEN \
+  + CFG_TUD_CDC * TUD_CDC_DESC_LEN \
+  + CFG_TUD_MSC * TUD_MSC_DESC_LEN \
+  + CFG_TUD_DFU * TUD_DFU_DESC_LEN(ALT_COUNT) \
+)
 
 #define FUNC_ATTRS (DFU_ATTR_CAN_UPLOAD | DFU_ATTR_CAN_DOWNLOAD | DFU_ATTR_MANIFESTATION_TOLERANT)
 
@@ -159,30 +168,34 @@ uint8_t const desc_fs_configuration[] = {
     // Config number, interface count, string index, total length, attribute,
     // power in mA
     TUD_CONFIG_DESCRIPTOR(1, ITF_NUM_TOTAL, 0, CONFIG_TOTAL_LEN, 0x00, 100),
-
+#if CFG_TUD_CDC
     // Interface number, string index, EP notification address and size, EP data address (out, in) and size.
     TUD_CDC_DESCRIPTOR(ITF_NUM_CDC, STRID_CDC , EPNUM_CDC_NOTIF, 16, EPNUM_CDC_OUT, EPNUM_CDC_IN, 64),
-
+#endif
     // Interface number, string index, EP Out & EP In address, EP size
     TUD_MSC_DESCRIPTOR(ITF_NUM_MSC, STRID_MSC, EPNUM_MSC_OUT, EPNUM_MSC_IN, 64),
 
+#if CFG_TUD_DFU
       // Interface number, Alternate count, starting string index, attributes, detach timeout, transfer size
     TUD_DFU_DESCRIPTOR(ITF_NUM_DFU, 3, STRID_DFU, FUNC_ATTRS, 1000, CFG_TUD_DFU_XFER_BUFSIZE),
+#endif
 };
 
 uint8_t const desc_hs_configuration[] = {
     // Config number, interface count, string index, total length, attribute,
     // power in mA
     TUD_CONFIG_DESCRIPTOR(1, ITF_NUM_TOTAL, 0, CONFIG_TOTAL_LEN, 0x00, 100),
-
+#if CFG_TUD_CDC
     // Interface number, string index, EP notification address and size, EP data address (out, in) and size.
     TUD_CDC_DESCRIPTOR(ITF_NUM_CDC, STRID_CDC , EPNUM_CDC_NOTIF, 16, EPNUM_CDC_OUT, EPNUM_CDC_IN, 512),
-
+#endif
     // Interface number, string index, EP Out & EP In address, EP size
     TUD_MSC_DESCRIPTOR(ITF_NUM_MSC, STRID_MSC, EPNUM_MSC_OUT, EPNUM_MSC_IN, 512),
 
+#if CFG_TUD_DFU
     // Interface number, Alternate count, starting string index, attributes, detach timeout, transfer size
     TUD_DFU_DESCRIPTOR(ITF_NUM_DFU, ALT_COUNT, STRID_DFU, FUNC_ATTRS, 1000, CFG_TUD_DFU_XFER_BUFSIZE),
+#endif
 };
 
 // Invoked when received GET CONFIGURATION DESCRIPTOR

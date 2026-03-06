@@ -1,4 +1,4 @@
-#include "log/log_syslog.h"
+#include "syslog.h"
 
 #include <stm32u5xx_hal.h>
 #include <stdio.h>
@@ -11,7 +11,8 @@
 
 extern RTC_HandleTypeDef hrtc;
 extern FX_MEDIA sdio_disk;
-FX_FILE syslog_file = {};
+
+static FX_FILE syslog_file = {};
 
 void syslog_init(void) {
     UINT fx_result = FX_ACCESS_ERROR;
@@ -20,9 +21,17 @@ void syslog_init(void) {
     	Error_Handler();
     }
 
+    UINT fx_open_result = fx_file_open(&sdio_disk, &syslog_file, SYSLOG_FILENAME, FX_OPEN_FOR_WRITE);
+    if ((fx_open_result != FX_SUCCESS)) {
+    	Error_Handler();
+    }
     syslog_write("system log initialized");
     syslog_write("Firmware Compiled:" FW_COMPILATION_DATE);
     syslog_write(FW_VERSION_TEXT);
+}
+
+void syslog_deinit(void) {
+    fx_file_close(&syslog_file);
 }
 
 // // call this function to write to the system log
@@ -56,14 +65,10 @@ UINT __syslog_write(const str *identifier, const char *fmt, ...) {
     *position = '\n';
     position++;
 
-    UINT fx_result = fx_file_open(&sdio_disk, &syslog_file, SYSLOG_FILENAME, FX_OPEN_FOR_WRITE);
-    if (FX_SUCCESS == fx_result) { fx_result = fx_file_seek(&syslog_file, -1); }
-    if (FX_SUCCESS == fx_result) {fx_result = fx_file_write(&syslog_file, scratch_buffer, (position - scratch_buffer));}
+    UINT fx_result = fx_file_write(&syslog_file, scratch_buffer, (position - scratch_buffer));
     if (fx_result != FX_SUCCESS) {
-        fx_file_close(&syslog_file);
     	Error_Handler();
     }
-    fx_file_close(&syslog_file);
 
     return fx_result;
 }

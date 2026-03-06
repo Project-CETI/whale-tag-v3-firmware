@@ -26,6 +26,9 @@ const uint8_t *gps_pop_bulk_transfer(void);
 uint8_t gps_queue_is_empty(void);
 const uint8_t *gps_pop_sentence(void);
 
+
+void gps_init(void);
+
 void gps_sleep(void); 	// stops gps collection thread
 void gps_wake(void); 	// starts gps collection thread
 void gps_standby(void); 

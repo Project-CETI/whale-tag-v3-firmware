@@ -20,13 +20,11 @@ typedef struct {
 #define acq_pressure_raw_to_temperature_c(raw) KELLER4LD_RAW_TO_TEMPERATURE_C(raw)
 
 
-void acq_pressure_EXTI_cb(void);
-const CetiPressureSample *acq_pressure_get_next_sample(void);
-void acq_pressure_peak_latest_sample(CetiPressureSample *pSample);
-void acq_pressure_init(void);
-void acq_pressure_disable(void);
+void acq_pressure_init(uint16_t samplerate_hz);
+void acq_pressure_deinit(void);
 void acq_pressure_start(void);
 void acq_pressure_stop(void);
-CetiPressureSample *acq_pressure_get_latest(void);
+void acq_pressure_get_latest(CetiPressureSample *p_sample);
+void acq_pressure_register_sample_callback(void (*p_callback)(const CetiPressureSample *));
 
 #endif // CETI_ACQ_PRESSURE_H

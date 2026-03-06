@@ -30,8 +30,11 @@ typedef struct {
     uint16_t temperature;
 } Keller4LD_Measurement;
 
-HAL_StatusTypeDef keller4ld_request_measurement_it(void);
+HAL_StatusTypeDef keller4ld_request_measurement(void);
 HAL_StatusTypeDef keller4ld_read_status(uint8_t *pStatus);
 HAL_StatusTypeDef keller4ld_read_measurement_it(Keller4LD_Measurement *pData);
+void keller4ld_raw_to_measurement(const uint8_t p_raw[static 5], Keller4LD_Measurement *p_measurement);
+void keller4ld_eoc_callback(void);
+void keller4ld_register_measurement_complete_callback(void (*p_callback)(uint8_t raw_packet[static 5]));
 
 #endif // __CETI_WHALE_TAG_HAL_KELLER_4LD__

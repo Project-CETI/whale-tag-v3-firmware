@@ -1,12 +1,11 @@
 /*
 ******************************************************************************
 **
-**  File        : LinkerScript.ld
+**  File        : LinkerScript.ld (debug in RAM dedicated)
 **
 **  Author      : STM32CubeIDE
 **
 **  Abstract    : Linker script for STM32U595xJ Device from STM32U5 series
-**                      4096Kbytes FLASH
 **                      2528Kbytes RAM
 **
 **                Set heap size, stack size and stack location according
@@ -36,56 +35,29 @@
 /* Entry Point */
 ENTRY(Reset_Handler)
 
+
+/* Memories definition */
+MEMORY
+{
+  RAM (xrw)   : ORIGIN = 0x20000000, LENGTH = 2496K
+  SRAM4 (xrw) : ORIGIN = 0x28000000, LENGTH = 16K
+}
 /* Highest address of the user mode stack */
 _estack = ORIGIN(RAM) + LENGTH(RAM); /* end of "RAM" Ram type memory */
 
 _Min_Heap_Size = 0x200;      /* required amount of heap  */
 _Min_Stack_Size = 0x400; /* required amount of stack */
 
-/* Memories definition */
-MEMORY
-{
-  RAM   (xrw)        : ORIGIN = 0x20000000, LENGTH = 2496K
-  SRAM4 (xrw)        : ORIGIN = 0x28000000, LENGTH = 16K
-  FLASH (rx)         : ORIGIN = 0x08000000, LENGTH = 4080K
-  CONFIG_FLASH (rx)  : ORIGIN = 0x083FC000, LENGTH = 8K
-  AOP_FLASH (rx)     : ORIGIN = 0x083FE000, LENGTH = 8K
-}
-
 /* Sections */
 SECTIONS
 {
-   /* Tag Configurate*/
-  .tag_config_flash (READONLY) : 
-  {
-    . = ALIGN(8*16);
-    _flash_end = .;
-    _tag_config_flash_start = .;
-    KEEP(*(.tag_config_flash))
-    . = ALIGN(8*16);
-    _tag_config_flash_end = .;
-
-  } > CONFIG_FLASH
-
-  .tag_aop_flash (READONLY) : 
-  {
-    . = ALIGN(8*16);
-    _tag_aop_start = .;
-    KEEP(*(.tag_aop_flash))
-    . = ALIGN(8*16);
-    _tag_aop_end = .;
-
-  } > AOP_FLASH
-
-
-  /* The startup code into "FLASH" Rom type memory */
+  /* The startup code into "RAM" Ram type memory */
   .isr_vector :
   {
-    _flash_start = .;
     KEEP(*(.isr_vector)) /* Startup code */
-  } >FLASH
+  } >RAM
 
-  /* The program code and other data into "FLASH" Rom type memory */
+  /* The program code and other data into "RAM" Ram type memory */
   .text :
   {
     *(.text)           /* .text sections (code) */
@@ -93,38 +65,40 @@ SECTIONS
     *(.glue_7)         /* glue arm to thumb code */
     *(.glue_7t)        /* glue thumb to arm code */
     *(.eh_frame)
+    *(.RamFunc)        /* .RamFunc sections */
+    *(.RamFunc*)       /* .RamFunc* sections */
 
     KEEP (*(.init))
     KEEP (*(.fini))
 
     _etext = .;        /* define a global symbols at end of code */
-  } >FLASH
+  } >RAM
 
-  /* Constant data into "FLASH" Rom type memory */
+  /* Constant data into "RAM" Ram type memory */
   .rodata :
   {
     *(.rodata)         /* .rodata sections (constants, strings, etc.) */
     *(.rodata*)        /* .rodata* sections (constants, strings, etc.) */
-  } >FLASH
+  } >RAM
 
   .ARM.extab (READONLY) : /* The READONLY keyword is only supported in GCC11 and later, remove it if using GCC10 or earlier. */
   {
     *(.ARM.extab* .gnu.linkonce.armextab.*)
-  } >FLASH
+  } >RAM
 
   .ARM (READONLY) : /* The READONLY keyword is only supported in GCC11 and later, remove it if using GCC10 or earlier. */
   {
     __exidx_start = .;
     *(.ARM.exidx*)
     __exidx_end = .;
-  } >FLASH
+  } >RAM
 
   .preinit_array (READONLY) : /* The READONLY keyword is only supported in GCC11 and later, remove it if using GCC10 or earlier. */
   {
     PROVIDE_HIDDEN (__preinit_array_start = .);
     KEEP (*(.preinit_array*))
     PROVIDE_HIDDEN (__preinit_array_end = .);
-  } >FLASH
+  } >RAM
 
   .init_array (READONLY) : /* The READONLY keyword is only supported in GCC11 and later, remove it if using GCC10 or earlier. */
   {
@@ -132,7 +106,7 @@ SECTIONS
     KEEP (*(SORT(.init_array.*)))
     KEEP (*(.init_array*))
     PROVIDE_HIDDEN (__init_array_end = .);
-  } >FLASH
+  } >RAM
 
   .fini_array (READONLY) : /* The READONLY keyword is only supported in GCC11 and later, remove it if using GCC10 or earlier. */
   {
@@ -140,7 +114,7 @@ SECTIONS
     KEEP (*(SORT(.fini_array.*)))
     KEEP (*(.fini_array*))
     PROVIDE_HIDDEN (__fini_array_end = .);
-  } >FLASH
+  } >RAM
 
   /* Used by the startup to initialize data */
   _sidata = LOADADDR(.data);
@@ -151,28 +125,77 @@ SECTIONS
     _sdata = .;        /* create a global symbol at data start */
     *(.data)           /* .data sections */
     *(.data*)          /* .data* sections */
-    *(.RamFunc)        /* .RamFunc sections */
-    *(.RamFunc*)       /* .RamFunc* sections */
 
+  } >RAM
+
+  /* Initialized TLS data section */
+  .tdata : ALIGN(4)
+  {
+    *(.tdata .tdata.* .gnu.linkonce.td.*)
+    . = ALIGN(4);
     _edata = .;        /* define a global symbol at data end */
-  } >RAM AT> FLASH
+    PROVIDE(__data_end = .);
+    PROVIDE(__tdata_end = .);
+  } >RAM
+
+  PROVIDE( __tdata_start = ADDR(.tdata) );
+  PROVIDE( __tdata_size = __tdata_end - __tdata_start );
+
+  PROVIDE( __data_start = ADDR(.data) );
+  PROVIDE( __data_size = __data_end - __data_start );
+
+  PROVIDE( __tdata_source = LOADADDR(.tdata) );
+  PROVIDE( __tdata_source_end = LOADADDR(.tdata) + SIZEOF(.tdata) );
+  PROVIDE( __tdata_source_size = __tdata_source_end - __tdata_source );
+
+  PROVIDE( __data_source = LOADADDR(.data) );
+  PROVIDE( __data_source_end = __tdata_source_end );
+  PROVIDE( __data_source_size = __data_source_end - __data_source );
+
 
   /* Uninitialized data section into "RAM" Ram type memory */
-  .bss :
+  /* Uninitialized TLS data section */
+  .tbss (NOLOAD) : ALIGN(4)
   {
-    /* This is used by the startup in order to initialize the .bss section */
     _sbss = .;         /* define a global symbol at bss start */
     __bss_start__ = _sbss;
+    *(.tbss .tbss.*)
+    . = ALIGN(4);
+    PROVIDE( __tbss_end = . );
+  } >RAM
+
+  PROVIDE( __tbss_start = ADDR(.tbss) );
+  PROVIDE( __tbss_size = __tbss_end - __tbss_start );
+  PROVIDE( __tbss_offset = ADDR(.tbss) - ADDR(.tdata) );
+
+  PROVIDE( __tls_base = __tdata_start );
+  PROVIDE( __tls_end = __tbss_end );
+  PROVIDE( __tls_size = __tls_end - __tls_base );
+  PROVIDE( __tls_align = MAX(ALIGNOF(.tdata), ALIGNOF(.tbss)) );
+  PROVIDE( __tls_size_align = (__tls_size + __tls_align - 1) & ~(__tls_align - 1) );
+  PROVIDE( __arm32_tls_tcb_offset = MAX(8, __tls_align) );
+  PROVIDE( __arm64_tls_tcb_offset = MAX(16, __tls_align) );
+
+  .bss (NOLOAD) : ALIGN(4)
+  {
+    /* This is used by the startup in order to initialize the .bss section */
     *(.bss)
     *(.bss*)
     *(COMMON)
 
+      . = ALIGN(4);
     _ebss = .;         /* define a global symbol at bss end */
     __bss_end__ = _ebss;
+      PROVIDE( __bss_end = .);
   } >RAM
+  PROVIDE( __non_tls_bss_start = ADDR(.bss) );
+
+  PROVIDE( __bss_start = __tbss_start );
+  PROVIDE( __bss_size = __bss_end - __bss_start );
+
 
   /* User_heap_stack section, used to check that there is enough "RAM" Ram type memory left */
-  ._user_heap_stack :
+  ._user_heap_stack (NOLOAD) :
   {
     . = ALIGN(8);
     PROVIDE ( end = . );
@@ -185,9 +208,9 @@ SECTIONS
   /* Remove information from the compiler libraries */
   /DISCARD/ :
   {
-    libc.a ( * )
-    libm.a ( * )
-    libgcc.a ( * )
+    libc.a:* ( * )
+    libm.a:* ( * )
+    libgcc.a:* ( * )
   }
 
   .ARM.attributes 0 : { *(.ARM.attributes) }

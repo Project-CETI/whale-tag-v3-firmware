@@ -33,6 +33,7 @@ typedef struct {
 static volatile size_t s_error_write_position = 0;
 static volatile size_t s_error_read_position = 0;
 ErrorQueueElement s_error_queue[ERROR_QUEUE_SIZE] = {};
+static FX_FILE s_error_queue_file = {};
 time_t s_error_queue_overflow_timestamp = 0;
 
 /// @brief initializes the error queue
@@ -45,8 +46,11 @@ int error_queue_init(void) {
     if ((FX_SUCCESS != fx_create_result) && (FX_ALREADY_CREATED != fx_create_result)) {
         return -1;
     }
-    
 
+    UINT fx_open_result = fx_file_open(&sdio_disk, &s_error_queue_file, ERROR_FILE_FILENAME, FX_OPEN_FOR_WRITE);
+    if (FX_SUCCESS != fx_open_result) {
+        return;
+    }
 
     return 0;
 }
@@ -79,14 +83,7 @@ void error_queue_flush(void) {
     if (error_queue_is_empty()) {
         return;
     }
-    
-    // open file
-    static FX_FILE s_error_queue_file = {};
-    UINT fx_open_result = fx_file_open(&sdio_disk, &s_error_queue_file, ERROR_FILE_FILENAME, FX_OPEN_FOR_WRITE);
-    if (FX_SUCCESS != fx_open_result) {
-        return;
-    }
-    
+        
     // write out error queue
     size_t nv_r = s_error_read_position;
     size_t nv_w = s_error_write_position;
@@ -118,8 +115,6 @@ void error_queue_flush(void) {
 #endif
         s_error_queue_overflow_timestamp = 0;
     }
-    fx_file_close(&s_error_queue_file);
-
 }
 
 /// @brief call this function periodically in your main loop.
@@ -137,4 +132,5 @@ void error_queue_task(void){
 /// @param  
 void error_queue_close(void) {
     error_queue_flush();
+    fx_file_close(&s_error_queue_file);
 }

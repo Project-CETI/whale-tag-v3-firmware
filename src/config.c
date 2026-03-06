@@ -13,12 +13,45 @@
 // defines the section start and end
 extern uint8_t _tag_config_flash_start;
 extern uint8_t _tag_config_flash_end;
+extern uint8_t _tag_aop_start;
+extern uint8_t _tag_aop_end;
 
 __attribute__ ((section(".tag_config_flash")))
-CetiTagRuntimeConfiguration nv_tag_config;
+CetiTagRuntimeConfiguration nv_tag_config = {
+    .version = 0xdeadbeef
+};
 
 uint8_t tag_config_valid = 0;
 CetiTagRuntimeConfiguration tag_config = {0};
+
+
+// stores aop_file to flash
+void aop_update(uint8_t *data, uint16_t data_size) {
+   FLASH_EraseInitTypeDef erase_def = {
+        .TypeErase = FLASH_TYPEERASE_PAGES,
+        .Banks = FLASH_BANK_2,
+        .Page = 255,
+        .NbPages = 1,
+    };
+    
+    HAL_StatusTypeDef result = HAL_OK;
+    uint32_t page_error;
+
+    result = HAL_FLASH_Unlock();
+
+    // flash must be erased before being written.
+    result |= HAL_FLASHEx_Erase(&erase_def, &page_error);
+
+    // write volatile copy of  configuration to  flash
+    for (size_t size = 0; size < data_size; size += (8 * 16)) {
+        result = HAL_FLASH_Program(FLASH_TYPEPROGRAM_BURST, ((uint32_t)(&_tag_aop_start)) + size, ((uint32_t)data) + size);
+        if (result != HAL_OK) {
+
+        }
+    }
+
+    result |= HAL_FLASH_Lock();
+}
 
 /// @brief  Apply the current tag configure to the system 
 /// @param  
@@ -61,7 +94,6 @@ void config_save(void) {
 void config_reload(void) {
     tag_config = nv_tag_config;
     tag_config_valid = 1;
-    config_apply_to_system();
 }
 
 

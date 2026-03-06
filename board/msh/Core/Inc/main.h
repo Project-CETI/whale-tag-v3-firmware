@@ -156,13 +156,34 @@ void Error_Handler(void);
 #define ECG_hi2c hi2c2
 #define KELLER_hi2c hi2c1
 
-#define BATTERY_htim htim2
-#define PRESSURE_htim htim3
+#define BATTERY_TIM TIM2
+#define PRESSURE_TIM TIM3
+#define uS_TIM TIM4
+
+#define battery_htim htim2
+#define pressure_htim htim3
 #define uS_htim htim4
 //#define FLASHER_htim htim5
 
 #define GPS_huart huart1
 #define SAT_huart huart2
+
+// Helper timer definitions
+#define CONCAT(a, b, c) a ## b ## c
+#define EXPAND_AND_CONCAT(a, b, c) CONCAT(a, b, c)
+
+#define PRESSURE_TIM_IRQn EXPAND_AND_CONCAT(PRESSURE_TIM,_IRQn,)
+#define __HAL_RCC_PRESSURE_TIM_CLK_ENABLE EXPAND_AND_CONCAT(__HAL_RCC_, PRESSURE_TIM,_CLK_ENABLE)
+#define __HAL_RCC_PRESSURE_TIM_CLK_DISABLE EXPAND_AND_CONCAT(__HAL_RCC_, PRESSURE_TIM,_CLK_DISABLE)
+
+#define uS_TIM_IRQn EXPAND_AND_CONCAT(uS_TIM,_IRQn,)
+#define __HAL_RCC_uS_TIM_CLK_ENABLE EXPAND_AND_CONCAT(__HAL_RCC_, uS_TIM,_CLK_ENABLE)
+#define __HAL_RCC_uS_TIM_CLK_DISABLE EXPAND_AND_CONCAT(__HAL_RCC_, uS_TIM,_CLK_DISABLE)
+
+#define BATTERY_TIM_IRQn EXPAND_AND_CONCAT(BATTERY_TIM,_IRQn,)
+#define __HAL_RCC_BATTERY_TIM_CLK_ENABLE EXPAND_AND_CONCAT(__HAL_RCC_, BATTERY_TIM,_CLK_ENABLE)
+#define __HAL_RCC_BATTERY_TIM_CLK_DISABLE EXPAND_AND_CONCAT(__HAL_RCC_, BATTERY_TIM,_CLK_DISABLE)
+
 
 /* USER CODE END Private defines */
 
