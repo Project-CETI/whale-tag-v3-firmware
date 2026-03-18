@@ -19,10 +19,10 @@
 #define PRESSURE_MIN 0   // bar
 #define PRESSURE_MAX 200 // bar
 
-#define KELLER4LD_RAW_TO_PRESSURE_BAR(raw) (((double)(raw)-16384.0) * ((PRESSURE_MAX - PRESSURE_MIN) / 32768.0))
+#define KELLER4LD_RAW_TO_PRESSURE_BAR(raw) (((double)(raw) - 16384.0) * ((PRESSURE_MAX - PRESSURE_MIN) / 32768.0))
 #define KELLER4LD_RAW_TO_TEMPERATURE_C(raw) ((double)(((raw) >> 4) - 24) * 0.05 - 50.0)
 
-#define KELLER4LD_PRESSURE_BAR_TO_RAW(pressure_bar) ((uint16_t)(((pressure_bar) * 32768.0/(PRESSURE_MAX - PRESSURE_MIN)) + 16384.0))
+#define KELLER4LD_PRESSURE_BAR_TO_RAW(pressure_bar) ((uint16_t)(((pressure_bar) * 32768.0 / (PRESSURE_MAX - PRESSURE_MIN)) + 16384.0))
 
 typedef struct {
     uint8_t status;

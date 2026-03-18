@@ -16,6 +16,7 @@ extern TIM_HandleTypeDef pressure_htim;
 
 static CetiPressureSample s_latest_sample;
 static uint8_t s_enabled = 0;
+static uint8_t s_initialized = 0;
 
 static void (*s_measurement_complete_callback)(const CetiPressureSample *p_sample) = NULL;
 
@@ -26,8 +27,8 @@ static void (*s_measurement_complete_callback)(const CetiPressureSample *p_sampl
 //         | <sample_timer> -> <request measurement> -> <Timer IT> -> <measurement_read>
 //         | <sample_timer> -> <request measurement> -> <blocking_wait> -> <measurement_read>
 
-/// @brief 
-/// @param p_raw 
+/// @brief
+/// @param p_raw
 static void __sample_complete_callback(uint8_t p_raw[static 5]) {
     // timestamp sample
     s_latest_sample.timestamp_us = rtc_get_epoch_us();
@@ -39,16 +40,19 @@ static void __sample_complete_callback(uint8_t p_raw[static 5]) {
     }
 }
 
-
 /// @brief pressure sensor sampling interval timer callback. Initalizes sensor sample measurement
-/// @param htim 
+/// @param htim
 static void __acq_pressure_timer_complete_cb(TIM_HandleTypeDef *htim) {
-	[[ maybe_unused ]] int result = keller4ld_request_measurement();
+    [[maybe_unused]] int result = keller4ld_request_measurement();
 }
 
 /// @brief Initialize pressure acquistion system
 /// @param
 void acq_pressure_init(uint16_t samplerate_hz) {
+    if(s_initialized) {
+        acq_pressure_deinit();
+    }
+
     HAL_StatusTypeDef ret = HAL_OK;
     // configure pressure sensor exti gpios
     GPIO_InitTypeDef GPIO_InitStruct = {
@@ -75,7 +79,6 @@ void acq_pressure_init(uint16_t samplerate_hz) {
     ret |= HAL_TIM_Base_Init(&pressure_htim);
     HAL_TIM_RegisterCallback(&pressure_htim, HAL_TIM_PERIOD_ELAPSED_CB_ID, __acq_pressure_timer_complete_cb);
 
-
     TIM_ClockConfigTypeDef sClockSourceConfig = {
         .ClockSource = TIM_CLOCKSOURCE_INTERNAL,
     };
@@ -88,14 +91,15 @@ void acq_pressure_init(uint16_t samplerate_hz) {
     ret |= HAL_TIMEx_MasterConfigSynchronization(&pressure_htim, &sMasterConfig);
     if (HAL_OK != ret) {
         // ToDo: handle errors
-    } 
-    
+    }
+
     keller4ld_register_measurement_complete_callback(__sample_complete_callback);
+    s_initialized = 1;
     return;
 }
 
 /// @brief Start Pressure sensor acquisition
-/// @param  
+/// @param
 void acq_pressure_start(void) {
     if (s_enabled) {
         return;
@@ -105,26 +109,26 @@ void acq_pressure_start(void) {
 }
 
 /// @brief Stop pressure sensor acquisition
-/// @param  
+/// @param
 void acq_pressure_stop(void) {
     HAL_TIM_Base_Stop_IT(&pressure_htim);
     s_enabled = 0;
 }
 
-/// @brief Deinitialize 
-/// @param  
+/// @brief Deinitialize
+/// @param
 void acq_pressure_deinit(void) {
     acq_pressure_stop();
     HAL_TIM_UnRegisterCallback(&pressure_htim, HAL_TIM_PERIOD_ELAPSED_CB_ID);
     HAL_TIM_Base_DeInit(&pressure_htim);
     // ToDo: deinit/reconfigure other hardware
     s_measurement_complete_callback = NULL;
+    s_initialized = 0;
 }
 
 void acq_pressure_get_latest(CetiPressureSample *p_sample) {
     memcpy(p_sample, &s_latest_sample, sizeof(CetiPressureSample));
 }
-
 
 void acq_pressure_register_sample_callback(void (*p_callback)(const CetiPressureSample *)) {
     s_measurement_complete_callback = p_callback;

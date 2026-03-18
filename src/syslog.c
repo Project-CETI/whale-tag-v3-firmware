@@ -1,29 +1,39 @@
 #include "syslog.h"
 
-#include <stm32u5xx_hal.h>
-#include <stdio.h>
+#include "util/buffer_writer.h"
+
 #include <stdarg.h>
+#include <stdio.h>
+#include <stm32u5xx_hal.h>
 
 #include "main.h"
 #include "version.h"
 
-#define SYSLOG_FILENAME "syslog.log"
 
 extern RTC_HandleTypeDef hrtc;
 extern FX_MEDIA sdio_disk;
 
-static FX_FILE syslog_file = {};
+#define SYSLOG_FILENAME "syslog.log"
+
+#define SYSLOG_BUFFER_THRESHOLD (512)
+#define SYSLOG_BUFFER_SIZE (SYSLOG_BUFFER_THRESHOLD + 512)
+static uint8_t syslog_buffer[SYSLOG_BUFFER_SIZE];
+static BufferWriter s_bw = {
+    .buffer = syslog_buffer,
+    .threshold = SYSLOG_BUFFER_THRESHOLD,
+    .capacity = SYSLOG_BUFFER_SIZE,
+};
 
 void syslog_init(void) {
     UINT fx_result = FX_ACCESS_ERROR;
     fx_result = fx_file_create(&sdio_disk, SYSLOG_FILENAME);
     if ((fx_result != FX_SUCCESS) && (fx_result != FX_ALREADY_CREATED)) {
-    	Error_Handler();
+        Error_Handler();
     }
 
-    UINT fx_open_result = fx_file_open(&sdio_disk, &syslog_file, SYSLOG_FILENAME, FX_OPEN_FOR_WRITE);
+    UINT fx_open_result = buffer_writer_open(&s_bw, SYSLOG_FILENAME);    
     if ((fx_open_result != FX_SUCCESS)) {
-    	Error_Handler();
+        Error_Handler();
     }
     syslog_write("system log initialized");
     syslog_write("Firmware Compiled:" FW_COMPILATION_DATE);
@@ -31,12 +41,16 @@ void syslog_init(void) {
 }
 
 void syslog_deinit(void) {
-    fx_file_close(&syslog_file);
+    buffer_writer_close(&s_bw);
 }
 
-// // call this function to write to the system log
-static uint8_t scratch_buffer[1024] = {};
+void syslog_flush(void) {
+    buffer_writer_flush(&s_bw);
+}
+
+// call this function to write to the system log
 UINT __syslog_write(const str *identifier, const char *fmt, ...) {
+    uint8_t scratch_buffer[1024] = {};
     uint8_t *position = &scratch_buffer[0];
 
     // add date/time to scratch buffer
@@ -45,10 +59,9 @@ UINT __syslog_write(const str *identifier, const char *fmt, ...) {
     HAL_RTC_GetDate(&hrtc, &date, 0);
     HAL_RTC_GetTime(&hrtc, &time, 0);
     position += snprintf(
-        (char *)position, sizeof(scratch_buffer) - (position - scratch_buffer) - 1, 
+        (char *)position, sizeof(scratch_buffer) - (position - scratch_buffer) - 1,
         "20%02d-%02d-%02d %02d:%02d:%02d ",
-        date.Year, date.Month, date.Date, time.Hours, time.Minutes, time.Seconds
-    );
+        date.Year, date.Month, date.Date, time.Hours, time.Minutes, time.Seconds);
 
     // add calling identifier to data buffer
     memcpy(position, identifier->ptr, identifier->length);
@@ -58,16 +71,16 @@ UINT __syslog_write(const str *identifier, const char *fmt, ...) {
 
     // append user generated message
     va_list ap;
-    va_start(ap,fmt);
+    va_start(ap, fmt);
     position += vsnprintf((char *)position, sizeof(scratch_buffer) - (position - scratch_buffer) - 1, fmt, ap);
     va_end(ap);
 
     *position = '\n';
     position++;
 
-    UINT fx_result = fx_file_write(&syslog_file, scratch_buffer, (position - scratch_buffer));
+    UINT fx_result = buffer_writer_write(&s_bw,  scratch_buffer, (position - scratch_buffer));
     if (fx_result != FX_SUCCESS) {
-    	Error_Handler();
+        Error_Handler();
     }
 
     return fx_result;

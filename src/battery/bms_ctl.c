@@ -8,7 +8,7 @@
 #include "max17320.h"
 
 #include "syslog.h"
-#include "util/error.h"
+#include "error.h"
 
 typedef struct {
     char *name;
@@ -16,11 +16,31 @@ typedef struct {
     uint16_t value;
 } NvExpected;
 
+#define BMS_VERSION_1_0 (0)
+#define BMS_VERSION_1_1 (1)
+
+#define BMS_VERSION (BMS_VERSION_1_1)
+
+#define BMS_CELL_EFEST_18650 (0)
+#define BMS_CELL_605060_2C (1)
+
+#define BMS_CELLS BMS_CELL_605060_2C
+
+#if BMS_CELLS == BMS_CELL_605060_2C
+#define BMS_CELL_CAPACITY_mAh 2050
+#elif BMS_CELLS == BMS_CELL_EFEST_18650
+#define BMS_CELL_CAPACITY_mAh 4000
+#endif //BMS_CELLS
+
+
 const NvExpected g_nv_expected[] = {
     {.name = "NRSENSE", .addr = 0x1cf, .value = 0x03e8},
-     {.name = "NDESIGNCAP", .addr = 0x1b3, .value = 0x2710},
-//    {.name = "NDESIGNCAP", .addr = 0x1b3, .value = 0x1F40},
+    {.name = "NDESIGNCAP", .addr = 0x1b3, .value = BMS_CELL_CAPACITY_mAh * 10 / 5},
+#if BMS_VERSION == BMS_VERSION_1_1
+    {.name = "NPACKCFG", .addr = 0x1b5, .value = 0xc204},
+#elif BMS_VERSION == BMS_VERSION_1_0
     {.name = "NPACKCFG", .addr = 0x1b5, .value = 0xc208},
+#endif // BMS_VERSION
     {.name = "NNVCFG0", .addr = 0x1b8, .value = 0x0830},
     {.name = "NNVCFG1", .addr = 0x1b9, .value = 0x2100},
     {.name = "NNVCFG2", .addr = 0x1ba, .value = 0x822d},
@@ -55,38 +75,38 @@ int bms_ctl_verify(void) {
         uint16_t actual;
 
         // hardware access register
-        WTResult result = max17320_read(g_nv_expected[i].addr, &actual);
-        if (result != WT_OK) {
+        CetiStatus result = max17320_read(g_nv_expected[i].addr, &actual);
+        if (result != CETI_STATUS_OK) {
             // CETI_ERR("BMS device read error: %s\n", wt_strerror_r(result, err_str, sizeof(err_str)));
             return 0;
         }
 
         // assertions
         if (actual != g_nv_expected[i].value) {
-           CETI_WARN("%-12s: 0x%04x != 0x%04x !!!!", g_nv_expected[i].name, actual, g_nv_expected[i].value);
+            CETI_WARN("%-12s: 0x%04x != 0x%04x !!!!", g_nv_expected[i].name, actual, g_nv_expected[i].value);
             incorrect++;
         } else {
-           CETI_LOG("%-12s: 0x%04x  OK!", g_nv_expected[i].name, actual);
+            CETI_LOG("%-12s: 0x%04x  OK!", g_nv_expected[i].name, actual);
         }
     }
 
     if (incorrect != 0) {
-       CETI_WARN("%d values did not match expected value", incorrect);
+        CETI_WARN("%d values did not match expected value", incorrect);
         return 0;
     }
     return 1;
 }
 
 int bms_ctl_program_nonvolatile_memory(void) {
-    WTResult hw_result = max17320_clear_write_protection();
+    CetiStatus hw_result = max17320_clear_write_protection();
     if (hw_result != 0) {
-    	return -1;
+        return -1;
     }
-    //write shadowram
+    // write shadowram
     for (int i = 0; g_nv_expected[i].name != NULL; i++) {
         // hardware access register
         hw_result |= max17320_write(g_nv_expected[i].addr, g_nv_expected[i].value);
-        if (hw_result != WT_OK) {
+        if (hw_result != CETI_STATUS_OK) {
             // CETI_ERR("BMS device read error: %s\n", wt_strerror_r(result, err_str, sizeof(err_str)));
             return hw_result;
         }
@@ -97,16 +117,16 @@ int bms_ctl_program_nonvolatile_memory(void) {
 
 int bms_ctl_temporary_overwrite_nv_values(void) {
     int hw_result = max17320_clear_write_protection();
-    if (hw_result == WT_OK) {
+    if (hw_result == CETI_STATUS_OK) {
         for (int i = 0; i < sizeof(g_nv_expected) / sizeof(*g_nv_expected); i++) {
             CETI_WARN("%-12s: 0x%04x", g_nv_expected[i].name, g_nv_expected[i].value);
             hw_result = max17320_write(g_nv_expected[i].addr, g_nv_expected[i].value);
-            if (hw_result != WT_OK) {
+            if (hw_result != CETI_STATUS_OK) {
                 break;
             }
         }
     }
-    if (hw_result == WT_OK) {
+    if (hw_result == CETI_STATUS_OK) {
         // soft reset to have gauge initialize with values we wrote to shadow ram
         hw_result = max17320_gauge_reset();
     }
@@ -117,20 +137,35 @@ static int discharging_disabled = -1;
 static int charging_disabled = -1;
 
 int bms_ctl_reset_FETs(void) {
-    WTResult hw_result = WT_OK;
+    CetiStatus hw_result = CETI_STATUS_OK;
     hw_result = max17320_enable_discharging();
-    if (hw_result != WT_OK) {
+    if (hw_result != CETI_STATUS_OK) {
         // char err_str[512];
         // CETI_ERR("Could not enable discharging FET: %s", wt_strerror_r(hw_result, err_str, sizeof(err_str)));
         return hw_result;
     }
     discharging_disabled = 0;
     hw_result = max17320_enable_charging();
-    if (hw_result != WT_OK) {
+    if (hw_result != CETI_STATUS_OK) {
         // char err_str[512];
         // CETI_ERR("Could not enable charging FET: %s", wt_strerror_r(hw_result, err_str, sizeof(err_str)));
         return hw_result;
     }
     charging_disabled = 0;
-    return WT_OK;
+    return CETI_STATUS_OK;
+}
+
+CetiStatus bms_disable_FETs(void) {
+    CetiStatus hw_result = CETI_STATUS_OK;
+    hw_result = max17320_disable_charging();
+    if (CETI_STATUS_OK != hw_result) { 
+        return hw_result;
+    }
+    charging_disabled = 1;
+    hw_result = max17320_disable_discharging(); 
+    if (CETI_STATUS_OK != hw_result) { 
+        return hw_result;
+    }
+    discharging_disabled = 1;
+    return CETI_STATUS_OK;
 }

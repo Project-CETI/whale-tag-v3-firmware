@@ -1,6 +1,6 @@
 /*****************************************************************************
  *   @file      satellite.c
- *   @brief     This header is the api to handles communication Arribada ARGOS 
+ *   @brief     This header is the api to handles communication Arribada ARGOS
  *              module
  *   @project   Project CETI
  *   @date      12/10/2025
@@ -11,8 +11,8 @@
 #define CETI_SATELLITE_H
 
 /* Public Dependencies */
-#include <unistd.h>
 #include "main.h"
+#include <unistd.h>
 
 /* Public Macros */
 #define ARGOS_ID_LENGTH 6
@@ -41,10 +41,9 @@ int satellite_get_mac_address(char dst[ARGOS_MAC_ADDRESS_LENGTH + 1], uint16_t *
 int satellite_get_secret_key(char dst[ARGOS_SECRET_KEY_LENGTH + 1], uint16_t *length, uint16_t capacity);
 int satellite_get_rconf(RecoveryArgoModulation *rconf);
 
-int satellite_set_id(const char* id, size_t id_len);
+int satellite_set_id(const char *id, size_t id_len);
 int satellite_set_mac_address(const char address[static ARGOS_MAC_ADDRESS_LENGTH]);
 int satellite_set_secret_key(const char secret_key[static ARGOS_SECRET_KEY_LENGTH]);
 
 void satellite_configure_radio(RecoveryArgoModulation modulation);
 #endif // CETI_SATELLITE_H
-

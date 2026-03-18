@@ -28,3 +28,6 @@ src/satellite/arribada_secret.h
 .gitmodules_updated
 
 tools/perf_preprocessor/
+
+#ignore ai tool settings
+.claude/

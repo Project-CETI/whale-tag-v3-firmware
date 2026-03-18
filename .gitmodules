@@ -16,6 +16,3 @@
 [submodule "lib/stm32-mw-filex"]
 	path = lib/stm32-mw-filex
 	url = https://github.com/STMicroelectronics/stm32-mw-filex.git
-[submodule "lib/microrl"]
-	path = lib/microrl
-	url = https://github.com/Helius/microrl.git

@@ -162,7 +162,6 @@ extern "C" {
 
 #pragma once
 
-
 // -------------------------------------------------------------------------- //
 // Includes
 // -------------------------------------------------------------------------- //
@@ -172,7 +171,6 @@ extern "C" {
 #include <stdbool.h>
 #include <stdlib.h>
 
-
 // -------------------------------------------------------------------------- //
 //! @addtogroup ARGOS-PASS-PREDICTION-LIBS
 //! @brief Satellite pass prediction library  (refer to \ref pass_prediction_lib_page page for
@@ -180,69 +178,65 @@ extern "C" {
 //! @{
 // -------------------------------------------------------------------------- //
 
-
 // -------------------------------------------------------------------------- //
 //! \brief Gives action to perform once the iterative of satellite passes
 //!        processing is done.
 // -------------------------------------------------------------------------- //
 
 enum TransceiverAction_t {
-	UNKNOWN_TRANSCEIVER_ACTION, //!< No action
-	ENABLE_TX_ONLY, //!< Enable TX only
-	ENABLE_RX_ONLY, //!< Enable RX only
-	ENABLE_TX_AND_RX, //!< Enable RX after TX
-	DISABLE_TX_RX, //!< Disable RX/TX
-	CHANGE_TX_MOD, //!< New TX capacity detected
-	CHANGE_RX_MOD, //!< New RX capacity detected
-	CHANGE_TX_PLUS_RX_MOD, //!< New TX and RX capacity detected
-	KEEP_TRANSCEIVER_STATE      //!< Keep transceiver state
+    UNKNOWN_TRANSCEIVER_ACTION, //!< No action
+    ENABLE_TX_ONLY,             //!< Enable TX only
+    ENABLE_RX_ONLY,             //!< Enable RX only
+    ENABLE_TX_AND_RX,           //!< Enable RX after TX
+    DISABLE_TX_RX,              //!< Disable RX/TX
+    CHANGE_TX_MOD,              //!< New TX capacity detected
+    CHANGE_RX_MOD,              //!< New RX capacity detected
+    CHANGE_TX_PLUS_RX_MOD,      //!< New TX and RX capacity detected
+    KEEP_TRANSCEIVER_STATE      //!< Keep transceiver state
 };
-
 
 // -------------------------------------------------------------------------- //
 //! Computation configuration
 // -------------------------------------------------------------------------- //
 struct PredictionPassConfiguration_stu90_t {
-	float beaconLatitude ;  //!< Geodetic latitude of the beacon (deg.) [-90, 90]
-	float beaconLongitude ; //!< Geodetic longitude of the beacon (deg.E) [0, 360]
+    float beaconLatitude;  //!< Geodetic latitude of the beacon (deg.) [-90, 90]
+    float beaconLongitude; //!< Geodetic longitude of the beacon (deg.E) [0, 360]
 
-	uint32_t start_stu90; //!< Beginning of prediction (Y/M/D, hh:mm:ss)
+    uint32_t start_stu90; //!< Beginning of prediction (Y/M/D, hh:mm:ss)
 
-	uint32_t end_stu90; //!< End of prediction (Y/M/D, hh:mm:ss)
+    uint32_t end_stu90; //!< End of prediction (Y/M/D, hh:mm:ss)
 
-	float minElevation ; //!< Minimum elevation of passes [0, 90]
-	float maxElevation ; //!< Maximum elevation of passes [maxElevation >= minElevation]
+    float minElevation; //!< Minimum elevation of passes [0, 90]
+    float maxElevation; //!< Maximum elevation of passes [maxElevation >= minElevation]
 
-	float minPassDurationMinute; //!< Minimum duration (in minutes)
+    float minPassDurationMinute; //!< Minimum duration (in minutes)
 
-	uint32_t maxPasses; //!< Maximum number of passes per satellite
+    uint32_t maxPasses; //!< Maximum number of passes per satellite
 
-	float timeMarginMinPer6months; //!< Linear time margin (in minutes/6months)
+    float timeMarginMinPer6months; //!< Linear time margin (in minutes/6months)
 
-	uint32_t computationStepSecond; //!< Computation step (in seconds)
+    uint32_t computationStepSecond; //!< Computation step (in seconds)
 };
-
 
 struct PredictionPassConfiguration_t {
-	float beaconLatitude ;  //!< Geodetic latitude of the beacon (deg.) [-90, 90]
-	float beaconLongitude ; //!< Geodetic longitude of the beacon (deg.E) [0, 360]
+    float beaconLatitude;  //!< Geodetic latitude of the beacon (deg.) [-90, 90]
+    float beaconLongitude; //!< Geodetic longitude of the beacon (deg.E) [0, 360]
 
-	struct CalendarDateTime_t start; //!< Beginning of prediction (Y/M/D, hh:mm:ss)
+    struct CalendarDateTime_t start; //!< Beginning of prediction (Y/M/D, hh:mm:ss)
 
-	struct CalendarDateTime_t end; //!< End of prediction (Y/M/D, hh:mm:ss)
+    struct CalendarDateTime_t end; //!< End of prediction (Y/M/D, hh:mm:ss)
 
-	float minElevation ; //!< Minimum elevation of passes [0, 90]
-	float maxElevation ; //!< Maximum elevation of passes [maxElevation >= minElevation]
+    float minElevation; //!< Minimum elevation of passes [0, 90]
+    float maxElevation; //!< Maximum elevation of passes [maxElevation >= minElevation]
 
-	float minPassDurationMinute; //!< Minimum duration (in minutes)
+    float minPassDurationMinute; //!< Minimum duration (in minutes)
 
-	uint32_t maxPasses; //!< Maximum number of passes per satellite
+    uint32_t maxPasses; //!< Maximum number of passes per satellite
 
-	float timeMarginMinPer6months; //!< Linear time margin (in minutes/6months)
+    float timeMarginMinPer6months; //!< Linear time margin (in minutes/6months)
 
-	uint32_t computationStepSecond; //!< Computation step (in seconds)
+    uint32_t computationStepSecond; //!< Computation step (in seconds)
 };
-
 
 // -------------------------------------------------------------------------- //
 //! \brief Compress next pass satellite information in one 64bit word as a
@@ -250,29 +244,27 @@ struct PredictionPassConfiguration_t {
 // -------------------------------------------------------------------------- //
 
 struct SatelliteNextPassPrediction_t {
-	//! Information on satellite pass itself with most important information
-	uint64_t epoch          : 32 ; //!< Bulletin epoch next pass (136 years from 1970/01/01)
-	uint64_t duration       : 11 ; //!< Duration (sec) : 11 bits (max 2047s, 34mins)
-	uint64_t elevationMax   :  7 ; //!< Max elevation during pass (deg), max is 90
+    //! Information on satellite pass itself with most important information
+    uint64_t epoch : 32;       //!< Bulletin epoch next pass (136 years from 1970/01/01)
+    uint64_t duration : 11;    //!< Duration (sec) : 11 bits (max 2047s, 34mins)
+    uint64_t elevationMax : 7; //!< Max elevation during pass (deg), max is 90
 
-	//! Information on satellite ID
-	uint64_t satHexId       : 8 ; //! Hexadecimal satellite id [0x01..0xFF]
+    //! Information on satellite ID
+    uint64_t satHexId : 8; //! Hexadecimal satellite id [0x01..0xFF]
 
-	//! Configuration type
-	uint64_t downlinkStatus : 3 ; //!< 4 maximum, see SatDownlinkStatus_t
-	uint64_t uplinkStatus   : 3 ; //!< 5 maximum, see SatUplinkStatus_t
+    //! Configuration type
+    uint64_t downlinkStatus : 3; //!< 4 maximum, see SatDownlinkStatus_t
+    uint64_t uplinkStatus : 3;   //!< 5 maximum, see SatUplinkStatus_t
 };
-
 
 // -------------------------------------------------------------------------- //
 //! Linked list element for satellite pass prediction.
 // -------------------------------------------------------------------------- //
 
 struct SatPassLinkedListElement_t {
-	struct SatelliteNextPassPrediction_t element ;   //!< Pass prediction values
-	struct SatPassLinkedListElement_t *next ; //!< Pointer to next element in list
+    struct SatelliteNextPassPrediction_t element; //!< Pass prediction values
+    struct SatPassLinkedListElement_t *next;      //!< Pointer to next element in list
 };
-
 
 // -------------------------------------------------------------------------- //
 //! \brief Info about one pass
@@ -282,11 +274,10 @@ struct SatPassLinkedListElement_t {
 // -------------------------------------------------------------------------- //
 
 struct NextPassTransceiverCapacity_t {
-	enum TransceiverAction_t trcvrActionForNextPass ; //!< Transition nature
-	enum SatDownlinkStatus_t maxDownlinkStatus ; //!< Maximum Downlink status during the pass
-	enum SatUplinkStatus_t minUplinkStatus ; //!< Minimum Uplink status during the pass
+    enum TransceiverAction_t trcvrActionForNextPass; //!< Transition nature
+    enum SatDownlinkStatus_t maxDownlinkStatus;      //!< Maximum Downlink status during the pass
+    enum SatUplinkStatus_t minUplinkStatus;          //!< Minimum Uplink status during the pass
 };
-
 
 // -------------------------------------------------------------------------- //
 //! Values for default AOP entry
@@ -294,7 +285,6 @@ struct NextPassTransceiverCapacity_t {
 
 struct AopSatelliteEntry_t
 PREVIPASS_default_aop_satellite_entry(void);
-
 
 // -------------------------------------------------------------------------- //
 //! \brief Conversion between constellation status type A and generic status.
@@ -332,15 +322,12 @@ PREVIPASS_default_aop_satellite_entry(void);
 //!    Generic status uplink info
 // -------------------------------------------------------------------------- //
 
-void
-PREVIPASS_status_format_a_to_generic(
-	enum SatDownlinkStatusFormatA_t downlinkStatusFormatA,
-	enum SatUplinkStatusFormatA_t   uplinkStatusFormatA,
-	SatHexId_t                      satHexId,
-	enum SatDownlinkStatus_t       *downlinkStatusGeneric,
-	enum SatUplinkStatus_t         *uplinkStatusGeneric
-);
-
+void PREVIPASS_status_format_a_to_generic(
+    enum SatDownlinkStatusFormatA_t downlinkStatusFormatA,
+    enum SatUplinkStatusFormatA_t uplinkStatusFormatA,
+    SatHexId_t satHexId,
+    enum SatDownlinkStatus_t *downlinkStatusGeneric,
+    enum SatUplinkStatus_t *uplinkStatusGeneric);
 
 // -------------------------------------------------------------------------- //
 //! \brief Conversion between constellation status type B and generic status.
@@ -359,11 +346,10 @@ PREVIPASS_status_format_a_to_generic(
 // -------------------------------------------------------------------------- //
 
 void PREVIPASS_status_format_b_to_generic(
-	enum SatDownlinkStatusFormatB_t  downlinkStatusFormatB,
-	enum SatOperatingStatusFormatB_t operatingStatusFormatB,
-	enum SatDownlinkStatus_t        *downlinkStatusGeneric,
-	enum SatUplinkStatus_t          *uplinkStatusGeneric
-);
+    enum SatDownlinkStatusFormatB_t downlinkStatusFormatB,
+    enum SatOperatingStatusFormatB_t operatingStatusFormatB,
+    enum SatDownlinkStatus_t *downlinkStatusGeneric,
+    enum SatUplinkStatus_t *uplinkStatusGeneric);
 
 // -------------------------------------------------------------------------- //
 //! \brief Conversion between constellation generic status and status type A.
@@ -381,22 +367,16 @@ void PREVIPASS_status_format_b_to_generic(
 //!    Format A constellation status uplink info
 // -------------------------------------------------------------------------- //
 
-void
-PREVIPASS_status_generic_to_format_a
-(
-	enum SatDownlinkStatus_t         downlinkStatusGeneric,
-	enum SatUplinkStatus_t           uplinkStatusGeneric,
-	enum SatDownlinkStatusFormatA_t *downlinkStatusFormatA,
-	enum SatUplinkStatusFormatA_t   *uplinkStatusFormatA
-);
+void PREVIPASS_status_generic_to_format_a(
+    enum SatDownlinkStatus_t downlinkStatusGeneric,
+    enum SatUplinkStatus_t uplinkStatusGeneric,
+    enum SatDownlinkStatusFormatA_t *downlinkStatusFormatA,
+    enum SatUplinkStatusFormatA_t *uplinkStatusFormatA);
 
-
-bool PREVIPASS_estimate_next_pass_with_status
-(
-	const struct PredictionPassConfiguration_stu90_t *config,
-	const struct AopSatelliteEntry_t           *aopTableEntry,
-	struct SatelliteNextPassPrediction_t  *passPtrPtr
-);
+bool PREVIPASS_estimate_next_pass_with_status(
+    const struct PredictionPassConfiguration_stu90_t *config,
+    const struct AopSatelliteEntry_t *aopTableEntry,
+    struct SatelliteNextPassPrediction_t *passPtrPtr);
 
 // -------------------------------------------------------------------------- //
 //! \brief Main Prepas library function
@@ -441,14 +421,11 @@ bool PREVIPASS_estimate_next_pass_with_status
 //!    been inserted into the list.
 // -------------------------------------------------------------------------- //
 
-struct SatPassLinkedListElement_t*
-PREVIPASS_compute_new_prediction_pass_times
-(
-	const struct PredictionPassConfiguration_t *config,
-	const struct AopSatelliteEntry_t           *aopTable,
-	bool                                 *retStatus
-);
-
+struct SatPassLinkedListElement_t *
+PREVIPASS_compute_new_prediction_pass_times(
+    const struct PredictionPassConfiguration_t *config,
+    const struct AopSatelliteEntry_t *aopTable,
+    bool *retStatus);
 
 // -------------------------------------------------------------------------- //
 //! \brief Main Prepas library function with status filtering
@@ -480,16 +457,13 @@ PREVIPASS_compute_new_prediction_pass_times
 //!    been inserted into the list.
 // -------------------------------------------------------------------------- //
 
-struct SatPassLinkedListElement_t*
-PREVIPASS_compute_new_prediction_pass_times_with_status
-(
-	const struct PredictionPassConfiguration_t *config,
-	const struct AopSatelliteEntry_t           *aopTable,
-	enum SatDownlinkStatus_t              downlinkStatus,
-	enum SatUplinkStatus_t                uplinkStatus,
-	bool                                 *retStatus
-);
-
+struct SatPassLinkedListElement_t *
+PREVIPASS_compute_new_prediction_pass_times_with_status(
+    const struct PredictionPassConfiguration_t *config,
+    const struct AopSatelliteEntry_t *aopTable,
+    enum SatDownlinkStatus_t downlinkStatus,
+    enum SatUplinkStatus_t uplinkStatus,
+    bool *retStatus);
 
 // -------------------------------------------------------------------------- //
 //! \brief Define transmitter action based on passes list.
@@ -516,12 +490,9 @@ PREVIPASS_compute_new_prediction_pass_times_with_status
 // -------------------------------------------------------------------------- //
 
 struct NextPassTransceiverCapacity_t
-PREVIPASS_process_existing_sorted_passes
-(
-	uint32_t                           currentTime,
-	struct SatPassLinkedListElement_t *previsionPassesList
-);
-
+PREVIPASS_process_existing_sorted_passes(
+    uint32_t currentTime,
+    struct SatPassLinkedListElement_t *previsionPassesList);
 
 // -------------------------------------------------------------------------- //
 //! \brief Get next pass
@@ -546,14 +517,10 @@ PREVIPASS_process_existing_sorted_passes
 //! \return True if a pass has been found.
 // -------------------------------------------------------------------------- //
 
-bool
-PREVIPASS_compute_next_pass
-(
-	const struct PredictionPassConfiguration_t *config,
-	const struct AopSatelliteEntry_t           *aopTable,
-	struct SatelliteNextPassPrediction_t *nextPass
-);
-
+bool PREVIPASS_compute_next_pass(
+    const struct PredictionPassConfiguration_t *config,
+    const struct AopSatelliteEntry_t *aopTable,
+    struct SatelliteNextPassPrediction_t *nextPass);
 
 // -------------------------------------------------------------------------- //
 //! \brief Get next pass depending on configuration
@@ -578,16 +545,12 @@ PREVIPASS_compute_next_pass
 //! \return True if a pass has been found.
 // -------------------------------------------------------------------------- //
 
-bool
-PREVIPASS_compute_next_pass_with_status
-(
-	const struct PredictionPassConfiguration_t *config,
-	const struct AopSatelliteEntry_t           *aopTable,
-	enum SatDownlinkStatus_t              downlinkStatus,
-	enum SatUplinkStatus_t                uplinkStatus,
-	struct SatelliteNextPassPrediction_t *nextPass
-);
-
+bool PREVIPASS_compute_next_pass_with_status(
+    const struct PredictionPassConfiguration_t *config,
+    const struct AopSatelliteEntry_t *aopTable,
+    enum SatDownlinkStatus_t downlinkStatus,
+    enum SatUplinkStatus_t uplinkStatus,
+    struct SatelliteNextPassPrediction_t *nextPass);
 
 // -------------------------------------------------------------------------- //
 //! @} (end addtogroup ARGOS-PASS-PREDICTION-LIBS)

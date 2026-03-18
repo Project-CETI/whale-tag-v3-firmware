@@ -1,6 +1,6 @@
 /*****************************************************************************
  *   @file      battery/max17320.c
- *   @brief     MAX17320+ BMS device driver 
+ *   @brief     MAX17320+ BMS device driver
  *   @project   Project CETI
  *   @copyright Harvard University Wood Lab
  *   @authors   Michael Salino-Hugg, [TODO: Add other contributors here]
@@ -14,8 +14,8 @@
 #define BMS_I2C_DEV_ADDR_LOWER (0x36) // For internal memory range 000h-0FFh
 
 #if (HW_VERSION == HW_VERSION_3_1_0) || (HW_VERSION == HW_VERSION_3_1_0_MSH)
-    #define BMS_hi2c hi2c3
-#else 
+#define BMS_hi2c hi2c3
+#else
 #error HW_VERSION_3_1_0
 #endif
 
@@ -58,8 +58,8 @@ static inline double __raw_to_time_s(uint16_t raw) {
 }
 
 /**
- * @brief Read register at specified memory address 
- * 
+ * @brief Read register at specified memory address
+ *
  * @param memory register memory address
  * @param storage destination pointer
  * @return HAL_StatusTypedef
@@ -74,13 +74,12 @@ HAL_StatusTypeDef max17320_read(uint16_t memory, uint16_t *storage) {
     return HAL_I2C_Mem_Read(self.hi2c, (addr << 1), memory, I2C_MEMADD_SIZE_8BIT, (uint8_t *)storage, sizeof(uint16_t), 1);
 }
 
-
 /**
- * @brief Write to register at specified memory address  
- * 
+ * @brief Write to register at specified memory address
+ *
  * @param memory register memory address
- * @param data 
- * @return HAL_StatusTypedef 
+ * @param data
+ * @return HAL_StatusTypedef
  */
 HAL_StatusTypeDef max17320_write(uint16_t memory, uint16_t data) {
     uint16_t addr = BMS_I2C_DEV_ADDR_LOWER;
@@ -91,26 +90,29 @@ HAL_StatusTypeDef max17320_write(uint16_t memory, uint16_t data) {
     return HAL_I2C_Mem_Write(self.hi2c, (addr << 1), memory, I2C_MEMADD_SIZE_8BIT, (uint8_t *)&data, sizeof(uint16_t), 1);
 }
 
-WTResult max17320_clear_write_protection(void) {
+CetiStatus max17320_clear_write_protection(void) {
     uint16_t read = 0;
 
     max17320_write(MAX17320_REG_COMM_STAT, CLEAR_WRITE_PROT);
-    HAL_Delay(TRECALL_US/1000);
+    HAL_Delay(TRECALL_US / 1000);
     max17320_write(MAX17320_REG_COMM_STAT, CLEAR_WRITE_PROT);
-    HAL_Delay(TRECALL_US/1000);
+    HAL_Delay(TRECALL_US / 1000);
     max17320_read(MAX17320_REG_COMM_STAT, &read);
 
     if (read != CLEARED_WRITE_PROT && read != CLEAR_WRITE_PROT) {
         return -1;
         // return WT_RESULT(WT_DEV_BMS, WT_ERR_BMS_WRITE_PROT_DISABLE_FAIL);
     }
-    return WT_OK;
+    return CETI_STATUS_OK;
 }
 
-#define usleep(time_us) HAL_Delay(time_us/1000)
-#define WT_TRY(body) {body;}
+#define usleep(time_us) HAL_Delay(time_us / 1000)
+#define WT_TRY(body) \
+    {                \
+        body;        \
+    }
 
-WTResult max17320_swap_shadow_ram(void) {
+CetiStatus max17320_swap_shadow_ram(void) {
     // Clear CommStat.NVError bit
     WT_TRY(max17320_write(MAX17320_REG_COMM_STAT, CLEAR_WRITE_PROT));
 
@@ -127,10 +129,10 @@ WTResult max17320_swap_shadow_ram(void) {
     } while (read & 0x0004);
 
     WT_TRY(max17320_reset());
-    return WT_OK;
+    return CETI_STATUS_OK;
 }
 
-WTResult max17320_gauge_reset(void) {
+CetiStatus max17320_gauge_reset(void) {
     WT_TRY(max17320_clear_write_protection());
     // Reset firmware
     WT_TRY(max17320_write(MAX17320_REG_CONFIG2, MAX17320_RESET_FW));
@@ -139,16 +141,16 @@ WTResult max17320_gauge_reset(void) {
         WT_TRY(max17320_read(MAX17320_REG_CONFIG2, &read));
         usleep(TRECALL_US);
     } while ((read & 0x8000)); // Wait for POR_CMD bit to clear
-    return WT_OK;
+    return CETI_STATUS_OK;
 }
 
-WTResult max17320_reset(void) {
+CetiStatus max17320_reset(void) {
     // Performs full reset
     WT_TRY(max17320_clear_write_protection());
     WT_TRY(max17320_write(MAX17320_REG_COMMAND, MAX17320_RESET));
     usleep(10000);
     WT_TRY(max17320_gauge_reset());
-    return WT_OK;
+    return CETI_STATUS_OK;
 }
 
 int max17320_get_cell_temperature_raw(int cell_index, uint16_t *tCells) {
@@ -160,8 +162,8 @@ int max17320_get_cell_temperature_raw(int cell_index, uint16_t *tCells) {
 
 int max17320_get_cell_temperature_c(int cell_index, double *tCells_c) {
     uint16_t raw;
-    int status = max17320_get_cell_temperature_raw(cell_index,&raw);
-    if( status != 0) {
+    int status = max17320_get_cell_temperature_raw(cell_index, &raw);
+    if (status != 0) {
         return status;
     }
 
@@ -182,7 +184,7 @@ int max17320_get_cell_voltage_raw(int cell_index, uint16_t *vCells) {
 int max17320_get_cell_voltage_v(int cell_index, double *vCells_v) {
     uint16_t raw;
     int status = max17320_get_cell_voltage_raw(cell_index, &raw);
-    if( status != 0) {
+    if (status != 0) {
         return status;
     }
     if (vCells_v != NULL) {
@@ -198,7 +200,7 @@ int max17320_get_current_raw(uint16_t *pCurrent) {
 int max17320_get_current_mA(double *pCurrent_mA) {
     uint16_t raw = 0;
     int status = max17320_get_current_raw(&raw);
-    if( status != 0) {
+    if (status != 0) {
         return status;
     }
     if (pCurrent_mA != NULL) {
@@ -226,37 +228,37 @@ int max17320_get_state_of_charge(double *pSoc) {
     if (pSoc != NULL) {
         *pSoc = __raw_to_percentage(raw);
     }
-    return WT_OK;
+    return CETI_STATUS_OK;
 }
 
-WTResult max17320_enable_charging(void) {
+CetiStatus max17320_enable_charging(void) {
     uint16_t value = 0;
     WT_TRY(max17320_read(MAX17320_REG_COMM_STAT, &value));
     value &= ~CHARGE_OFF;
     WT_TRY(max17320_write(MAX17320_REG_COMM_STAT, value));
-    return WT_OK;
+    return CETI_STATUS_OK;
 }
 
-WTResult max17320_enable_discharging(void) {
+CetiStatus max17320_enable_discharging(void) {
     uint16_t value = 0;
     WT_TRY(max17320_read(MAX17320_REG_COMM_STAT, &value));
     value &= ~DISCHARGE_OFF;
     WT_TRY(max17320_write(MAX17320_REG_COMM_STAT, value));
-    return WT_OK;
+    return CETI_STATUS_OK;
 }
 
-WTResult max17320_disable_charging(void) {
+CetiStatus max17320_disable_charging(void) {
     uint16_t value = 0;
     WT_TRY(max17320_read(MAX17320_REG_COMM_STAT, &value));
     value |= CHARGE_OFF;
     WT_TRY(max17320_write(MAX17320_REG_COMM_STAT, value));
-    return WT_OK;
+    return CETI_STATUS_OK;
 }
 
-WTResult max17320_disable_discharging(void) {
+CetiStatus max17320_disable_discharging(void) {
     uint16_t value = 0;
     WT_TRY(max17320_read(MAX17320_REG_COMM_STAT, &value));
     value |= DISCHARGE_OFF;
     WT_TRY(max17320_write(MAX17320_REG_COMM_STAT, DISCHARGE_OFF));
-    return WT_OK;
+    return CETI_STATUS_OK;
 }

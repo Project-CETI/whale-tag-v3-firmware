@@ -9,25 +9,29 @@
 
 #include "acq_battery.h"
 #include "syslog.h"
+#include "util/buffer_writer.h"
 
 #include <app_filex.h>
 #include <stdio.h>
 
-typedef enum {
-    LOG_BATTERY_FORMAT_BIN,
-    LOG_BATTERY_FORMAT_CSV,
-} LogBatteryFormat;
 
-#define LOG_BATTERY_FORMAT LOG_BATTERY_FORMAT_CSV
-#define LOG_BATTERY_FILENAME "data_battery.csv"
-
-#define LOG_BATTERY_ENCODE_BUFFER_FLUSH_THRESHOLD (3*1024)
+/********* Buffered File *****************************************************/
+#define LOG_BATTERY_ENCODE_BUFFER_FLUSH_THRESHOLD (3 * 1024)
 #define LOG_BATTERY_ENCODE_BUFFER_SIZE (LOG_BATTERY_ENCODE_BUFFER_FLUSH_THRESHOLD + 512)
+static uint8_t log_battery_encode_buffer[LOG_BATTERY_ENCODE_BUFFER_SIZE];
+static BufferWriter s_bw = {
+    .buffer = log_battery_encode_buffer,
+    .threshold = LOG_BATTERY_ENCODE_BUFFER_FLUSH_THRESHOLD,
+    .capacity = LOG_BATTERY_ENCODE_BUFFER_SIZE,
+};
+
+/********* CSV ***************************************************************/
+#define LOG_BATTERY_FILENAME "data_battery.csv"
 
 #define _RSHIFT(x, s, w) (((x) >> s) & ((1 << w) - 1))
 #define _LSHIFT(x, s, w) (((x) & ((1 << w) - 1)) << s)
 
- uint8_t log_battery_encode_buffer[LOG_BATTERY_ENCODE_BUFFER_SIZE];
+extern FX_MEDIA sdio_disk;
 
 static char *log_battery_csv_header =
     "Timestamp [us]"
@@ -40,18 +44,13 @@ static char *log_battery_csv_header =
     ", State of Charge [\%]"
     ", Status"
     ", Protection Alerts"
-    "\n"
-;
-extern FX_MEDIA sdio_disk;
-FX_FILE log_battery_file = {};
+    "\n";
 
-/**
- * @brief converts the raw value of the BMS status register to a human
- * readable string.
- *
- * @param raw raw status register value.
- * @return const char*
- */
+/// @brief converts the raw value of the BMS status register to a human
+/// readable string.
+/// @param raw raw status register value.
+/// @return 
+/// @note not thread safe
 static const char *__status_to_str(uint16_t raw) {
     static char status_string[72] = ""; // max string length is 65
     static uint16_t previous_status = 0;
@@ -76,27 +75,17 @@ static const char *__status_to_str(uint16_t raw) {
     }
 
     // detect flags
-    if (_RSHIFT(raw, 15, 1))
-        flags[flag_count++] = "PA";
-    if (_RSHIFT(raw, 1, 1))
-        flags[flag_count++] = "POR";
+    if (_RSHIFT(raw, 15, 1)) { flags[flag_count++] = "PA";  }
+    if (_RSHIFT(raw, 1, 1))  { flags[flag_count++] = "POR"; }
     // if(_RSHIFT(raw, 7, 1)) flags[flag_count++] = "dSOCi"; //ignored indicates interger change in SoC
-    if (_RSHIFT(raw, 2, 1))
-        flags[flag_count++] = "Imn";
-    if (_RSHIFT(raw, 6, 1))
-        flags[flag_count++] = "Imx";
-    if (_RSHIFT(raw, 8, 1))
-        flags[flag_count++] = "Vmn";
-    if (_RSHIFT(raw, 12, 1))
-        flags[flag_count++] = "Vmx";
-    if (_RSHIFT(raw, 9, 1))
-        flags[flag_count++] = "Tmn";
-    if (_RSHIFT(raw, 13, 1))
-        flags[flag_count++] = "Tmx";
-    if (_RSHIFT(raw, 10, 1))
-        flags[flag_count++] = "Smn";
-    if (_RSHIFT(raw, 14, 1))
-        flags[flag_count++] = "Smx";
+    if (_RSHIFT(raw, 2, 1))  { flags[flag_count++] = "Imn"; }
+    if (_RSHIFT(raw, 6, 1))  { flags[flag_count++] = "Imx"; }
+    if (_RSHIFT(raw, 8, 1))  { flags[flag_count++] = "Vmn"; }
+    if (_RSHIFT(raw, 12, 1)) { flags[flag_count++] = "Vmx"; }
+    if (_RSHIFT(raw, 9, 1))  { flags[flag_count++] = "Tmn"; }
+    if (_RSHIFT(raw, 13, 1)) { flags[flag_count++] = "Tmx"; }
+    if (_RSHIFT(raw, 10, 1)) { flags[flag_count++] = "Smn"; }
+    if (_RSHIFT(raw, 14, 1)) { flags[flag_count++] = "Smx"; }
 
     // generate string
     for (int j = 0; j < flag_count; j++) {
@@ -110,13 +99,11 @@ static const char *__status_to_str(uint16_t raw) {
     return status_string;
 }
 
-/**
- * @brief converts the raw value of the BMS protAlert register to a human
- * readable string.
- *
- * @param raw raw protAlert register value.
- * @return const char*
- */
+/// @brief converts the raw value of the BMS protAlert register to a human
+/// readable string.
+/// @param raw raw protAlert register value.
+/// @return 
+/// @note not thread safe
 static const char *__protAlrt_to_str(uint16_t raw) {
     static char protAlrt_string[160] = "";
     static uint16_t previous_protAlrt = 0;
@@ -137,38 +124,22 @@ static const char *__protAlrt_to_str(uint16_t raw) {
         return protAlrt_string;
     }
 
-    if (_RSHIFT(raw, 15, 1))
-        flags[flag_count++] = "ChgWDT";
-    if (_RSHIFT(raw, 14, 1))
-        flags[flag_count++] = "TooHotC";
-    if (_RSHIFT(raw, 13, 1))
-        flags[flag_count++] = "Full";
-    if (_RSHIFT(raw, 12, 1))
-        flags[flag_count++] = "TooColdC";
-    if (_RSHIFT(raw, 11, 1))
-        flags[flag_count++] = "OVP";
-    if (_RSHIFT(raw, 10, 1))
-        flags[flag_count++] = "OCCP";
-    if (_RSHIFT(raw, 9, 1))
-        flags[flag_count++] = "Qovflw";
-    if (_RSHIFT(raw, 8, 1))
-        flags[flag_count++] = "PrepF";
-    if (_RSHIFT(raw, 7, 1))
-        flags[flag_count++] = "Imbalance";
-    if (_RSHIFT(raw, 6, 1))
-        flags[flag_count++] = "PermFail";
-    if (_RSHIFT(raw, 5, 1))
-        flags[flag_count++] = "DieHot";
-    if (_RSHIFT(raw, 4, 1))
-        flags[flag_count++] = "TooHotD";
-    if (_RSHIFT(raw, 3, 1))
-        flags[flag_count++] = "UVP";
-    if (_RSHIFT(raw, 2, 1))
-        flags[flag_count++] = "ODCP";
-    if (_RSHIFT(raw, 1, 1))
-        flags[flag_count++] = "ResDFault";
-    if (_RSHIFT(raw, 0, 1))
-        flags[flag_count++] = "LDet";
+    if (_RSHIFT(raw, 15, 1)) { flags[flag_count++] = "ChgWDT";    }
+    if (_RSHIFT(raw, 14, 1)) { flags[flag_count++] = "TooHotC";   }
+    if (_RSHIFT(raw, 13, 1)) { flags[flag_count++] = "Full";      }
+    if (_RSHIFT(raw, 12, 1)) { flags[flag_count++] = "TooColdC";  }
+    if (_RSHIFT(raw, 11, 1)) { flags[flag_count++] = "OVP";       }
+    if (_RSHIFT(raw, 10, 1)) { flags[flag_count++] = "OCCP";      }
+    if (_RSHIFT(raw, 9, 1))  { flags[flag_count++] = "Qovflw";    }
+    if (_RSHIFT(raw, 8, 1))  { flags[flag_count++] = "PrepF";     }
+    if (_RSHIFT(raw, 7, 1))  { flags[flag_count++] = "Imbalance"; }
+    if (_RSHIFT(raw, 6, 1))  { flags[flag_count++] = "PermFail";  }
+    if (_RSHIFT(raw, 5, 1))  { flags[flag_count++] = "DieHot";    }
+    if (_RSHIFT(raw, 4, 1))  { flags[flag_count++] = "TooHotD";   }
+    if (_RSHIFT(raw, 3, 1))  { flags[flag_count++] = "UVP";       }
+    if (_RSHIFT(raw, 2, 1))  { flags[flag_count++] = "ODCP";      }
+    if (_RSHIFT(raw, 1, 1))  { flags[flag_count++] = "ResDFault"; }
+    if (_RSHIFT(raw, 0, 1))  { flags[flag_count++] = "LDet";      }
 
     // generate string
     for (int j = 0; j < flag_count; j++) {
@@ -182,36 +153,37 @@ static const char *__protAlrt_to_str(uint16_t raw) {
     return protAlrt_string;
 }
 
-static void log_battery_open_csv_file(void) {
-    UINT fx_result = FX_ACCESS_ERROR;
-    fx_result = fx_file_create(&sdio_disk, LOG_BATTERY_FILENAME);
-    int is_new_file = 0;
-    if ((fx_result != FX_SUCCESS) && (fx_result != FX_ALREADY_CREATED)) {
-        // Error_Handler();
-    } else if ((fx_result != FX_ALREADY_CREATED)) {
-        is_new_file = 1;
-        CETI_LOG("Created new battery file \"%s\"", LOG_BATTERY_FILENAME);
-    }
-
-    fx_result = fx_file_open(&sdio_disk, &log_battery_file, LOG_BATTERY_FILENAME, FX_OPEN_FOR_WRITE);
-    if (fx_result != FX_SUCCESS) {
+/// @brief opens/creates a new csv file. initializes csv header
+/// @param filename 
+static void __open_csv_file(const char *filename) {
+    /* Create/open pressure file */
+    UINT fx_create_result = fx_file_create(&sdio_disk, filename);
+    if ((fx_create_result != FX_SUCCESS) && (fx_create_result != FX_ALREADY_CREATED)) {
+        #warning "ToDo: Handle Error creating file"
         // Error_Handler();
     }
-    CETI_LOG("Opened battery file \"%s\"", LOG_BATTERY_FILENAME);
 
-    if (!is_new_file) {
+    /* open file */
+    UINT fx_open_result = buffer_writer_open(&s_bw, filename);
+    if (FX_SUCCESS != fx_open_result) {
+        #warning "ToDo: Handle Error opening file"
         return;
-    }   
-
-    // write header
-    fx_result = fx_file_write(&log_battery_file, log_battery_csv_header, strlen(log_battery_csv_header));
-    if(fx_result != FX_SUCCESS){
-        // Error_Handler();
     }
-    
+
+    /* file was newly created. Initialize header */
+    if (FX_ALREADY_CREATED != fx_create_result) {
+        CETI_LOG("Created new battery file \"%s\"", filename);
+        buffer_writer_write(&s_bw, (uint8_t *)log_battery_csv_header, strlen(log_battery_csv_header));
+        buffer_writer_flush(&s_bw);
+    }
 }
 
-int log_battery_sample_to_csv(const CetiBatterySample * pSample, uint8_t *pBuffer, size_t buffer_len) {
+/// @brief encodes a CetiBatterySample to a CSV line
+/// @param pSample pointer to sample to be encoded
+/// @param pBuffer output buffer
+/// @param buffer_len buffer capacity
+/// @return number of bytes in encoded output
+static int __sample_to_csv(const CetiBatterySample *pSample, uint8_t *pBuffer, size_t buffer_len) {
     uint8_t offset = 0;
     offset += snprintf((char *)&pBuffer[offset], buffer_len - offset, "%lld", pSample->time_us);
 
@@ -231,42 +203,63 @@ int log_battery_sample_to_csv(const CetiBatterySample * pSample, uint8_t *pBuffe
     return offset;
 }
 
-void log_battery_enable(void) {
-    // ToDo: create file for battery data
-    log_battery_open_csv_file();
+/********* Sample Buffer *****************************************************/
+#define LOG_BATTERY_BUFFER_SIZE (8)
+static CetiBatterySample s_sample_buffer[LOG_BATTERY_BUFFER_SIZE];
+static volatile size_t s_sample_buffer_write_cursor = 0;
+static size_t s_sample_buffer_read_cursor = 0;
+
+/// @brief add a sample to the sample logging buffer
+/// @param p_sample pointer to sample to be buffered
+void log_battery_buffer_sample(const CetiBatterySample *p_sample) {
+    static overflow = 0;
+    CetiBatterySample *p_buffer = &s_sample_buffer[s_sample_buffer_write_cursor];
+    *p_buffer = *p_sample;
+    if (overflow) {
+        p_buffer->error = 1;
+        overflow = 0;
+    }
+
+    size_t next_w_pos = (s_sample_buffer_write_cursor + 1) % LOG_BATTERY_BUFFER_SIZE;
+    /* check for overflow */
+    if (next_w_pos == s_sample_buffer_read_cursor) {
+        overflow = 1;
+    } else {
+        s_sample_buffer_write_cursor = next_w_pos;
+    }
+
 }
 
+/// @brief initializes battery logging subsystem
+/// @param  
+void log_battery_init(void) {
+    // create output file for battery data
+    __open_csv_file(LOG_BATTERY_FILENAME);
+}
+
+/// @brief Perfom non-time critical logging tasks. Call periodically.
+/// @param  
 void log_battery_task(void) {
     size_t encoded_bytes = 0;
 
     // check if new samples to log
-    const CetiBatterySample* pSample = acq_battery_get_next_sample();
-    while (pSample != NULL) {
-        //encode
-#if LOG_BATTERY_FORMAT == LOG_BATTERY_FORMAT_CSV
-        encoded_bytes += log_battery_sample_to_csv(pSample, &log_battery_encode_buffer[encoded_bytes], LOG_BATTERY_ENCODE_BUFFER_SIZE - encoded_bytes);
-#endif
-        if (encoded_bytes < 0) {
-            // ToDo: error handling
+    while (s_sample_buffer_read_cursor != s_sample_buffer_write_cursor) {
+        uint8_t csv_encode_buffer[512];
+        const CetiBatterySample *p_sample = &s_sample_buffer[s_sample_buffer_read_cursor];
+        size_t encoded_bytes = __sample_to_csv(p_sample, csv_encode_buffer, sizeof(csv_encode_buffer));
+        UINT write_result = buffer_writer_write(&s_bw, csv_encode_buffer, encoded_bytes);
+        if (FX_SUCCESS != write_result) {
+            #warning "ToDo: Handle write error"
         }
-
-        if (encoded_bytes > LOG_BATTERY_ENCODE_BUFFER_FLUSH_THRESHOLD) {
-            // Flush buffer to SD card
-            UINT fx_result = fx_file_write(&log_battery_file, log_battery_encode_buffer, encoded_bytes);
-            if (fx_result != FX_SUCCESS) {
-               //  ToDo: Handle Errors
-            }
-            encoded_bytes = 0;
-        }
-        pSample = acq_battery_get_next_sample();
+        s_sample_buffer_read_cursor = (1 + s_sample_buffer_read_cursor) % LOG_BATTERY_BUFFER_SIZE;
     }
+}
 
-    // write remaining samples to SD card
-    if (encoded_bytes != 0) {
-        // Flush buffer to SD card
-        UINT fx_result = fx_file_write(&log_battery_file, log_battery_encode_buffer, encoded_bytes);
-        if (fx_result != FX_SUCCESS) {
-            //  ToDo: Handle Errors
-        }
-    }
+/// @brief returns if the sample buffer is atleast half full.
+/// @param  
+/// @return bool
+int log_battery_sample_buffer_is_half_full(void) {
+    int8_t buffered_samples = ((int8_t)s_sample_buffer_write_cursor - (int8_t)s_sample_buffer_read_cursor);
+    buffered_samples = (buffered_samples >= 0) ? buffered_samples :  LOG_BATTERY_BUFFER_SIZE + buffered_samples;
+    return (buffered_samples >= LOG_BATTERY_BUFFER_SIZE/2);
 }

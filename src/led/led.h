@@ -12,7 +12,7 @@ typedef enum {
     LED_RED = 0,
     LED_YELLOW = 1,
     LED_GREEN = 2,
-}LedColor;
+} LedColor;
 
 void led_init(void);
 void led_off(LedColor color);
@@ -24,6 +24,8 @@ void led_burn(void);
 void led_error(void);
 void led_heartbeat(void);
 void led_heartbeat_dim(void);
+void led_usb(void);
 void led_idle(void);
+void led_bootloader(void);
 
 #endif // __CETI_LED_H__

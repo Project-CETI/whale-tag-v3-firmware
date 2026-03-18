@@ -15,21 +15,21 @@ extern uint8_t _tag_config_flash_end;
 extern uint8_t _tag_aop_start;
 extern uint8_t _tag_aop_end;
 
-extern DCACHE_HandleTypeDef hdcache1;
-
-
-#define ALT_COUNT (3)
+enum {
+    DFU_ALT_CONFIG = 0,
+    DFU_ALT_AOP,
+    DFU_ALT_COUNT,
+};
 
 #define ADDR_TO_FLASH_BANK(addr) (((((uint32_t)(addr)) - ((uint32_t)&_flash_start)) / FLASH_BANK_SIZE))
 #define ADDR_TO_FLASH_PAGE(addr) (((((uint32_t)(addr)) - ((uint32_t)&_flash_start))/ FLASH_PAGE_SIZE) % (FLASH_PAGE_NB))
-#define ALT_BASE_ADDR(alt) ((0 == (alt)) ? ((uint32_t)&_flash_start) \
-                           : (1 == (alt)) ? ((uint32_t)&_tag_config_flash_start) \
-                           : (2 == (alt)) ? ((uint32_t)&_tag_aop_start) \
+#define ALT_BASE_ADDR(alt) ( (DFU_ALT_CONFIG == (alt)) ? ((uint32_t)&_tag_config_flash_start) \
+                           : (DFU_ALT_AOP == (alt)) ? ((uint32_t)&_tag_aop_start) \
                            : ((uint32_t)&_tag_aop_end))
 
-static uint16_t s_byte_count[ALT_COUNT] = {0};
-static uint16_t s_current_flash_page[ALT_COUNT] = {0};
-static uint8_t  s_page_data[ALT_COUNT][FLASH_PAGE_SIZE];
+static uint16_t s_byte_count[DFU_ALT_COUNT] = {0};
+static uint16_t s_current_flash_page[DFU_ALT_COUNT] = {0};
+static uint8_t  s_page_data[DFU_ALT_COUNT][FLASH_PAGE_SIZE];
 
 
 //--------------------------------------------------------------------+
@@ -145,17 +145,7 @@ uint16_t tud_dfu_upload_cb(uint8_t alt, uint16_t block_num, uint8_t* data, uint1
     uint32_t requested_address = flash_base_addr + offset;
 
     switch (alt) {
-        case 0: {// Flash  
-            if (requested_address >  (uint32_t)&_flash_end){
-                return 0;
-            }
-            uint16_t bytes_remaining = (uint16_t)(((uint32_t)&_flash_end) - requested_address);
-            uint16_t xfer_len = (length < bytes_remaining) ? length : bytes_remaining;
-            memcpy(data, (void *)requested_address, xfer_len);
-            return xfer_len;
-        }
-
-        case 1: { // Config 
+        case DFU_ALT_CONFIG: { // Config 
             if (offset >  sizeof(tag_config)){
                 return 0;
             }
@@ -165,7 +155,7 @@ uint16_t tud_dfu_upload_cb(uint8_t alt, uint16_t block_num, uint8_t* data, uint1
             return xfer_len;
         }
 
-        case 2: {// Aop
+        case DFU_ALT_AOP: {// Aop
             uint32_t aop_size_offset = ((uint32_t)&_tag_aop_start) + sizeof(uint64_t);
             uint16_t aop_table_len = *(uint16_t *)aop_size_offset;
             uint32_t aop_table_size = 16 + aop_table_len * sizeof(struct AopSatelliteEntry_t);

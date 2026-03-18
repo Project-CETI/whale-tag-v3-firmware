@@ -16,19 +16,17 @@ extern "C" {
 
 #include "previpass_defs.h"
 
-
 // -------------------------------------------------------------------------- //
 //! @addtogroup ARGOS-PASS-PREDICTION-LIBS
 //! @{
 // -------------------------------------------------------------------------- //
-
 
 // -------------------------------------------------------------------------- //
 // Defines values
 // -------------------------------------------------------------------------- //
 
 //! Pi/2 value
-#define C_MATH_HALF_PI    1.570796327f
+#define C_MATH_HALF_PI 1.570796327f
 
 //! Pi value
 #define C_MATH_PI 3.1415926535f
@@ -43,11 +41,10 @@ extern "C" {
 #define C_MATH_RAD_TO_DEG 57.29577951f
 
 //! Earth mean radius
-#define C_MATH_EARTH_RADIUS  6378.137f
+#define C_MATH_EARTH_RADIUS 6378.137f
 
 //! Constant offset to transform epoch 90s to 70s time
-#define EPOCH_90_TO_70_OFFSET  631152000L
-
+#define EPOCH_90_TO_70_OFFSET 631152000L
 
 // -------------------------------------------------------------------------- //
 // Defines functions
@@ -62,7 +59,6 @@ extern "C" {
 //! Returns the absolute value of a number.
 #define ABS(N) ((N) >= 0 ? (N) : -(N))
 
-
 // -------------------------------------------------------------------------- //
 //! Compute cartesian squared distance between satellite and its visibility
 //! circle at a defined elevation on a circular earth.
@@ -75,13 +71,9 @@ extern "C" {
 //! @returns Maximum squared distance to be in visibility circle
 // -------------------------------------------------------------------------- //
 
-float
-PREVIPASS_UTIL_sat_elevation_distance2
-(
-	float elevationDeg,
-	float semiMajorAxisKm
-);
-
+float PREVIPASS_UTIL_sat_elevation_distance2(
+    float elevationDeg,
+    float semiMajorAxisKm);
 
 // -------------------------------------------------------------------------- //
 //! Compute squared distance between a satellite and a point in cartesian
@@ -109,20 +101,16 @@ PREVIPASS_UTIL_sat_elevation_distance2
 //! @returns Square of distance between point and satellite
 // -------------------------------------------------------------------------- //
 
-float
-PREVIPASS_UTIL_sat_point_distance2
-(
-	uint32_t secondsSinceBulletin,
-	float    xBeaconCartesian,
-	float    yBeaconCartesian,
-	float    zBeaconCartesian,
-	float    mean_motion,
-	float    sin_inclination,
-	float    cos_inclination,
-	float    ascNodeRad,
-	float    earthRevPerSec
-);
-
+float PREVIPASS_UTIL_sat_point_distance2(
+    uint32_t secondsSinceBulletin,
+    float xBeaconCartesian,
+    float yBeaconCartesian,
+    float zBeaconCartesian,
+    float mean_motion,
+    float sin_inclination,
+    float cos_inclination,
+    float ascNodeRad,
+    float earthRevPerSec);
 
 // -------------------------------------------------------------------------- //
 //! Date conversion: calendar to seconds since 1990-01-01T00:00:00.
@@ -136,13 +124,9 @@ PREVIPASS_UTIL_sat_point_distance2
 //!    Number of seconds since 1990
 // -------------------------------------------------------------------------- //
 
-void
-PREVIPASS_UTIL_date_calendar_stu90
-(
-	const struct CalendarDateTime_t  *dateTime,
-	uint32_t                  *sec90
-);
-
+void PREVIPASS_UTIL_date_calendar_stu90(
+    const struct CalendarDateTime_t *dateTime,
+    uint32_t *sec90);
 
 // -------------------------------------------------------------------------- //
 //! Date conversion: seconds since 1990-01-01T00:00:00 to calendar.
@@ -153,13 +137,9 @@ PREVIPASS_UTIL_date_calendar_stu90
 //!    Calendar date
 // -------------------------------------------------------------------------- //
 
-void
-PREVIPASS_UTIL_date_stu90_calendar
-(
-	uint32_t                   sec90,
-	struct CalendarDateTime_t *dateTime
-);
-
+void PREVIPASS_UTIL_date_stu90_calendar(
+    uint32_t sec90,
+    struct CalendarDateTime_t *dateTime);
 
 // -------------------------------------------------------------------------- //
 //! @} (end addtogroup ARGOS-PASS-PREDICTION-LIBS)

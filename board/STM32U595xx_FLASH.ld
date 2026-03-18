@@ -49,7 +49,7 @@ MEMORY
   SRAM4 (xrw)        : ORIGIN = 0x28000000, LENGTH = 16K
   FLASH (rx)         : ORIGIN = 0x08000000, LENGTH = 4080K
   CONFIG_FLASH (rx)  : ORIGIN = 0x083FC000, LENGTH = 8K
-  AOP_FLASH (rx)     : ORIGIN = 0x083FE000, LENGTH = 8K
+  AOP_FLASH (rx)     : ORIGIN = 0x083FCE00, LENGTH = 8K
 }
 
 /* Sections */
@@ -76,7 +76,6 @@ SECTIONS
     _tag_aop_end = .;
 
   } > AOP_FLASH
-
 
   /* The startup code into "FLASH" Rom type memory */
   .isr_vector :

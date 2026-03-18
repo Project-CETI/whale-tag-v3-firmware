@@ -8,13 +8,14 @@
 #include <tusb.h>
 
 #include "cdc.h"
+#include "vendor.h"
 
 // Configure only USB-specific clocks on top of existing SystemClock_Config.
 static void __usb_clock_config(void) {
     __HAL_RCC_SYSCFG_CLK_ENABLE();
 
     // Route USB PHY clock from HSE
-    RCC_PeriphCLKInitTypeDef usb_clk_init = { 0 };
+    RCC_PeriphCLKInitTypeDef usb_clk_init = {0};
     usb_clk_init.PeriphClockSelection = RCC_PERIPHCLK_USBPHY;
     usb_clk_init.UsbPhyClockSelection = RCC_USBPHYCLKSOURCE_HSE;
     if (HAL_RCCEx_PeriphCLKConfig(&usb_clk_init) != HAL_OK) {
@@ -23,7 +24,6 @@ static void __usb_clock_config(void) {
 
     HAL_SYSCFG_SetOTGPHYReferenceClockSelection(SYSCFG_OTG_HS_PHY_CLK_SELECT_1);
 }
-
 
 void usb_system_init(void) {
     // USB PHY clock (adds to existing SystemClock_Config)
@@ -67,51 +67,53 @@ void usb_system_init(void) {
 void usb_init(void) {
     // init device stack on configured roothub port
     tusb_rhport_init_t dev_init = {.role = TUSB_ROLE_DEVICE, .speed = TUSB_SPEED_HIGH};
-    
+
     /* initialize USB hardware */
     usb_system_init();
     HAL_Delay(100);
 
     tusb_init(BOARD_TUD_RHPORT, &dev_init);
     usb_cdc_init();
+    usb_vendor_init();
+}
+
+void usb_task(void) {
+    tud_task();
+    usb_cdc_task();
+    usb_vendor_task();
 }
 
 int usb_iface_present(void) {
     return (HAL_GPIO_ReadPin(IFACE_EN_GPIO_Input_GPIO_Port, IFACE_EN_GPIO_Input_Pin) == GPIO_PIN_SET);
 }
 
-
 //--------------------------------------------------------------------+
 // Device callbacks
 //--------------------------------------------------------------------+
 
 // Invoked when device is mounted
-void tud_mount_cb(void)
-{
-//  blink_interval_ms = BLINK_MOUNTED;
-//	 led_blink(LED_YELLOW);
-//	 CETI_LOG("USB mounted");
+void tud_mount_cb(void) {
+    //  blink_interval_ms = BLINK_MOUNTED;
+    //	 led_blink(LED_YELLOW);
+    //	 CETI_LOG("USB mounted");
 }
 
 // Invoked when device is unmounted
-void tud_umount_cb(void)
-{
-//	 led_on(LED_YELLOW);
-//	 CETI_LOG("USB unmounted");
-//  blink_interval_ms = BLINK_NOT_MOUNTED;
+void tud_umount_cb(void) {
+    //	 led_on(LED_YELLOW);
+    //	 CETI_LOG("USB unmounted");
+    //  blink_interval_ms = BLINK_NOT_MOUNTED;
 }
 
 // Invoked when usb bus is suspended
 // remote_wakeup_en : if host allow us  to perform remote wakeup
 // Within 7ms, device must draw an average of current less than 2.5 mA from bus
-void tud_suspend_cb(bool remote_wakeup_en)
-{
-//  (void) remote_wakeup_en;
-//  blink_interval_ms = BLINK_SUSPENDED;
+void tud_suspend_cb(bool remote_wakeup_en) {
+    //  (void) remote_wakeup_en;
+    //  blink_interval_ms = BLINK_SUSPENDED;
 }
 
 // Invoked when usb bus is resumed
-void tud_resume_cb(void)
-{
-//  blink_interval_ms = tud_mounted() ? BLINK_MOUNTED : BLINK_NOT_MOUNTED;
+void tud_resume_cb(void) {
+    //  blink_interval_ms = tud_mounted() ? BLINK_MOUNTED : BLINK_NOT_MOUNTED;
 }

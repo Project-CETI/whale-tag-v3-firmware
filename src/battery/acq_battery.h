@@ -8,8 +8,9 @@
 #ifndef CETI_ACQ_BATTERY_H
 #define CETI_ACQ_BATTERY_H
 
-#include <stdint.h>
 #include "timing.h"
+#include <stdint.h>
+
 
 typedef struct {
     time_t time_us;
@@ -22,10 +23,10 @@ typedef struct {
     uint16_t protection_alert;
 } CetiBatterySample;
 
+void acq_battery_get(CetiBatterySample * p_sample);
 void acq_battery_init(void);
+void acq_battery_register_callback(void (* callback)(const CetiBatterySample *));
 void acq_battery_start(void);
 void acq_battery_stop(void);
-const CetiBatterySample* acq_battery_get_next_sample(void);
-void acq_pressure_get_next_buffer_range(uint8_t **ppBuffer, size_t *pSize);
-void acq_battery_peak_latest_sample(CetiBatterySample *pSample);
+
 #endif // CETI_ACQ_BATTERY_H

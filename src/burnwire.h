@@ -1,6 +1,6 @@
 /*****************************************************************************
  *   @file      burnwire.h
- *   @brief     
+ *   @brief
  *   @project   Project CETI
  *   @copyright Harvard University Wood Lab
  *   @authors   Michael Salino-Hugg, [TODO: Add other contributors here]

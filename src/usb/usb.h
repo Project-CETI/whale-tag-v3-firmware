@@ -8,6 +8,7 @@
 
 void usb_system_init(void);
 void usb_init(void);
+void usb_task(void);
 
 int usb_iface_present(void);
 

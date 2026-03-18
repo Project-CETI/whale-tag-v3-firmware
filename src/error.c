@@ -16,12 +16,12 @@ extern FX_MEDIA sdio_disk;
 
 #define ERROR_FILE_FORMAT FILE_FORMAT_BIN
 
-#define ERROR_QUEUE_SIZE (1024/sizeof(ErrorQueueElement))
+#define ERROR_QUEUE_SIZE (1024 / sizeof(ErrorQueueElement))
 #if ERROR_FILE_FORMAT == FILE_FORMAT_BIN
-    #define ERROR_FILE_FILENAME "errors.bin"
-    #define ERROR_QUEUE_ELEMENT_HEADER {'C','E','T','I'}
+#define ERROR_FILE_FILENAME "errors.bin"
+#define ERROR_QUEUE_ELEMENT_HEADER {'C', 'E', 'T', 'I'}
 #else
-    #error "Unsupported error file format"
+#error "Unsupported error file format"
 #endif
 
 typedef struct {
@@ -37,7 +37,7 @@ static FX_FILE s_error_queue_file = {};
 time_t s_error_queue_overflow_timestamp = 0;
 
 /// @brief initializes the error queue
-/// @param  
+/// @param
 /// @return `0` = success;
 ///         `-1` = failure;
 int error_queue_init(void) {
@@ -74,22 +74,22 @@ void error_queue_push(CetiStatus error) {
 }
 
 int error_queue_is_empty(void) {
-    return  (s_error_read_position == s_error_write_position);
+    return (s_error_read_position == s_error_write_position);
 }
 
 /// @brief writes out any remaining errors in the error queue to the SD card
-/// @param  
+/// @param
 void error_queue_flush(void) {
     if (error_queue_is_empty()) {
         return;
     }
-        
+
     // write out error queue
     size_t nv_r = s_error_read_position;
     size_t nv_w = s_error_write_position;
     if (nv_r > nv_w) {
 #if ERROR_FILE_FORMAT == FILE_FORMAT_BIN
-        size_t valid_len = sizeof(s_error_queue) - nv_r*sizeof(ErrorQueueElement);
+        size_t valid_len = sizeof(s_error_queue) - nv_r * sizeof(ErrorQueueElement);
         fx_file_write(&s_error_queue_file, &s_error_queue[nv_r], valid_len);
         s_error_read_position = 0;
         nv_r = 0;
@@ -97,11 +97,11 @@ void error_queue_flush(void) {
     }
     if (nv_r < nv_w) {
 #if ERROR_FILE_FORMAT == FILE_FORMAT_BIN
-        size_t valid_len = (nv_w - nv_r)*sizeof(ErrorQueueElement);
+        size_t valid_len = (nv_w - nv_r) * sizeof(ErrorQueueElement);
         fx_file_write(&s_error_queue_file, &s_error_queue[nv_r], valid_len);
         s_error_read_position = nv_w;
 #endif
-    } 
+    }
 
     // check if error queue overflow occured
     if (0 != s_error_queue_overflow_timestamp) {
@@ -118,18 +118,18 @@ void error_queue_flush(void) {
 }
 
 /// @brief call this function periodically in your main loop.
-/// @param 
-void error_queue_task(void){
+/// @param
+void error_queue_task(void) {
     static size_t r_half = 0;
-    size_t w_half = 2*s_error_write_position/ERROR_QUEUE_SIZE;
+    size_t w_half = 2 * s_error_write_position / ERROR_QUEUE_SIZE;
     if (r_half != w_half) {
         error_queue_flush();
-        r_half = 2*s_error_read_position/ERROR_QUEUE_SIZE;
+        r_half = 2 * s_error_read_position / ERROR_QUEUE_SIZE;
     }
 }
 
 /// @brief flushes and closes the error queue
-/// @param  
+/// @param
 void error_queue_close(void) {
     error_queue_flush();
     fx_file_close(&s_error_queue_file);

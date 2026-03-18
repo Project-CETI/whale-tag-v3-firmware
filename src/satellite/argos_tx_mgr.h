@@ -1,7 +1,7 @@
 /*****************************************************************************
  *   @file      argos_tx_mgr.h
  *   @brief     This code manages when the recovery board should transmit its
- *              GPS coordinates via argos. It implements both a psuedorandom 
+ *              GPS coordinates via argos. It implements both a psuedorandom
  *              timer strategy and a satellite pass prediction algorithm.
  *   @project   Project CETI
  *   @date      12/10/2025

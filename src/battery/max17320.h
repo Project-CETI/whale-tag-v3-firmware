@@ -1,6 +1,6 @@
 /*****************************************************************************
  *   @file      battery/max17320.h
- *   @brief     MAX17320+ BMS device driver 
+ *   @brief     MAX17320+ BMS device driver
  *   @project   Project CETI
  *   @copyright Harvard University Wood Lab
  *   @authors   Michael Salino-Hugg, [TODO: Add other contributors here]
@@ -10,9 +10,9 @@
 
 #include "stm32u5xx_hal.h"
 
-#include <stdint.h>
-#include "util/error.h"
+#include "error.h"
 #include "version_hw.h"
+#include <stdint.h>
 
 // hardware configurations
 #define MAX17320_CELL_COUNT 2
@@ -116,7 +116,7 @@
 
 HAL_StatusTypeDef max17320_read(uint16_t memory, uint16_t *storage);
 HAL_StatusTypeDef max17320_write(uint16_t memory, uint16_t data);
-WTResult max17320_gauge_reset(void);
+CetiStatus max17320_gauge_reset(void);
 int max17320_get_cell_temperature_raw(int cell_index, uint16_t *tCells);
 int max17320_get_cell_temperature_c(int cell_index, double *tCells_c);
 int max17320_get_cell_voltage_raw(int cell_index, uint16_t *vCells);
@@ -126,13 +126,13 @@ int max17320_get_current_mA(double *pCurrent_mA);
 int max17320_get_average_current_mA(double *pAvgI_mA);
 int max17320_get_state_of_charge(double *pSoc);
 
-WTResult max17320_clear_write_protection(void);
-WTResult max17320_reset(void);
-WTResult max17320_swap_shadow_ram(void);
+CetiStatus max17320_clear_write_protection(void);
+CetiStatus max17320_reset(void);
+CetiStatus max17320_swap_shadow_ram(void);
 
-WTResult max17320_enable_charging(void);
-WTResult max17320_enable_discharging(void);
-WTResult max17320_disable_charging(void);
-WTResult max17320_disable_discharging(void);
+CetiStatus max17320_enable_charging(void);
+CetiStatus max17320_enable_discharging(void);
+CetiStatus max17320_disable_charging(void);
+CetiStatus max17320_disable_discharging(void);
 
 #endif // CETI_DEVICE_MAX17320_H

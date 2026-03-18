@@ -18,7 +18,7 @@ typedef enum {
     KTD2026EWE_MODE_ON = 0b01,
     KTD2026EWE_MODE_PWM1 = 0b10,
     KTD2026EWE_MODE_PWM2 = 0b11,
-}ktd2026ewe_LedMode;
+} ktd2026ewe_LedMode;
 
 /***  Function Declarations  *************************************************/
 HAL_StatusTypeDef ktd2026ewe_reset(void);

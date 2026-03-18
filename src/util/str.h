@@ -11,4 +11,4 @@ typedef struct {
     .length = strlen(string),           \
 })
 
-#endif //CETI_STR_H
+#endif // CETI_STR_H

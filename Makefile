@@ -85,7 +85,6 @@ C_INCLUDES += -Ilib/CMSIS_5/CMSIS/Core/Include
 
 C_INCLUDES += -Ilib/tinyusb/src
 C_INCLUDES += -Ilib/sh2
-C_INCLUDES += -Ilib/microrl/src
 C_INCLUDES += -Isrc
 C_INCLUDES += -Iboard/$(BOARD)/FileX/Target
 CFLAGS += $(MCU) $(C_DEFS) $(C_INCLUDES) $(COPT) -Wall -fdata-sections -ffunction-sections
@@ -122,8 +121,6 @@ $(shell find lib/tinyusb/src/typec 	-type f -iname '*.c' 2> /dev/null) \
 $(shell find lib/tinyusb/src/portable/synopsys 	-type f -iname '*.c' 2> /dev/null) \
 lib/tinyusb/src/tusb.c
 
-# lib/microrl (for USB CDC interface)
-C_SRCS += lib/microrl/src/microrl.c
 
 
 # lib/sh2 (for imu)
@@ -220,7 +217,6 @@ $(BUILD_DIR)/$(TARGET).bin: $(BUILD_DIR)/$(TARGET).elf
 
 # Per file specific flags
 # $(BUILD_DIR)/lib/minmea/minmea.c.o: CFLAGS += -Dtimegm=mktime
-$(BUILD_DIR)/lib/microrl/src/microrl.c.o: CFLAGS += -std=gnu99 -include src/usb/microrl_config.h
 
 
 # ADDITIONAL DEPENDENCIES
@@ -262,6 +258,7 @@ lint_fix:
 		-e VALIDATE_MARKDOWN=false \
 		-e VALIDATE_NATURAL_LANGUAGE=false \
 		-e VALIDATE_YAML=false \
+		-e VALIDATE_YAML_PRETTIER=false \
 		-e VALIDATE_GITLEAKS=false \
 		-e FIX_CLANG_FORMAT=true \
 		-e LINTER_RULES_PATH=.github/linters \

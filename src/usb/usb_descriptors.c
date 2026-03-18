@@ -26,6 +26,8 @@
 #include "stm32u5xx_hal.h"
 #include "tusb.h"
 
+#include <string.h>
+
 /* A combination of interfaces must have a unique product id, since PC will save
  * device driver after the first plug. Same VID/PID with different interface e.g
  * MSC (first), then CDC (later) will possibly cause system error on PC.
@@ -34,134 +36,239 @@
  *   [MSB]         HID | MSC | CDC          [LSB]
  */
 #define _PID_MAP(itf, n) ((CFG_TUD_##itf) << (n))
-#define USB_PID                                                                \
-  (0x4000 | _PID_MAP(CDC, 0) | _PID_MAP(MSC, 1) | _PID_MAP(HID, 2) |           \
-   _PID_MAP(MIDI, 3) | _PID_MAP(VENDOR, 4))
-
+#define USB_PID                                                        \
+    (0x4000 | _PID_MAP(CDC, 0) | _PID_MAP(MSC, 1) | _PID_MAP(HID, 2) | \
+     _PID_MAP(MIDI, 3) | _PID_MAP(VENDOR, 4))
 
 //--------------------------------------------------------------------+
 // String Descriptors
 //--------------------------------------------------------------------+
 // String Descriptor Index
 enum {
-  STRID_LANGID = 0,
-  STRID_MANUFACTURER,
-  STRID_PRODUCT,
-  STRID_SERIAL,
-  STRID_CDC,
-  STRID_MSC,
-  STRID_DFU,
+    STRID_LANGID = 0,
+    STRID_MANUFACTURER,
+    STRID_PRODUCT,
+    STRID_SERIAL,
+    STRID_CDC,
+    STRID_MSC,
+    STRID_VENDOR,
+    STRID_DFU,
 };
+
+enum {
+    DFU_ALT_CONFIG = 0,
+    DFU_ALT_AOP,
+    DFU_ALT_COUNT,
+} DfuAltEnum;
 
 // array of pointer to string descriptors
 char const *string_desc_arr[] = {
-    [STRID_LANGID] =  (const char[]){0x09, 0x04},  // 0: is supported language is English (0x0409)
-    [STRID_MANUFACTURER] = "TinyUSB",              // 1: Manufacturer
-    [STRID_PRODUCT] = "TinyUSB Device",            // 2: Product
-    [STRID_SERIAL] = NULL,                         // 3: Serials will use unique ID if possible
-    [STRID_CDC] = "CetiTag CDC",                   // 4: CDC Interface
-    [STRID_MSC] = "CetiTag MSC",                   // 5: MSC Interface
-    [STRID_DFU + 0] = "CetiTag FLASH",             // 6: DFU Interface
-    [STRID_DFU + 1] = "CetiTag Config",            // 7: DFU Interface
-    [STRID_DFU + 2] = "CetiTag AOP Table",         // 8: DFU Interface
+    [STRID_LANGID] = (const char[]){0x09, 0x04}, // 0: is supported language is English (0x0409)
+    [STRID_MANUFACTURER] = "Project CETI",       // 1: Manufacturer
+    [STRID_PRODUCT] = "CETI WhaleTag V3",        // 2: Product
+    [STRID_SERIAL] = NULL,                       // 3: Serials will use unique ID if possible
+    [STRID_CDC] = "CetiTag CDC",                 // 4: CDC Interface
+    [STRID_MSC] = "CetiTag MSC",                 // 5: MSC Interface
+    [STRID_VENDOR] = "CetiTag Stream",             // 6: Vendor Stream Interface
+    [STRID_DFU + DFU_ALT_CONFIG] = "@Config Flash/0x083FC000/01*008Kg",   // 7: DFU Alt 1
+    [STRID_DFU + DFU_ALT_AOP] = "@AOP Flash/0x083FCE00/01*008Kg",      // 8: DFU Alt 2
 };
+
+//--------------------------------------------------------------------+
+// Interface Numbers
+//--------------------------------------------------------------------+
+enum {
+#if CFG_TUD_CDC
+    ITF_NUM_CDC,
+    ITF_NUM_CDC_DATA,
+#endif
+    ITF_NUM_MSC,
+#if CFG_TUD_VENDOR
+    ITF_NUM_VENDOR,
+#endif
+#if CFG_TUD_DFU
+    ITF_NUM_DFU,
+#endif
+    ITF_NUM_TOTAL
+};
+
+//--------------------------------------------------------------------+
+// Microsoft OS 2.0 Descriptors (for WinUSB on vendor interface)
+//--------------------------------------------------------------------+
+#if CFG_TUD_VENDOR
+
+#define VENDOR_REQUEST_MICROSOFT 2
+
+// MS OS 2.0 Compatible ID descriptor assigns WinUSB to the vendor interface
+#define MS_OS_20_DESC_LEN 0xB2
+
+static uint8_t const desc_ms_os_20[] = {
+    // Set header: length, type, windows version, total length
+    U16_TO_U8S_LE(0x000A), U16_TO_U8S_LE(MS_OS_20_SET_HEADER_DESCRIPTOR),
+    U32_TO_U8S_LE(0x06030000), // Windows 8.1+ (NTDDI_WINBLUE)
+    U16_TO_U8S_LE(MS_OS_20_DESC_LEN),
+
+    // Configuration subset header: length, type, config index, reserved, total length
+    U16_TO_U8S_LE(0x0008), U16_TO_U8S_LE(MS_OS_20_SUBSET_HEADER_CONFIGURATION),
+    0, 0,
+    U16_TO_U8S_LE(MS_OS_20_DESC_LEN - 0x0A),
+
+    // Function subset header: length, type, first interface, reserved, total length
+    U16_TO_U8S_LE(0x0008), U16_TO_U8S_LE(MS_OS_20_SUBSET_HEADER_FUNCTION),
+    ITF_NUM_VENDOR, 0,
+    U16_TO_U8S_LE(MS_OS_20_DESC_LEN - 0x0A - 0x08),
+
+    // Compatible ID descriptor: length, type, compatible ID, sub-compatible ID
+    U16_TO_U8S_LE(0x0014), U16_TO_U8S_LE(MS_OS_20_FEATURE_COMPATBLE_ID),
+    'W', 'I', 'N', 'U', 'S', 'B', 0x00, 0x00, // compatible ID
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // sub-compatible ID
+
+    // Registry property descriptor: DeviceInterfaceGUIDs
+    U16_TO_U8S_LE(MS_OS_20_DESC_LEN - 0x0A - 0x08 - 0x08 - 0x14),
+    U16_TO_U8S_LE(MS_OS_20_FEATURE_REG_PROPERTY),
+    U16_TO_U8S_LE(0x0007), // REG_MULTI_SZ
+    U16_TO_U8S_LE(0x002A), // property name length
+    // "DeviceInterfaceGUIDs\0" in UTF-16LE
+    'D', 0, 'e', 0, 'v', 0, 'i', 0, 'c', 0, 'e', 0, 'I', 0, 'n', 0, 't', 0,
+    'e', 0, 'r', 0, 'f', 0, 'a', 0, 'c', 0, 'e', 0, 'G', 0, 'U', 0, 'I', 0,
+    'D', 0, 's', 0, 0, 0,
+    U16_TO_U8S_LE(0x0050), // property data length
+    // "{CDB3B5AD-293B-4663-AA36-1AAE46463776}\0\0" in UTF-16LE
+    '{', 0, 'C', 0, 'D', 0, 'B', 0, '3', 0, 'B', 0, '5', 0, 'A', 0, 'D', 0,
+    '-', 0, '2', 0, '9', 0, '3', 0, 'B', 0, '-', 0, '4', 0, '6', 0, '6', 0,
+    '3', 0, '-', 0, 'A', 0, 'A', 0, '3', 0, '6', 0, '-', 0, '1', 0, 'A', 0,
+    'A', 0, 'E', 0, '4', 0, '6', 0, '4', 0, '6', 0, '3', 0, '7', 0, '7', 0,
+    '6', 0, '}', 0, 0, 0, 0, 0,
+};
+
+_Static_assert(sizeof(desc_ms_os_20) == MS_OS_20_DESC_LEN, "MS OS 2.0 descriptor length mismatch");
+
+// BOS descriptor: advertises MS OS 2.0 platform capability
+#define BOS_TOTAL_LEN (TUD_BOS_DESC_LEN + TUD_BOS_MICROSOFT_OS_DESC_LEN)
+
+static uint8_t const desc_bos[] = {
+    TUD_BOS_DESCRIPTOR(BOS_TOTAL_LEN, 1),
+    TUD_BOS_MS_OS_20_DESCRIPTOR(MS_OS_20_DESC_LEN, VENDOR_REQUEST_MICROSOFT),
+};
+
+uint8_t const *tud_descriptor_bos_cb(void) {
+    return desc_bos;
+}
+
+// Handle MS OS 2.0 vendor request from host
+bool tud_vendor_control_xfer_cb(uint8_t rhport, uint8_t stage, tusb_control_request_t const *request) {
+    if (stage != CONTROL_STAGE_SETUP) return true;
+
+    if (request->bmRequestType_bit.type == TUSB_REQ_TYPE_VENDOR &&
+        request->bRequest == VENDOR_REQUEST_MICROSOFT &&
+        request->wIndex == 7) {
+        // MS OS 2.0 descriptor set request
+        uint16_t total_len;
+        memcpy(&total_len, desc_ms_os_20 + 8, 2);
+        return tud_control_xfer(rhport, request, (void *)(uintptr_t)desc_ms_os_20, total_len);
+    }
+
+    return false;
+}
+
+#endif // CFG_TUD_VENDOR
 
 //--------------------------------------------------------------------+
 // Device Descriptors
 //--------------------------------------------------------------------+
-tusb_desc_device_t const desc_device = {.bLength = sizeof(tusb_desc_device_t),
-                                        .bDescriptorType = TUSB_DESC_DEVICE,
-                                        .bcdUSB = 0x0200,
-                                        .bDeviceClass = TUSB_CLASS_MISC,
-                                        .bDeviceSubClass = MISC_SUBCLASS_COMMON ,
-                                        .bDeviceProtocol = MISC_PROTOCOL_IAD ,
-                                        .bMaxPacketSize0 =
-                                            CFG_TUD_ENDPOINT0_SIZE,
+tusb_desc_device_t const desc_device = {
+    .bLength = sizeof(tusb_desc_device_t),
+    .bDescriptorType = TUSB_DESC_DEVICE,
+    .bcdUSB = 0x0210, // USB 2.1 required for BOS descriptor (MS OS 2.0)
+    .bDeviceClass = TUSB_CLASS_MISC,
+    .bDeviceSubClass = MISC_SUBCLASS_COMMON,
+    .bDeviceProtocol = MISC_PROTOCOL_IAD,
+    .bMaxPacketSize0 =
+        CFG_TUD_ENDPOINT0_SIZE,
 
-                                        .idVendor = 0xCafe,
-                                        .idProduct = USB_PID,
-                                        .bcdDevice = 0x0100,
+    .idVendor = 0xce71,
+    .idProduct = USB_PID,
+    .bcdDevice = 0x0100,
 
-                                        .iManufacturer = 0x01,
-                                        .iProduct = 0x02,
-                                        .iSerialNumber = 0x03,
+    .iManufacturer = 0x01,
+    .iProduct = 0x02,
+    .iSerialNumber = 0x03,
 
-                                        .bNumConfigurations = 0x01};
+    .bNumConfigurations = 0x01
+};
 
 // Invoked when received GET DEVICE DESCRIPTOR
 // Application return pointer to descriptor
 uint8_t const *tud_descriptor_device_cb(void) {
-  return (uint8_t const *)&desc_device;
+    return (uint8_t const *)&desc_device;
 }
 
 //--------------------------------------------------------------------+
 // Configuration Descriptor
 //--------------------------------------------------------------------+
 
-enum {
-#if CFG_TUD_CDC
-  ITF_NUM_CDC,
-  ITF_NUM_CDC_DATA,
-#endif
-  ITF_NUM_MSC,
-#if CFG_TUD_DFU
-  ITF_NUM_DFU,
-#endif
-  ITF_NUM_TOTAL
-};
-
-#define ALT_COUNT 3
-
-#define CONFIG_TOTAL_LEN (TUD_CONFIG_DESC_LEN \
-  + CFG_TUD_CDC * TUD_CDC_DESC_LEN \
-  + CFG_TUD_MSC * TUD_MSC_DESC_LEN \
-  + CFG_TUD_DFU * TUD_DFU_DESC_LEN(ALT_COUNT) \
-)
+#define CONFIG_TOTAL_LEN (TUD_CONFIG_DESC_LEN + CFG_TUD_CDC * TUD_CDC_DESC_LEN + CFG_TUD_MSC * TUD_MSC_DESC_LEN + CFG_TUD_VENDOR * TUD_VENDOR_DESC_LEN + CFG_TUD_DFU * TUD_DFU_DESC_LEN(DFU_ALT_COUNT))
 
 #define FUNC_ATTRS (DFU_ATTR_CAN_UPLOAD | DFU_ATTR_CAN_DOWNLOAD | DFU_ATTR_MANIFESTATION_TOLERANT)
 
+// DfuSe variant of TUD_DFU_DESCRIPTOR: identical but sets bcdDFUVersion to 0x011A instead of 0x0101
+#define TUD_DFU_DFUSE_DESCRIPTOR(_itfnum, _alt_count, _stridx, _attr, _timeout, _xfer_size) \
+  TU_XSTRCAT(_TUD_DFU_ALT_,_alt_count)(_itfnum, 0, _stridx), \
+  /* Function */ \
+  9, DFU_DESC_FUNCTIONAL, _attr, U16_TO_U8S_LE(_timeout), U16_TO_U8S_LE(_xfer_size), U16_TO_U8S_LE(0x011A)
 
-#if CFG_TUSB_MCU == OPT_MCU_LPC175X_6X ||                                      \
+#if CFG_TUSB_MCU == OPT_MCU_LPC175X_6X || \
     CFG_TUSB_MCU == OPT_MCU_LPC177X_8X || CFG_TUSB_MCU == OPT_MCU_LPC40XX
 // LPC 17xx and 40xx endpoint type (bulk/interrupt/iso) are fixed by its number
 //  0 control, 1 In, 2 Bulk, 3 Iso, 4 In, 5 Bulk etc ...
-  #define EPNUM_CDC_NOTIF   0x81
-  #define EPNUM_CDC_OUT     0x02
-  #define EPNUM_CDC_IN      0x82
-
+#define EPNUM_CDC_NOTIF 0x81
+#define EPNUM_CDC_OUT 0x02
+#define EPNUM_CDC_IN 0x82
 
 #define EPNUM_MSC_OUT 0x05
 #define EPNUM_MSC_IN 0x85
+
+#define EPNUM_VENDOR_OUT 0x06
+#define EPNUM_VENDOR_IN  0x86
 
 #elif CFG_TUSB_MCU == OPT_MCU_CXD56
 // CXD56 USB driver has fixed endpoint type (bulk/interrupt/iso) and direction
 // (IN/OUT) by its number 0 control (IN/OUT), 1 Bulk (IN), 2 Bulk (OUT), 3 In
 // (IN), 4 Bulk (IN), 5 Bulk (OUT), 6 In (IN)
-  #define EPNUM_CDC_NOTIF   0x83
-  #define EPNUM_CDC_OUT     0x02
-  #define EPNUM_CDC_IN      0x81
+#define EPNUM_CDC_NOTIF 0x83
+#define EPNUM_CDC_OUT 0x02
+#define EPNUM_CDC_IN 0x81
 
 #define EPNUM_MSC_OUT 0x05
 #define EPNUM_MSC_IN 0x84
 
-#elif defined(TUD_ENDPOINT_ONE_DIRECTION_ONLY)
-  // MCUs that don't support a same endpoint number with different direction IN
-  // and OUT defined in tusb_mcu.h
-  //    e.g EP1 OUT & EP1 IN cannot exist together
-  #define EPNUM_CDC_NOTIF   0x81
-  #define EPNUM_CDC_OUT     0x02
-  #define EPNUM_CDC_IN      0x83
+#define EPNUM_VENDOR_OUT 0x06
+#define EPNUM_VENDOR_IN  0x87
 
-  #define EPNUM_MSC_OUT     0x04
-  #define EPNUM_MSC_IN      0x85
+#elif defined(TUD_ENDPOINT_ONE_DIRECTION_ONLY)
+// MCUs that don't support a same endpoint number with different direction IN
+// and OUT defined in tusb_mcu.h
+//    e.g EP1 OUT & EP1 IN cannot exist together
+#define EPNUM_CDC_NOTIF 0x81
+#define EPNUM_CDC_OUT 0x02
+#define EPNUM_CDC_IN 0x83
+
+#define EPNUM_MSC_OUT 0x04
+#define EPNUM_MSC_IN 0x85
+
+#define EPNUM_VENDOR_OUT 0x06
+#define EPNUM_VENDOR_IN  0x87
 
 #else
-  #define EPNUM_CDC_NOTIF   0x81
-  #define EPNUM_CDC_OUT     0x02
-  #define EPNUM_CDC_IN      0x82
+#define EPNUM_CDC_NOTIF 0x81
+#define EPNUM_CDC_OUT 0x02
+#define EPNUM_CDC_IN 0x82
 
-  #define EPNUM_MSC_OUT     0x03
-  #define EPNUM_MSC_IN      0x83
+#define EPNUM_MSC_OUT 0x03
+#define EPNUM_MSC_IN 0x83
+
+#define EPNUM_VENDOR_OUT 0x04
+#define EPNUM_VENDOR_IN  0x84
 #endif
 
 uint8_t const desc_fs_configuration[] = {
@@ -170,14 +277,19 @@ uint8_t const desc_fs_configuration[] = {
     TUD_CONFIG_DESCRIPTOR(1, ITF_NUM_TOTAL, 0, CONFIG_TOTAL_LEN, 0x00, 100),
 #if CFG_TUD_CDC
     // Interface number, string index, EP notification address and size, EP data address (out, in) and size.
-    TUD_CDC_DESCRIPTOR(ITF_NUM_CDC, STRID_CDC , EPNUM_CDC_NOTIF, 16, EPNUM_CDC_OUT, EPNUM_CDC_IN, 64),
+    TUD_CDC_DESCRIPTOR(ITF_NUM_CDC, STRID_CDC, EPNUM_CDC_NOTIF, 16, EPNUM_CDC_OUT, EPNUM_CDC_IN, 64),
 #endif
     // Interface number, string index, EP Out & EP In address, EP size
     TUD_MSC_DESCRIPTOR(ITF_NUM_MSC, STRID_MSC, EPNUM_MSC_OUT, EPNUM_MSC_IN, 64),
 
+#if CFG_TUD_VENDOR
+    // Interface number, string index, EP Out & EP In address, EP size
+    TUD_VENDOR_DESCRIPTOR(ITF_NUM_VENDOR, STRID_VENDOR, EPNUM_VENDOR_OUT, EPNUM_VENDOR_IN, 64),
+#endif
+
 #if CFG_TUD_DFU
-      // Interface number, Alternate count, starting string index, attributes, detach timeout, transfer size
-    TUD_DFU_DESCRIPTOR(ITF_NUM_DFU, 3, STRID_DFU, FUNC_ATTRS, 1000, CFG_TUD_DFU_XFER_BUFSIZE),
+    // Interface number, Alternate count, starting string index, attributes, detach timeout, transfer size
+    TUD_DFU_DESCRIPTOR(ITF_NUM_DFU, 2, STRID_DFU, FUNC_ATTRS, 1000, CFG_TUD_DFU_XFER_BUFSIZE),
 #endif
 };
 
@@ -187,14 +299,19 @@ uint8_t const desc_hs_configuration[] = {
     TUD_CONFIG_DESCRIPTOR(1, ITF_NUM_TOTAL, 0, CONFIG_TOTAL_LEN, 0x00, 100),
 #if CFG_TUD_CDC
     // Interface number, string index, EP notification address and size, EP data address (out, in) and size.
-    TUD_CDC_DESCRIPTOR(ITF_NUM_CDC, STRID_CDC , EPNUM_CDC_NOTIF, 16, EPNUM_CDC_OUT, EPNUM_CDC_IN, 512),
+    TUD_CDC_DESCRIPTOR(ITF_NUM_CDC, STRID_CDC, EPNUM_CDC_NOTIF, 16, EPNUM_CDC_OUT, EPNUM_CDC_IN, 512),
 #endif
     // Interface number, string index, EP Out & EP In address, EP size
     TUD_MSC_DESCRIPTOR(ITF_NUM_MSC, STRID_MSC, EPNUM_MSC_OUT, EPNUM_MSC_IN, 512),
 
+#if CFG_TUD_VENDOR
+    // Interface number, string index, EP Out & EP In address, EP size
+    TUD_VENDOR_DESCRIPTOR(ITF_NUM_VENDOR, STRID_VENDOR, EPNUM_VENDOR_OUT, EPNUM_VENDOR_IN, 512),
+#endif
+
 #if CFG_TUD_DFU
     // Interface number, Alternate count, starting string index, attributes, detach timeout, transfer size
-    TUD_DFU_DESCRIPTOR(ITF_NUM_DFU, ALT_COUNT, STRID_DFU, FUNC_ATTRS, 1000, CFG_TUD_DFU_XFER_BUFSIZE),
+    TUD_DFU_DESCRIPTOR(ITF_NUM_DFU, 2, STRID_DFU, FUNC_ATTRS, 1000, CFG_TUD_DFU_XFER_BUFSIZE),
 #endif
 };
 
@@ -202,96 +319,96 @@ uint8_t const desc_hs_configuration[] = {
 // Application return pointer to descriptor
 // Descriptor contents must exist long enough for transfer to complete
 uint8_t const *tud_descriptor_configuration_cb(uint8_t index) {
-  (void)index; // for multiple configurations
+    (void)index; // for multiple configurations
 
 #if TUD_OPT_HIGH_SPEED
-  // Although we are highspeed, host may be fullspeed.
-  return (tud_speed_get() == TUSB_SPEED_HIGH) ? desc_hs_configuration
-                                              : desc_fs_configuration;
+    // Although we are highspeed, host may be fullspeed.
+    return (tud_speed_get() == TUSB_SPEED_HIGH) ? desc_hs_configuration
+                                                : desc_fs_configuration;
 #else
-  return desc_fs_configuration;
+    return desc_fs_configuration;
 #endif
 }
 
 static uint16_t _desc_str[32 + 1];
 static size_t board_get_unique_id(uint8_t id[], size_t max_len) {
-  (void)max_len;
-  volatile uint32_t *stm32_uuid = (volatile uint32_t *)UID_BASE;
-  uint32_t *id32 = (uint32_t *)(uintptr_t)id;
-  uint8_t const len = 12;
+    (void)max_len;
+    volatile uint32_t *stm32_uuid = (volatile uint32_t *)UID_BASE;
+    uint32_t *id32 = (uint32_t *)(uintptr_t)id;
+    uint8_t const len = 12;
 
-  id32[0] = stm32_uuid[0];
-  id32[1] = stm32_uuid[1];
-  id32[2] = stm32_uuid[2];
+    id32[0] = stm32_uuid[0];
+    id32[1] = stm32_uuid[1];
+    id32[2] = stm32_uuid[2];
 
-  return len;
+    return len;
 }
 
 static inline size_t board_usb_get_serial(uint16_t desc_str1[],
                                           size_t max_chars) {
-  uint8_t uid[16] TU_ATTR_ALIGNED(4);
-  size_t uid_len;
+    uint8_t uid[16] TU_ATTR_ALIGNED(4);
+    size_t uid_len;
 
-  // TODO work with make, but not working with esp32s3 cmake
-  uid_len = board_get_unique_id(uid, sizeof(uid));
+    // TODO work with make, but not working with esp32s3 cmake
+    uid_len = board_get_unique_id(uid, sizeof(uid));
 
-  if (uid_len > max_chars / 2)
-    uid_len = max_chars / 2;
+    if (uid_len > max_chars / 2)
+        uid_len = max_chars / 2;
 
-  for (size_t i = 0; i < uid_len; i++) {
-    for (size_t j = 0; j < 2; j++) {
-      const char nibble_to_hex[16] = {'0', '1', '2', '3', '4', '5', '6', '7',
-                                      '8', '9', 'A', 'B', 'C', 'D', 'E', 'F'};
-      uint8_t const nibble = (uid[i] >> (j * 4)) & 0xf;
-      desc_str1[i * 2 + (1 - j)] = nibble_to_hex[nibble]; // UTF-16-LE
+    for (size_t i = 0; i < uid_len; i++) {
+        for (size_t j = 0; j < 2; j++) {
+            const char nibble_to_hex[16] = {'0', '1', '2', '3', '4', '5', '6', '7',
+                                            '8', '9', 'A', 'B', 'C', 'D', 'E', 'F'};
+            uint8_t const nibble = (uid[i] >> (j * 4)) & 0xf;
+            desc_str1[i * 2 + (1 - j)] = nibble_to_hex[nibble]; // UTF-16-LE
+        }
     }
-  }
 
-  return 2 * uid_len;
+    return 2 * uid_len;
 }
 
 // Invoked when received GET STRING DESCRIPTOR request
 // Application return pointer to descriptor, whose contents must exist long
 // enough for transfer to complete
 uint16_t const *tud_descriptor_string_cb(uint8_t index, uint16_t langid) {
-  (void)langid;
-  size_t chr_count;
+    (void)langid;
+    size_t chr_count;
 
-  switch (index) {
-  case STRID_LANGID:
-    memcpy(&_desc_str[1], string_desc_arr[0], 2);
-    chr_count = 1;
-    break;
+    switch (index) {
+        case STRID_LANGID:
+            memcpy(&_desc_str[1], string_desc_arr[0], 2);
+            chr_count = 1;
+            break;
 
-  case STRID_SERIAL:
-    chr_count = board_usb_get_serial(_desc_str + 1, 32);
-    break;
+        case STRID_SERIAL:
+            chr_count = board_usb_get_serial(_desc_str + 1, 32);
+            break;
 
-  default:
-    // Note: the 0xEE index string is a Microsoft OS 1.0 Descriptors.
-    // https://docs.microsoft.com/en-us/windows-hardware/drivers/usbcon/microsoft-defined-usb-descriptors
+        default:
+            // Note: the 0xEE index string is a Microsoft OS 1.0 Descriptors.
+            // https://docs.microsoft.com/en-us/windows-hardware/drivers/usbcon/microsoft-defined-usb-descriptors
 
-    if (!(index < sizeof(string_desc_arr) / sizeof(string_desc_arr[0])))
-      return NULL;
+            if (!(index < sizeof(string_desc_arr) / sizeof(string_desc_arr[0])))
+                return NULL;
 
-    const char *str = string_desc_arr[index];
+            const char *str = string_desc_arr[index];
 
-    // Cap at max char
-    chr_count = strlen(str);
-    size_t const max_count =
-        sizeof(_desc_str) / sizeof(_desc_str[0]) - 1; // -1 for string type
-    if (chr_count > max_count)
-      chr_count = max_count;
+            // Cap at max char
+            chr_count = strlen(str);
+            size_t const max_count =
+                sizeof(_desc_str) / sizeof(_desc_str[0]) - 1; // -1 for string type
+            if (chr_count > max_count)
+                chr_count = max_count;
 
-    // Convert ASCII string into UTF-16
-    for (size_t i = 0; i < chr_count; i++) {
-      _desc_str[1 + i] = str[i];
+            // Convert ASCII string into UTF-16
+            for (size_t i = 0; i < chr_count; i++) {
+                _desc_str[1 + i] = str[i];
+            }
+            break;
     }
-    break;
-  }
 
-  // first byte is length (including header), second byte is string type
-  _desc_str[0] = (uint16_t)((TUSB_DESC_STRING << 8) | (2 * chr_count + 2));
+    // first byte is length (including header), second byte is string type
+    _desc_str[0] = (uint16_t)((TUSB_DESC_STRING << 8) | (2 * chr_count + 2));
 
-  return _desc_str;
+    return _desc_str;
 }

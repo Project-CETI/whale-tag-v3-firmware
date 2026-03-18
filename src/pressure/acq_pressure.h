@@ -19,7 +19,6 @@ typedef struct {
 #define acq_pressure_raw_to_pressure_bar(raw) KELLER4LD_RAW_TO_PRESSURE_BAR(raw)
 #define acq_pressure_raw_to_temperature_c(raw) KELLER4LD_RAW_TO_TEMPERATURE_C(raw)
 
-
 void acq_pressure_init(uint16_t samplerate_hz);
 void acq_pressure_deinit(void);
 void acq_pressure_start(void);

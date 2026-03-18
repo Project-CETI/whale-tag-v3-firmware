@@ -1,15 +1,19 @@
 #include "cdc.h"
 
-#include "tusb.h"
 #include "timing.h"
+#include "tusb.h"
 
-#include "microrl_config.h"
-#include "microrl.h"
+#include "battery/bms_ctl.h"
+#include "led/led.h"
 
 #include <stdio.h>
-#include <string.h>
 #include <stdlib.h>
+#include <string.h>
 #include <time.h>
+
+#define ENDL "\r\n"
+#define CMDLINE_MAX 101
+#define BOOTLOADER_REQUEST_MAGIC 0xB00710ADUL
 
 typedef struct cdc_cmd_t {
     const char *key;
@@ -21,15 +25,47 @@ static void cdc_print(const char *str);
 static void __not_implemented(int argc, const char *const *argv);
 static void __cmd_datetime(int argc, const char *const *argv);
 static void __cmd_help(int argc, const char *const *argv);
+static void __cmd_shutdown(int argc, const char *const *argv);
+static void __cmd_update(int argc, const char *const *argv);
+static void __cmd_pressure(int argc, const char *const *argv);
 
-static microrl_t s_rl;
+
+static char s_cmdline[CMDLINE_MAX];
+static int s_cmdlen;
 
 static const CdcCommand cdc_options[] = {
-    {.key = "help",     .description = "list available commands", .action = __cmd_help},
-    {.key = "datetime", .description = "get/set RTC epoch",      .action = __cmd_datetime},
+    {.key = "help", .description = "list available commands", .action = __cmd_help},
+    {.key = "datetime", .description = "get/set RTC epoch", .action = __cmd_datetime},
+    {.key = "update", .description = "reboot into DFU system bootloader", .action = __cmd_update},
+    {.key = "shutdown", .description = "powerdown tag", .action = __cmd_shutdown},
+    // i2c passthrough
+    // 
 };
 
 #define NUM_COMMANDS (sizeof(cdc_options) / sizeof(cdc_options[0]))
+
+static void __cmd_shutdown(int argc, const char *const *argv) {
+    bms_disable_FETs();
+    HAL_PWREx_EnterSHUTDOWNMode(); // tag shutdown if powered by
+}
+
+/// @brief 
+/// @param argc 
+/// @param argv 
+static void __cmd_update(int argc, const char *const *argv) {
+    cdc_print("Rebooting into DFU system bootloader..." ENDL);
+    tud_cdc_write_flush();
+    HAL_Delay(100); // allow USB to flush
+
+    led_bootloader();
+
+    // Set magic value in TAMP backup register to signal bootloader entry
+    __HAL_RCC_PWR_CLK_ENABLE();
+    HAL_PWR_EnableBkUpAccess();
+    TAMP->BKP0R = BOOTLOADER_REQUEST_MAGIC;
+
+    NVIC_SystemReset();
+}
 
 static void __cmd_datetime(int argc, const char *const *argv) {
     if (argc < 2) {
@@ -67,88 +103,73 @@ static void __cmd_help(int argc, const char *const *argv) {
 }
 
 static void __not_implemented(int argc, const char *const *argv) {
-    cdc_print("\a");
     cdc_print(argv[0]);
-    cdc_print(" is not implemented yet!!!" ENDL);
+    cdc_print(" is not implemented yet" ENDL);
 }
 
-/* microrl callbacks */
+/* ---- I/O ---- */
+
 static void cdc_print(const char *str) {
     tud_cdc_write_str(str);
     tud_cdc_write_flush();
 }
 
-static int cdc_execute(int argc, const char *const *argv) {
-    if (argc == 0) {
-        __cmd_help(0, NULL);
-        return 0;
+/* ---- command dispatch ---- */
+
+static void cdc_execute(void) {
+    /* tokenise: split on spaces, max 8 tokens */
+    const char *argv[8];
+    int argc = 0;
+    char *p = s_cmdline;
+
+    while (*p && argc < 8) {
+        while (*p == ' ') p++;
+        if (!*p) break;
+        argv[argc++] = p;
+        while (*p && *p != ' ') p++;
+        if (*p) *p++ = '\0';
     }
+
+    if (argc == 0) return;
 
     for (size_t i = 0; i < NUM_COMMANDS; i++) {
         if (strcmp(argv[0], cdc_options[i].key) == 0) {
             cdc_options[i].action(argc, argv);
-            return 0;
+            return;
         }
     }
 
     cdc_print("Unknown command: ");
     cdc_print(argv[0]);
     cdc_print(ENDL);
-    __cmd_help(0, NULL);
-    return 1;
 }
 
-static char *compl_words[NUM_COMMANDS + 1];
-
-static char **cdc_complete(int argc, const char *const *argv) {
-    int j = 0;
-    compl_words[0] = NULL;
-    if (argc == 0) {
-        compl_words[j++] = " help";
-    } else if (argc == 1) {
-        const char *bit = argv[0];
-        size_t bit_len = strlen(bit);
-        for (size_t i = 0; i < NUM_COMMANDS; i++) {
-            if (strncmp(cdc_options[i].key, bit, bit_len) == 0) {
-                compl_words[j++] = (char *)cdc_options[i].key;
-            }
-        }
-    }
-
-    compl_words[j] = NULL;
-    return compl_words;
-}
-
+/* ---- public API ---- */
 
 void usb_cdc_init(void) {
-    microrl_init(&s_rl, cdc_print);
-    microrl_set_execute_callback(&s_rl, cdc_execute);
-    microrl_set_complete_callback(&s_rl, cdc_complete);
+    s_cmdlen = 0;
 }
 
 void usb_cdc_task(void) {
-    static uint8_t connected = 0;
 #if CFG_TUD_CDC
-    if (!tud_cdc_connected()) {
-        connected = 0;
-        return;
-    }
-
-    if (!connected) {
-        connected = 1;
-        cdc_print(_PROMPT_DEFAULT);
-    }
+    if (!tud_cdc_connected()) return;
 
     while (tud_cdc_available()) {
         char buf[64];
         uint32_t count = tud_cdc_read(buf, sizeof(buf));
-        for (int i = 0; i < count; i++) {
-            microrl_insert_char(&s_rl, buf[i]);
-            if (buf[i] == '\r')
-                microrl_insert_char(&s_rl, '\n');
+        for (uint32_t i = 0; i < count; i++) {
+            char ch = buf[i];
+            if (ch == '\r' || ch == '\n') {
+                if (s_cmdlen > 0) {
+                    s_cmdline[s_cmdlen] = '\0';
+                    cdc_execute();
+                    s_cmdlen = 0;
+                }
+            } else if (s_cmdlen < CMDLINE_MAX - 1) {
+                s_cmdline[s_cmdlen++] = ch;
+            }
         }
     }
     tud_cdc_write_flush();
 #endif
 }
-
