@@ -75,6 +75,7 @@ extern DMA_HandleTypeDef handle_GPDMA1_Channel5;
 extern DMA_NodeTypeDef Node_GPDMA1_Channel4;
 extern DMA_QListTypeDef List_GPDMA1_Channel4;
 extern DMA_HandleTypeDef handle_GPDMA1_Channel4;
+extern UART_HandleTypeDef huart1;
 extern UART_HandleTypeDef huart2;
 extern PCD_HandleTypeDef hpcd_USB_OTG_HS;
 /* USER CODE BEGIN EV */
@@ -414,6 +415,14 @@ void SPI1_IRQHandler(void)
   /* USER CODE BEGIN SPI1_IRQn 1 */
 
   /* USER CODE END SPI1_IRQn 1 */
+}
+
+/**
+  * @brief This function handles USART1 global interrupt.
+  */
+void USART1_IRQHandler(void)
+{
+  HAL_UART_IRQHandler(&huart1);
 }
 
 /**

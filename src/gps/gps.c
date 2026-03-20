@@ -240,11 +240,15 @@ void gps_wake(void) {
     rx_buffer_index = 0;
     // HAL_UART_Transmit(&GPS_huart, (uint8_t *)"$PUBX,00*33\r\n", strlen("$PUBX,00*33\r\n"), 1000);
     HAL_UART_DMAStop(&GPS_huart);
+    // Disable receiver to prevent overrun while clearing flags
+    ATOMIC_CLEAR_BIT(GPS_huart.Instance->CR1, USART_CR1_RE);
     __HAL_UART_CLEAR_OREFLAG(&GPS_huart);
     __HAL_UART_CLEAR_FEFLAG(&GPS_huart);
     __HAL_UART_CLEAR_NEFLAG(&GPS_huart);
     __HAL_UART_CLEAR_PEFLAG(&GPS_huart);
     __HAL_UART_FLUSH_DRREGISTER(&GPS_huart);
+    // Re-enable receiver before starting DMA
+    ATOMIC_SET_BIT(GPS_huart.Instance->CR1, USART_CR1_RE);
     HAL_UARTEx_ReceiveToIdle_DMA(&GPS_huart, gps_raw_buffer, sizeof(gps_raw_buffer));
 
     if (GPS_STATE_OFF == s_gps_state) {
