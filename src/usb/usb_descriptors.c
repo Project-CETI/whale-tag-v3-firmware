@@ -26,6 +26,8 @@
 #include "stm32u5xx_hal.h"
 #include "tusb.h"
 
+#include "../config.h"
+
 #include <string.h>
 
 /* A combination of interfaces must have a unique product id, since PC will save
@@ -62,10 +64,10 @@ enum {
 } DfuAltEnum;
 
 // array of pointer to string descriptors
-char const *string_desc_arr[] = {
+char *string_desc_arr[] = {
     [STRID_LANGID] = (const char[]){0x09, 0x04}, // 0: is supported language is English (0x0409)
     [STRID_MANUFACTURER] = "Project CETI",       // 1: Manufacturer
-    [STRID_PRODUCT] = "CETI WhaleTag V3",        // 2: Product
+    [STRID_PRODUCT] = tag_config.hostname,        // 2: Product
     [STRID_SERIAL] = NULL,                       // 3: Serials will use unique ID if possible
     [STRID_CDC] = "CetiTag CDC",                 // 4: CDC Interface
     [STRID_MSC] = "CetiTag MSC",                 // 5: MSC Interface
@@ -93,14 +95,16 @@ enum {
 };
 
 //--------------------------------------------------------------------+
-// Microsoft OS 2.0 Descriptors (for WinUSB on vendor interface)
+// Microsoft OS 2.0 Descriptors (for WinUSB on vendor + DFU interfaces)
 //--------------------------------------------------------------------+
-#if CFG_TUD_VENDOR
+#if CFG_TUD_VENDOR || CFG_TUD_DFU
 
 #define VENDOR_REQUEST_MICROSOFT 2
 
-// MS OS 2.0 Compatible ID descriptor assigns WinUSB to the vendor interface
-#define MS_OS_20_DESC_LEN 0xB2
+// MS OS 2.0 Compatible ID descriptor assigns WinUSB to vendor and DFU interfaces
+// Per-function subset: header(8) + compatible ID(20) + registry property(132) = 160 = 0xA0
+#define MS_OS_20_FUNC_SUBSET_LEN 0xA0
+#define MS_OS_20_DESC_LEN (0x0A + 0x08 + MS_OS_20_FUNC_SUBSET_LEN + MS_OS_20_FUNC_SUBSET_LEN)
 
 static uint8_t const desc_ms_os_20[] = {
     // Set header: length, type, windows version, total length
@@ -113,18 +117,19 @@ static uint8_t const desc_ms_os_20[] = {
     0, 0,
     U16_TO_U8S_LE(MS_OS_20_DESC_LEN - 0x0A),
 
+    //------------- Vendor interface: WinUSB -------------//
     // Function subset header: length, type, first interface, reserved, total length
     U16_TO_U8S_LE(0x0008), U16_TO_U8S_LE(MS_OS_20_SUBSET_HEADER_FUNCTION),
     ITF_NUM_VENDOR, 0,
-    U16_TO_U8S_LE(MS_OS_20_DESC_LEN - 0x0A - 0x08),
+    U16_TO_U8S_LE(MS_OS_20_FUNC_SUBSET_LEN),
 
-    // Compatible ID descriptor: length, type, compatible ID, sub-compatible ID
+    // Compatible ID descriptor
     U16_TO_U8S_LE(0x0014), U16_TO_U8S_LE(MS_OS_20_FEATURE_COMPATBLE_ID),
-    'W', 'I', 'N', 'U', 'S', 'B', 0x00, 0x00, // compatible ID
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // sub-compatible ID
+    'W', 'I', 'N', 'U', 'S', 'B', 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 
     // Registry property descriptor: DeviceInterfaceGUIDs
-    U16_TO_U8S_LE(MS_OS_20_DESC_LEN - 0x0A - 0x08 - 0x08 - 0x14),
+    U16_TO_U8S_LE(0x0084),
     U16_TO_U8S_LE(MS_OS_20_FEATURE_REG_PROPERTY),
     U16_TO_U8S_LE(0x0007), // REG_MULTI_SZ
     U16_TO_U8S_LE(0x002A), // property name length
@@ -139,6 +144,34 @@ static uint8_t const desc_ms_os_20[] = {
     '3', 0, '-', 0, 'A', 0, 'A', 0, '3', 0, '6', 0, '-', 0, '1', 0, 'A', 0,
     'A', 0, 'E', 0, '4', 0, '6', 0, '4', 0, '6', 0, '3', 0, '7', 0, '7', 0,
     '6', 0, '}', 0, 0, 0, 0, 0,
+
+    //------------- DFU interface: WinUSB -------------//
+    // Function subset header: length, type, first interface, reserved, total length
+    U16_TO_U8S_LE(0x0008), U16_TO_U8S_LE(MS_OS_20_SUBSET_HEADER_FUNCTION),
+    ITF_NUM_DFU, 0,
+    U16_TO_U8S_LE(MS_OS_20_FUNC_SUBSET_LEN),
+
+    // Compatible ID descriptor
+    U16_TO_U8S_LE(0x0014), U16_TO_U8S_LE(MS_OS_20_FEATURE_COMPATBLE_ID),
+    'W', 'I', 'N', 'U', 'S', 'B', 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+
+    // Registry property descriptor: DeviceInterfaceGUIDs
+    U16_TO_U8S_LE(0x0084),
+    U16_TO_U8S_LE(MS_OS_20_FEATURE_REG_PROPERTY),
+    U16_TO_U8S_LE(0x0007), // REG_MULTI_SZ
+    U16_TO_U8S_LE(0x002A), // property name length
+    // "DeviceInterfaceGUIDs\0" in UTF-16LE
+    'D', 0, 'e', 0, 'v', 0, 'i', 0, 'c', 0, 'e', 0, 'I', 0, 'n', 0, 't', 0,
+    'e', 0, 'r', 0, 'f', 0, 'a', 0, 'c', 0, 'e', 0, 'G', 0, 'U', 0, 'I', 0,
+    'D', 0, 's', 0, 0, 0,
+    U16_TO_U8S_LE(0x0050), // property data length
+    // "{13EB360B-BC1E-46CB-AC8B-EF3DA47B4062}\0\0" in UTF-16LE
+    '{', 0, '1', 0, '3', 0, 'E', 0, 'B', 0, '3', 0, '6', 0, '0', 0, 'B', 0,
+    '-', 0, 'B', 0, 'C', 0, '1', 0, 'E', 0, '-', 0, '4', 0, '6', 0, 'C', 0,
+    'B', 0, '-', 0, 'A', 0, 'C', 0, '8', 0, 'B', 0, '-', 0, 'E', 0, 'F', 0,
+    '3', 0, 'D', 0, 'A', 0, '4', 0, '7', 0, 'B', 0, '4', 0, '0', 0, '6', 0,
+    '2', 0, '}', 0, 0, 0, 0, 0,
 };
 
 _Static_assert(sizeof(desc_ms_os_20) == MS_OS_20_DESC_LEN, "MS OS 2.0 descriptor length mismatch");

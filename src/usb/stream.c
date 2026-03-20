@@ -124,8 +124,9 @@ void stream_subscribe(StreamSensorId sensor) {
             break;
 
         case STREAM_SENSOR_GPS:
-            gps_register_msg_complete_callback(__stream_gps_push_sample);
+            gps_register_bytes_received_callback(__stream_gps_push_sample);
             gps_wake();
+            gps_high_data_rate();
             break;
             
         case STREAM_SENSOR_IMU_ACCEL:
@@ -181,7 +182,7 @@ void stream_unsubscribe(StreamSensorId sensor) {
 
         case STREAM_SENSOR_GPS:
             gps_standby();
-            gps_register_msg_complete_callback(NULL);
+            gps_register_bytes_received_callback(NULL);
             break;
 
         case STREAM_SENSOR_IMU_ACCEL:

@@ -4,6 +4,7 @@
 #include "tusb.h"
 
 #include "battery/bms_ctl.h"
+#include "burnwire.h"
 #include "led/led.h"
 
 #include <stdio.h>
@@ -23,9 +24,11 @@ typedef struct cdc_cmd_t {
 
 static void cdc_print(const char *str);
 static void __not_implemented(int argc, const char *const *argv);
+static void __cmd_burnwire(int argc, const char *const *argv);
 static void __cmd_datetime(int argc, const char *const *argv);
 static void __cmd_help(int argc, const char *const *argv);
 static void __cmd_shutdown(int argc, const char *const *argv);
+static void __cmd_restart(int argc, const char *const *argv);
 static void __cmd_update(int argc, const char *const *argv);
 static void __cmd_pressure(int argc, const char *const *argv);
 
@@ -34,15 +37,21 @@ static char s_cmdline[CMDLINE_MAX];
 static int s_cmdlen;
 
 static const CdcCommand cdc_options[] = {
-    {.key = "help", .description = "list available commands", .action = __cmd_help},
+    {.key = "burnwire", .description = "turn burnwire on/off", .action = __cmd_burnwire},
     {.key = "datetime", .description = "get/set RTC epoch", .action = __cmd_datetime},
-    {.key = "update", .description = "reboot into DFU system bootloader", .action = __cmd_update},
+    {.key = "help", .description = "list available commands", .action = __cmd_help},
+    {.key = "restart", .description = "restart tag", .action = __cmd_restart},
     {.key = "shutdown", .description = "powerdown tag", .action = __cmd_shutdown},
+    {.key = "update", .description = "reboot into DFU system bootloader", .action = __cmd_update},
     // i2c passthrough
     // 
 };
 
 #define NUM_COMMANDS (sizeof(cdc_options) / sizeof(cdc_options[0]))
+
+static void __cmd_restart(int argc, const char *const *argv) {
+    NVIC_SystemReset();
+}
 
 static void __cmd_shutdown(int argc, const char *const *argv) {
     bms_disable_FETs();
@@ -65,6 +74,21 @@ static void __cmd_update(int argc, const char *const *argv) {
     TAMP->BKP0R = BOOTLOADER_REQUEST_MAGIC;
 
     NVIC_SystemReset();
+}
+
+static void __cmd_burnwire(int argc, const char *const *argv) {
+    if ((argc >= 2) && (strcmp(argv[1], "0") == 0)) {
+        burnwire_off();
+        led_usb();
+        return;
+    } else if ((argc >= 2) && (strcmp(argv[1], "1") == 0)) {
+        burnwire_on();
+        led_burn();
+        return;
+    } else {
+        cdc_print("usage: burnwire  0 | burnwire 1" ENDL);
+        return;
+    }
 }
 
 static void __cmd_datetime(int argc, const char *const *argv) {

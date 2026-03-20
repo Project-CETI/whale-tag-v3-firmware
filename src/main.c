@@ -292,6 +292,7 @@ int main(void) {
 #endif
     // acq_ecg_enable();
     gps_init();
+    gps_standby();
     acq_pressure_init(tag_config.pressure.samplerate_Hz);
     burnwire_init();
     // if (tag_config.imu.enabled) {

@@ -195,7 +195,7 @@ static int __sample_to_csv(const CetiBatterySample *pSample, uint8_t *pBuffer, s
     offset += snprintf((char *)&pBuffer[offset], buffer_len - offset, ", %.3f", pSample->cell_voltage_v[1]);
     offset += snprintf((char *)&pBuffer[offset], buffer_len - offset, ", %.3f", pSample->current_mA);
     offset += snprintf((char *)&pBuffer[offset], buffer_len - offset, ", %.3f", pSample->cell_temperature_c[0]);
-    offset += snprintf((char *)&pBuffer[offset], buffer_len - offset, ", %.3f", pSample->cell_temperature_c[1]);
+    offset += snprintf((char *)&pBuffer[offset], buffer_len - offset, ", %.3f", pSample->cell_temperature_c[0]);
     offset += snprintf((char *)&pBuffer[offset], buffer_len - offset, ", %.3f", pSample->state_of_charge_percent);
     offset += snprintf((char *)&pBuffer[offset], buffer_len - offset, ", %s", __status_to_str(pSample->status));
     offset += snprintf((char *)&pBuffer[offset], buffer_len - offset, ", %s", __protAlrt_to_str(pSample->protection_alert));

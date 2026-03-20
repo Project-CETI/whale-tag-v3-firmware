@@ -20,6 +20,7 @@ __attribute__((section(".tag_config_flash")))
 CetiTagRuntimeConfiguration nv_tag_config = {
     .config_version = 0xdeadbeef,
     .hw_version = HW_VERSION,
+    .hostname = "new_tag",
     .audio = {
         .enabled = AUDIO_ENABLED,
         .channel_enabled = {
@@ -60,6 +61,23 @@ CetiTagRuntimeConfiguration nv_tag_config = {
         .enabled = PRESSURE_ENABLED,
         .samplerate_Hz = 1,
     },
+    .dev_config = {
+        .argos_enabled = AUDIO_ENABLED,
+        .audio_channels_enabled = {
+            [0] = AUDIO_CH_0_EN,
+            [1] = AUDIO_CH_1_EN,
+            [2] = AUDIO_CH_2_EN,
+            [3] = AUDIO_CH_3_EN,
+        },
+        .burnwire_enabled = BURNWIRE_ENABLED,
+        .bms_enabled = BMS_ENABLED,
+        .ecg_enabled = ECG_ENABLED,
+        .flasher_enabled = FLASHER_ENABLED,
+        .water_sensor_enabled = 0,
+        .gps_enabled = GPS_ENABLED,
+        .imu_enabled = IMU_ENABLED,
+        .pressure_enabled = PRESSURE_ENABLED,
+    }
 };
 
 uint8_t tag_config_valid = 0;

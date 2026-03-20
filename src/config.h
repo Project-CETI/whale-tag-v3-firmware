@@ -136,6 +136,19 @@ typedef struct {
 } PressureConfig;
 
 typedef struct {
+    uint8_t argos_enabled;
+    uint8_t audio_channels_enabled[4];
+    uint8_t burnwire_enabled;
+    uint8_t bms_enabled;
+    uint8_t ecg_enabled;
+    uint8_t flasher_enabled;
+    uint8_t water_sensor_enabled;
+    uint8_t gps_enabled;
+    uint8_t imu_enabled;
+    uint8_t pressure_enabled;
+} DevConfig;
+
+typedef struct {
     uint32_t config_version; // used to identify what tag configuration is being used
     uint32_t hw_version; // used for tracking hardware compatibilty
     uint32_t fw_version; // used for updating firmware
@@ -151,6 +164,7 @@ typedef struct {
     GpsConfig gps;
     MissionConfig mission;
     PressureConfig pressure;
+    DevConfig dev_config;
 } CetiTagRuntimeConfiguration;
 
 extern CetiTagRuntimeConfiguration tag_config;
