@@ -38,8 +38,6 @@ extern SAI_HandleTypeDef hsai_BlockA1;
 
 /* USER CODE END Private defines */
 
-void MX_SAI1_Init(void);
-
 /* USER CODE BEGIN Prototypes */
 
 /* USER CODE END Prototypes */

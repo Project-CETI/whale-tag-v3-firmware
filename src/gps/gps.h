@@ -17,6 +17,31 @@
 
 #define GPS_BULK_TRANSFER_SIZE (8 * 512)
 
+
+#define NMEA_MAX_SIZE (82)
+
+#define GPS_BUFFER_SIZE (NMEA_MAX_SIZE + 1)
+
+typedef struct {
+    uint64_t timestamp_us;
+    uint32_t status;
+    size_t   len;
+    uint8_t  msg[GPS_BUFFER_SIZE];
+} GpsSentence;
+
+typedef struct {
+    uint8_t valid;
+    uint8_t year;
+    uint8_t month;
+    uint8_t day;
+    uint8_t hours;
+    uint8_t minutes;
+    uint8_t latitude_sign;
+    uint8_t longitude_sign;
+    float latitude;
+    float longitude;
+} GpsPostion;
+
 /* public methods */
 void gps_rx_callback(UART_HandleTypeDef *huart, uint16_t pos);
 
@@ -37,7 +62,8 @@ void gps_set_data_rate(uint32_t period_s);
 void gps_low_data_rate(void);
 void gps_high_data_rate(void);
 
-void gps_register_msg_complete_callback(void (*callback)(const uint8_t *, uint16_t));
+
+void gps_register_msg_complete_callback(void (*callback)(const GpsSentence *));
 void gps_register_bytes_received_callback(void (*callback)(const uint8_t *, uint16_t));
 
 #endif /* INC_RECOVERY_INC_GPS_H_ */

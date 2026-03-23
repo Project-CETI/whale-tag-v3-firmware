@@ -31,6 +31,7 @@ extern "C" {
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+
 /* USER CODE END Includes */
 
 /* Exported types ------------------------------------------------------------*/
@@ -60,8 +61,6 @@ void Error_Handler(void);
 #define AUDIO_VP_EN_GPIO_Output_GPIO_Port GPIOE
 #define Audio_VN_NEN_GPIO_Output_Pin GPIO_PIN_3
 #define Audio_VN_NEN_GPIO_Output_GPIO_Port GPIOE
-#define AUDIO_NCS_GPIO_Output_Pin GPIO_PIN_1
-#define AUDIO_NCS_GPIO_Output_GPIO_Port GPIOH
 #define BMS_I2C3_SCL_Pin GPIO_PIN_0
 #define BMS_I2C3_SCL_GPIO_Port GPIOC
 #define BMS_I2C3_SDA_Pin GPIO_PIN_1
@@ -88,6 +87,8 @@ void Error_Handler(void);
 #define AUDIO_SPI1_MOSI_GPIO_Port GPIOA
 #define IMU_PS0_GPIO_Output_Pin GPIO_PIN_0
 #define IMU_PS0_GPIO_Output_GPIO_Port GPIOB
+#define AUDIO_NCS_GPIO_Output_Pin GPIO_PIN_1
+#define AUDIO_NCS_GPIO_Output_GPIO_Port GPIOB
 #define ECG_ADC_NDRDY_GPIO_Input_Pin GPIO_PIN_2
 #define ECG_ADC_NDRDY_GPIO_Input_GPIO_Port GPIOB
 #define ECG_ADC_NDRDY_GPIO_Input_EXTI_IRQn EXTI2_IRQn
@@ -120,8 +121,6 @@ void Error_Handler(void);
 #define IFACE_EN_GPIO_Input_GPIO_Port GPIOD
 #define FLASHER_LED_EN_GPIO_Output_Pin GPIO_PIN_7
 #define FLASHER_LED_EN_GPIO_Output_GPIO_Port GPIOC
-#define AUDIO_CLK_Pin GPIO_PIN_8
-#define AUDIO_CLK_GPIO_Port GPIOA
 #define GPS_USART1_RX_Pin GPIO_PIN_10
 #define GPS_USART1_RX_GPIO_Port GPIOA
 #define OPTICAL_SPI2_SCK_Pin GPIO_PIN_3
@@ -162,10 +161,29 @@ void Error_Handler(void);
 #define uS_TIM TIM4
 
 #define battery_htim htim2
-#define pressure_htim htim2
+#define pressure_htim htim3
 #define uS_htim htim4
+//#define FLASHER_htim htim5
 
 #define GPS_huart huart1
+#define SAT_huart huart2
+
+// Helper timer definitions
+#define CONCAT(a, b, c) a ## b ## c
+#define EXPAND_AND_CONCAT(a, b, c) CONCAT(a, b, c)
+
+#define PRESSURE_TIM_IRQn EXPAND_AND_CONCAT(PRESSURE_TIM,_IRQn,)
+#define __HAL_RCC_PRESSURE_TIM_CLK_ENABLE EXPAND_AND_CONCAT(__HAL_RCC_, PRESSURE_TIM,_CLK_ENABLE)
+#define __HAL_RCC_PRESSURE_TIM_CLK_DISABLE EXPAND_AND_CONCAT(__HAL_RCC_, PRESSURE_TIM,_CLK_DISABLE)
+
+#define uS_TIM_IRQn EXPAND_AND_CONCAT(uS_TIM,_IRQn,)
+#define __HAL_RCC_uS_TIM_CLK_ENABLE EXPAND_AND_CONCAT(__HAL_RCC_, uS_TIM,_CLK_ENABLE)
+#define __HAL_RCC_uS_TIM_CLK_DISABLE EXPAND_AND_CONCAT(__HAL_RCC_, uS_TIM,_CLK_DISABLE)
+
+#define BATTERY_TIM_IRQn EXPAND_AND_CONCAT(BATTERY_TIM,_IRQn,)
+#define __HAL_RCC_BATTERY_TIM_CLK_ENABLE EXPAND_AND_CONCAT(__HAL_RCC_, BATTERY_TIM,_CLK_ENABLE)
+#define __HAL_RCC_BATTERY_TIM_CLK_DISABLE EXPAND_AND_CONCAT(__HAL_RCC_, BATTERY_TIM,_CLK_DISABLE)
+
 
 /* USER CODE END Private defines */
 

@@ -13,11 +13,7 @@
 #define BMS_I2C_DEV_ADDR_UPPER (0x0b) // For internal memory range 180h-1FFh
 #define BMS_I2C_DEV_ADDR_LOWER (0x36) // For internal memory range 000h-0FFh
 
-#if (HW_VERSION == HW_VERSION_3_1_0) || (HW_VERSION == HW_VERSION_3_1_0_MSH)
 #define BMS_hi2c hi2c3
-#else
-#error HW_VERSION_3_1_0
-#endif
 
 typedef struct {
     I2C_HandleTypeDef *hi2c;

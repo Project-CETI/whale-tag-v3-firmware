@@ -1,4 +1,4 @@
-BOARD ?= msh
+BOARD ?= v3_1
 DEBUG ?= 1
 
 BUILD_ROOT = build
@@ -38,25 +38,20 @@ FPU = -mfpu=fpv4-sp-d16
 FLOAT-ABI = -mfloat-abi=hard
 MCU = $(CPU) -mthumb $(FPU) $(FLOAT-ABI)
 
-ifeq ($(BOARD), nucleo)
-	C_DEFS += -DSTM32U5A5xx
+ifeq ($(BOARD), v3_1)
+	C_DEFS += -DSTM32U595xx
 	C_DEFS += -DHW_VERSION=0
 # link script
-	LDSCRIPT = -Tboard/STM32U5A5ZJTXQ_FLASH.ld
+	LDSCRIPT = -Tboard/STM32U595xx_FLASH.ld
+	IRQ_VEC_ASM = board/startup_stm32u595xx.s
 endif
 
-ifeq ($(BOARD), v3_1)
+ifeq ($(BOARD), v3_2)
 	C_DEFS += -DSTM32U595xx
 	C_DEFS += -DHW_VERSION=1
 # link script
 	LDSCRIPT = -Tboard/STM32U595xx_FLASH.ld
-endif
-
-ifeq ($(BOARD), msh)
-	C_DEFS += -DSTM32U595xx
-	C_DEFS += -DHW_VERSION=2
-# link script
-	LDSCRIPT = -Tboard/STM32U595xx_FLASH.ld
+	IRQ_VEC_ASM = board/startup_stm32u595xx.s
 endif
 
 C_DEFS +=  \

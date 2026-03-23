@@ -34,6 +34,8 @@ extern "C" {
 
 extern DMA_HandleTypeDef handle_GPDMA1_Channel0;
 
+extern DMA_HandleTypeDef handle_GPDMA1_Channel11;
+
 /* USER CODE BEGIN Private defines */
 
 /* USER CODE END Private defines */

@@ -18,6 +18,7 @@
 #include "burnwire.h"
 #include "error.h"
 #include "gps/gps.h"
+#include "gps/log_gps.h"
 #include "imu/acq_imu.h"
 #include "led/led.h"
 #include "pressure/acq_pressure.h"
@@ -40,23 +41,6 @@
 #define ARRAY_LEN(x) (sizeof((x)) / sizeof(*(x)))
 
 static MissionState s_state = MISSION_STATE_ERROR;
-
-static struct {
-    uint8_t valid;
-    uint8_t year;
-    uint8_t month;
-    uint8_t day;     // (0..31]
-    uint8_t hours;   // (0..24]
-    uint8_t minutes; // (0..60]
-    uint8_t seconds; // (0..60] // used for RTC sync not logging
-    uint8_t latitude_sign;
-    uint8_t longitude_sign;
-    // uint8_t unused[3];
-    float latitude;
-    float longitude;
-} latest_gps_coord = {
-    .valid = 0,
-};
 
 typedef void (*MissionTask)(void);
 
@@ -299,266 +283,40 @@ static void __log_mission_state_transition(MissionState current_state, MissionSt
 }
 
 /* GPS TASKS *****************************************************************/
-static FX_FILE gps_log_file = {};
 
-/// @brief initialize gps logging
-/// @param
-static void __log_gps_init(void) {
-    // try to create file
-    CETI_LOG("Created new gps file \"gps.log\"");
-    UINT fx_create_result = fx_file_create(&sdio_disk, "gps.log");
-    if ((FX_SUCCESS != fx_create_result) && (FX_ALREADY_CREATED != fx_create_result)) {
-        error_queue_push(CETI_ERROR(ERR_SUBSYS_LOG_GPS, ERR_TYPE_FILEX, fx_create_result));
-    }
-    UINT fx_result = fx_file_open(&sdio_disk, &gps_log_file, "gps.log", FX_OPEN_FOR_WRITE);
-}
+static GpsPostion s_latest_gps_coord = {
+    .valid = 0,
+};
+static void __position_lock_callback(const GpsPosition *postion) {
+    // track latest position
+    s_latest_gps_coord = *postion;
 
-/// @brief initialize gps logging
-/// @param
-static void __log_gps_deinit(void) {
-    fx_file_close(&gps_log_file);
-}
-
-/// @brief performs the task of logging gps coordinates to a file
-/// @param
-static void __log_gps_task(void) {
-    const uint8_t *gps_bulk_ptr = gps_pop_bulk_transfer();
-    if (NULL == gps_bulk_ptr) {
-        return;
+    // synchronize RTC if not already synced
+    if (!rtc_has_been_syncronized() && s_latest_gps_coord.valid) {
+        RTC_TimeTypeDef sTime = {
+            .Hours = s_latest_gps_coord.hours,
+            .Minutes = s_latest_gps_coord.minutes,
+            .Seconds = latest_gps_latest_gps_coords_coord.seconds,
+        };
+        RTC_DateTypeDef sDate = {
+            .Year = s_latest_gps_coord.year,
+            .Date = s_latest_gps_coord.day,
+            .Month = s_latest_gps_coord.month,
+        };
+        rtc_set_datetime(&sDate, &sTime);
     }
 
-    UINT fx_result = fx_file_write(&gps_log_file, (char *)gps_bulk_ptr, GPS_BULK_TRANSFER_SIZE);
-    if (FX_SUCCESS != fx_result) { // Catch error
-        error_queue_push(CETI_ERROR(ERR_SUBSYS_LOG_MISSION, ERR_TYPE_FILEX, fx_result));
+    // save position to argos transmitter
+    float lat = s_latest_gps_coord.latitude;
+    if (s_latest_gps_coord.latitude_sign) {
+        lat = -lat;
     }
-}
-
-/// @brief  Parses RMC NMEA messages extracting relavent fields
-/// @param sentence pointer to RMC NMEA string
-/// @return 0 == invalid RMC NMEA message; 1 == valid nmea message with valid coord
-/// @note this was modified from minmea (https://github.com/kosma/minmea) to be
-/// degeneralized and reduce the amount of work
-static int __parse_rmc(const uint8_t *sentence) {
-    const uint8_t *field = sentence;
-    uint8_t year;
-    uint8_t month;
-    uint8_t day;     // (1..31]
-    uint8_t hours;   // (0..24]
-    uint8_t minutes; // (0..60]
-    uint8_t seconds; // (0..60] // used for RTC sync not logging
-    uint8_t latitude_sign;
-    uint8_t longitude_sign;
-    // uint8_t unused[3];
-    float latitude;
-    float longitude;
-
-#define isfield(c) (isprint((unsigned char)(c)) && (c) != ',' && (c) != '*')
-
-#define next_field()              \
-    do {                          \
-        while (isfield(*field)) { \
-            field++;              \
-        }                         \
-        if (',' != *field) {      \
-            return 0;             \
-        } else {                  \
-            field++;              \
-        }                         \
-    } while (0)
-
-    // t - type
-    if ('$' != field[0]) {
-        return 0;
+    float lon = s_latest_gps_coord.longitude;
+    if (s_latest_gps_coord.longitude_sign) {
+        lon = 360.0f - lon;
     }
-    for (int i = 0; i < 5; i++) {
-        if (!isfield(field[1 + i])) {
-            return 0;
-        }
-    }
-    if (0 != memcmp("RMC", &field[3], 3)) {
-        return 0;
-    }
-    field += 5;
+    argos_tx_mgr_set_coordinates(lat, lon);
 
-    // check validity
-    next_field();
-    const char *time_str = (char *)field; // skip time field for now
-
-    next_field();
-    if ('A' != *field) {
-        return 0;
-    }
-    next_field();
-
-    // frame is valid RMC. parse!!!
-
-    // parse meaningful values;
-    // Minimum required: integer time.
-    { // hour and minute
-        for (int f = 0; f < 6; f++) {
-            if (!isdigit((unsigned char)time_str[f]))
-                return 0;
-        }
-
-        char hArr[] = {time_str[0], time_str[1], '\0'};
-        char mArr[] = {time_str[2], time_str[3], '\0'};
-        char sArr[] = {time_str[4], time_str[5], '\0'};
-
-        hours = strtol(hArr, NULL, 10);
-        minutes = strtol(mArr, NULL, 10);
-        seconds = strtol(sArr, NULL, 10);
-    }
-
-    { // latitude
-        for (int f = 0; f < 4; f++) {
-            if (!isdigit((unsigned char)field[f]))
-                return 0;
-        }
-        char dArr[] = {field[0], field[1], 0};
-        char mArr[] = {field[2], field[3], 0};
-        uint8_t degrees = strtol(dArr, NULL, 10);
-        uint8_t minutes = strtol(mArr, NULL, 10);
-        float minutes_f = (float)minutes;
-
-        uint32_t subminutes = 0;
-        uint32_t scale = 1;
-        if ('.' == field[4]) {
-            for (int i = 5; isdigit((unsigned char)field[i]); i++) {
-                subminutes = (subminutes * 10) + (field[i] - '0');
-                scale *= 10;
-            }
-        }
-        minutes_f += ((float)subminutes) / (float)scale;
-        latitude = (float)degrees + (minutes_f / 60.0f);
-    }
-
-    next_field();
-    { // latitude sign
-        if ('S' == *field) {
-            latitude_sign = 1;
-        } else if ('N' == *field) {
-            latitude_sign = 0;
-        } else {
-            return 0;
-        }
-    }
-
-    next_field();
-    { // longitude
-        for (int f = 0; f < 5; f++) {
-            if (!isdigit((unsigned char)field[f])) {
-                return 0;
-            }
-        }
-        char dArr[] = {field[0], field[1], field[2], 0};
-        char mArr[] = {field[3], field[4], 0};
-        uint8_t degrees = strtol(dArr, NULL, 10);
-        uint8_t minutes = strtol(mArr, NULL, 10);
-        float minutes_f = (float)minutes;
-
-        uint32_t subminutes = 0;
-        uint32_t scale = 1;
-        if ('.' == field[5]) {
-            for (int i = 6; isdigit((unsigned)field[i]); i++) {
-                subminutes = (subminutes * 10) + (field[i] - '0');
-                scale *= 10;
-            }
-        }
-        minutes_f += ((float)subminutes) / (float)scale;
-        longitude = (float)degrees + (minutes_f / 60.0f);
-    }
-
-    next_field();
-    { // longitude_sign
-        if ('W' == *field) {
-            longitude_sign = 1;
-        } else if ('E' == *field) {
-            longitude_sign = 0;
-        } else {
-            return 0;
-        }
-    }
-
-    next_field();
-    { // speed
-    }
-
-    next_field();
-    { // course
-    }
-
-    next_field();
-    { // Date
-        for (int f = 0; f < 6; f++) {
-            if (!isdigit((unsigned char)field[f]))
-                return 0;
-        }
-        char dArr[] = {field[0], field[1], 0};
-        char mArr[] = {field[2], field[3], 0};
-        char yArr[] = {field[4], field[5], 0};
-        day = strtol(dArr, NULL, 10);
-        month = strtol(mArr, NULL, 10);
-        year = strtol(yArr, NULL, 10);
-    }
-
-    // everything parsed OK
-    latest_gps_coord.valid = 1;
-    latest_gps_coord.year = year;
-    latest_gps_coord.month = month;
-    latest_gps_coord.day = day;         // (0..31]
-    latest_gps_coord.hours = hours;     // (0..24]
-    latest_gps_coord.minutes = minutes; // (0..60]
-    latest_gps_coord.seconds = seconds; // (0..60] // used for RTC sync not logging
-    latest_gps_coord.latitude_sign = latitude_sign;
-    latest_gps_coord.longitude_sign = longitude_sign;
-    latest_gps_coord.latitude = latitude;
-    latest_gps_coord.longitude = longitude;
-    return 1;
-}
-
-/// @brief  Task that updates latest valid GPS coordinates, forwards all gps
-/// to a file, and resyncronizes the RTC if it hasn't been yet;
-/// @param
-static void __parse_gps_task(void) {
-    const uint8_t *gps_sentence = gps_pop_sentence();
-    while (NULL != gps_sentence) {
-        // validate position
-        int new_valid_rmc = __parse_rmc(gps_sentence);
-
-        // synchronize RTC
-        if (!rtc_has_been_syncronized() && latest_gps_coord.valid) {
-            RTC_TimeTypeDef sTime = {
-                .Hours = latest_gps_coord.hours,
-                .Minutes = latest_gps_coord.minutes,
-                .Seconds = latest_gps_coord.seconds,
-            };
-            RTC_DateTypeDef sDate = {
-                .Year = latest_gps_coord.year,
-                .Date = latest_gps_coord.day,
-                .Month = latest_gps_coord.month,
-            };
-            rtc_set_datetime(&sDate, &sTime);
-        }
-
-        // update argos_tx_mgr's position
-        if (new_valid_rmc) {
-            float lat = latest_gps_coord.latitude;
-            if (latest_gps_coord.latitude_sign) {
-                lat = -lat;
-            }
-            float lon = latest_gps_coord.longitude;
-            if (latest_gps_coord.longitude_sign) {
-                lon = 360.0f - lon;
-            }
-            argos_tx_mgr_set_coordinates(lat, lon);
-        }
-
-        // forward to host
-        // #warning "ToDo: Log GPS Sentences"
-
-        // next
-        gps_sentence = gps_pop_sentence();
-    }
 }
 
 /// @brief Task that performs transmission of GPS coordinates via argos satellite and forwarding
@@ -573,23 +331,23 @@ static void __transmit_gps_task(void) {
     // construct tx_message
     uint32_t lat_abs = 0xffffffff;
     uint32_t lon_abs = 0xffffffff;
-    if (!latest_gps_coord.valid) {
+    if (!s_latest_gps_coord.valid) {
         RTC_DateTypeDef rtc_date;
         RTC_TimeTypeDef rtc_time;
         rtc_get_datetime(&rtc_date, &rtc_time);
-        latest_gps_coord.day = rtc_date.Date;
-        latest_gps_coord.hours = rtc_time.Hours;
-        latest_gps_coord.minutes = rtc_time.Minutes;
-        latest_gps_coord.latitude_sign = 1;
-        latest_gps_coord.longitude_sign = 1;
+        s_latest_gps_coord.day = rtc_date.Date;
+        s_latest_gps_coord.hours = rtc_time.Hours;
+        s_latest_gps_coord.minutes = rtc_time.Minutes;
+        s_latest_gps_coord.latitude_sign = 1;
+        s_latest_gps_coord.longitude_sign = 1;
     } else {
-        lat_abs = (uint32_t)(latest_gps_coord.latitude * 10000.0f);
-        lon_abs = (uint32_t)(latest_gps_coord.longitude * 10000.0f);
+        lat_abs = (uint32_t)(s_latest_gps_coord.latitude * 10000.0f);
+        lon_abs = (uint32_t)(s_latest_gps_coord.longitude * 10000.0f);
     }
 
     // generate gps packet
     uint64_t gps_packet = 0;
-    gps_packet = (((uint64_t)(latest_gps_coord.day & ((1 << 5) - 1))) << (64 - 5)) | (((uint64_t)(latest_gps_coord.hours & ((1 << 5) - 1))) << (64 - 10)) | (((uint64_t)(latest_gps_coord.minutes & ((1 << 6) - 1))) << (64 - 16)) | (((uint64_t)(latest_gps_coord.latitude_sign & ((1 << 1) - 1))) << (64 - 17)) | (((uint64_t)(lat_abs & ((1 << 20) - 1))) << (64 - 37)) | (((uint64_t)(latest_gps_coord.longitude_sign & ((1 << 1) - 1))) << (64 - 38)) | (((uint64_t)(lon_abs & ((1 << 21) - 1))) << (64 - 59));
+    gps_packet = (((uint64_t)(s_latest_gps_coord.day & ((1 << 5) - 1))) << (64 - 5)) | (((uint64_t)(s_latest_gps_coord.hours & ((1 << 5) - 1))) << (64 - 10)) | (((uint64_t)(s_latest_gps_coord.minutes & ((1 << 6) - 1))) << (64 - 16)) | (((uint64_t)(s_latest_gps_coord.latitude_sign & ((1 << 1) - 1))) << (64 - 17)) | (((uint64_t)(lat_abs & ((1 << 20) - 1))) << (64 - 37)) | (((uint64_t)(s_latest_gps_coord.longitude_sign & ((1 << 1) - 1))) << (64 - 38)) | (((uint64_t)(lon_abs & ((1 << 21) - 1))) << (64 - 59));
 
     // move gps packet into tx_message_buffer
     uint8_t tx_message[24] = {};
@@ -684,10 +442,10 @@ static void __update_state_dependent_task_list(MissionState state) {
     // log_gps/parse_gps
     if ((MISSION_STATE_RECORD_DIVE != state)) {
         if (tag_config.gps.enabled) {
-            __push_task(__log_gps_task);
+            __push_task(log_gps_task);
             __push_audio_task(state);
 
-            __push_task(__parse_gps_task);
+            __push_task(parse_gps_task);
             __push_audio_task(state);
         }
     }
@@ -725,12 +483,13 @@ static void __update_state_dependent_task_list(MissionState state) {
 void mission_set_state(MissionState next_state) {
     /*
                           | RS | RF | RD | B | LPB | R | LPR
-        audio             | X  | X  | X  | X |     | X |
+        logging_audio     | X  | X  | X  | X |     | X |
+        acq_audio         | X  | X  | X  | X |     | X |
         imu               | X  | X  | X  | X |     | X |
         burn              |    |    |    | X |  X  |   |
         gps               | X  | X  |    | X |  X  | X | X
-        led               | X  | X  |    | X |     | X |
         recovery_tx       |    | X  |    | X |  X  | X | X
+        led               | X  | X  |    | X |     | X |
         bms               | x  | x  | x  | x |  x  | x |
         pressure          | x  | x  | x  | x |  x  | x |
     */
@@ -878,10 +637,15 @@ void mission_init(void) {
         acq_ecg_start();
     }
 
+    if (tag_config.gps.enabled) {
+        CETI_LOG("Initializing GPS Logging");
+        gps_register_msg_complete_callback(log_gps_message_complete_callback);
+    }
+
     if (tag_config.argos.enabled) {
         CETI_LOG("Initializing ARGOS");
         MX_USART2_UART_Init();
-        satellite_init();
+        satellite_init(); 
     }
 
     if (tag_config.flasher.enabled) {
@@ -896,7 +660,7 @@ void mission_init(void) {
     s_burn_start_timestamp_s = now_timestamp_s + 4 * 60 * 60;
 
     // initialize gps log
-    __log_gps_init();
+    log_gps_init();
 
     // force state transition
     __log_mission_init(); // initialize mission log prior to performing initial state transistion.
@@ -1062,7 +826,7 @@ void mission_sleep(void) {
         case MISSION_STATE_RECORD_FLOATING: {
             __disable_irq();
             if (gps_bulk_queue_is_empty() 
-                && gps_queue_is_empty() 
+                && !log_gps_task_call_required() 
                 && !argos_tx_mgr_ready_to_tx()
                 && !log_battery_sample_buffer_is_half_full()
                 && !log_pressure_sample_buffer_is_half_full()
@@ -1089,7 +853,7 @@ void mission_sleep(void) {
 
         case MISSION_STATE_BURN:
             if ( gps_bulk_queue_is_empty() 
-                 && gps_queue_is_empty() 
+                 && !log_gps_task_call_required() 
                  && !argos_tx_mgr_ready_to_tx()
                  && !log_battery_sample_buffer_is_half_full()
                  && !log_pressure_sample_buffer_is_half_full()
@@ -1100,7 +864,7 @@ void mission_sleep(void) {
 
         case MISSION_STATE_LOW_POWER_BURN:
             if ( gps_bulk_queue_is_empty() 
-                 && gps_queue_is_empty() 
+                 && !log_gps_task_call_required() 
                  && !argos_tx_mgr_ready_to_tx()
                  && !log_battery_sample_buffer_is_half_full()
                  && !log_pressure_sample_buffer_is_half_full()
@@ -1112,7 +876,7 @@ void mission_sleep(void) {
         case MISSION_STATE_RETRIEVE: {
             __disable_irq();
             if ( gps_bulk_queue_is_empty() 
-                 && gps_queue_is_empty() 
+                 && !log_gps_task_call_required() 
                  && !argos_tx_mgr_ready_to_tx()
                  && !log_battery_sample_buffer_is_half_full()
                  && !log_pressure_sample_buffer_is_half_full()
@@ -1132,7 +896,7 @@ void mission_sleep(void) {
         case MISSION_STATE_LOW_POWER_RETRIEVE: {
             __disable_irq();
             if (gps_bulk_queue_is_empty() 
-                && gps_queue_is_empty() 
+                && !log_gps_task_call_required() 
                 && !argos_tx_mgr_ready_to_tx()
             ) {
                 // nothing to currently do!

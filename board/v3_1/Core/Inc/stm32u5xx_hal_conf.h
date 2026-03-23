@@ -39,7 +39,7 @@ extern "C" {
 /*#define HAL_CRC_MODULE_ENABLED */
 /*#define HAL_CRYP_MODULE_ENABLED */
 /*#define HAL_DAC_MODULE_ENABLED */
-/*#define HAL_DCACHE_MODULE_ENABLED */
+#define HAL_DCACHE_MODULE_ENABLED
 /*#define HAL_DCMI_MODULE_ENABLED */
 /*#define HAL_DMA2D_MODULE_ENABLED */
 /*#define HAL_DSI_MODULE_ENABLED */
@@ -99,7 +99,7 @@ extern "C" {
   *        (when HSE is used as system clock source, directly or through the PLL).
   */
 #if !defined  (HSE_VALUE)
-#define HSE_VALUE              24576000UL /*!< Value of the External oscillator in Hz */
+#define HSE_VALUE              16000000UL /*!< Value of the External oscillator in Hz */
 #endif /* HSE_VALUE */
 
 #if !defined  (HSE_STARTUP_TIMEOUT)
@@ -235,7 +235,7 @@ vary depending on the variations in voltage and temperature.*/
 #define  USE_HAL_SRAM_REGISTER_CALLBACKS       0U /* SRAM register callback disabled      */
 #define  USE_HAL_TIM_REGISTER_CALLBACKS        1U /* TIM register callback enabled       */
 #define  USE_HAL_TSC_REGISTER_CALLBACKS        0U /* TSC register callback disabled       */
-#define  USE_HAL_UART_REGISTER_CALLBACKS       1U /* UART register callback enabled      */
+#define  USE_HAL_UART_REGISTER_CALLBACKS       0U /* UART register callback disabled      */
 #define  USE_HAL_USART_REGISTER_CALLBACKS      0U /* USART register callback disabled     */
 #define  USE_HAL_WWDG_REGISTER_CALLBACKS       0U /* WWDG register callback disabled      */
 #define  USE_HAL_OSPI_REGISTER_CALLBACKS       0U /* OSPI register callback disabled      */

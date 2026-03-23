@@ -1,5 +1,7 @@
 #include "cdc.h"
 
+#include "main.h"
+
 #include "timing.h"
 #include "tusb.h"
 
@@ -31,6 +33,7 @@ static void __cmd_shutdown(int argc, const char *const *argv);
 static void __cmd_restart(int argc, const char *const *argv);
 static void __cmd_update(int argc, const char *const *argv);
 static void __cmd_pressure(int argc, const char *const *argv);
+static void __cmd_i2cdetect(int argc, const char *const *argv);
 
 
 static char s_cmdline[CMDLINE_MAX];
@@ -40,6 +43,7 @@ static const CdcCommand cdc_options[] = {
     {.key = "burnwire", .description = "turn burnwire on/off", .action = __cmd_burnwire},
     {.key = "datetime", .description = "get/set RTC epoch", .action = __cmd_datetime},
     {.key = "help", .description = "list available commands", .action = __cmd_help},
+    {.key = "i2cdetect", .description = "detect devices on specified i2c bus", .action = __cmd_i2cdetect},
     {.key = "restart", .description = "restart tag", .action = __cmd_restart},
     {.key = "shutdown", .description = "powerdown tag", .action = __cmd_shutdown},
     {.key = "update", .description = "reboot into DFU system bootloader", .action = __cmd_update},
@@ -87,6 +91,45 @@ static void __cmd_burnwire(int argc, const char *const *argv) {
         return;
     } else {
         cdc_print("usage: burnwire  0 | burnwire 1" ENDL);
+        return;
+    }
+}
+extern I2C_HandleTypeDef hi2c1;
+extern I2C_HandleTypeDef hi2c2;
+extern I2C_HandleTypeDef hi2c3;
+static void __cmd_i2cdetect(int argc, const char *const *argv) {
+    if ((argc >= 2)) {
+        I2C_HandleTypeDef *hi2c = NULL;
+        switch(argv[1][0]) {
+            case '1':
+                hi2c = &hi2c1;
+                break;
+
+            case '2':
+                hi2c = &hi2c2;
+                break;
+
+            case '3':
+                hi2c = &hi2c3;
+                break;
+
+            default:
+                cdc_print("usage: i2cdetect  ( 1 | 2 | 3)" ENDL);
+                return;
+        }
+
+        // cycle over all i2c devices on buss
+        for (int i = 0; i < 0x80; i++) {
+            if (HAL_I2C_IsDeviceReady(hi2c, (i << 1), 3, 5) == HAL_OK) {
+                uint8_t buf[8];
+                snprintf(buf, sizeof(buf), "%02Xh", i);
+                cdc_print(buf);
+            }
+        }
+        cdc_print(ENDL);
+        return;
+    } else {
+        cdc_print("usage: i2cdetect  ( 1 | 2 | 3 )" ENDL);
         return;
     }
 }

@@ -50,10 +50,10 @@ extern __IO UINT sd_tx_cplt;
  * For STM32U5 this flag should be always set to 0 unless external
  * memories are being used.
  */
-#define FX_STM32_SD_CACHE_MAINTENANCE                    	  0
+#define FX_STM32_SD_CACHE_MAINTENANCE                         0
 
 /* Use the SD DMA API */
-#define FX_STM32_SD_DMA_API                              	  1
+#define FX_STM32_SD_DMA_API                                   1
 
 /* SDIO instance to be used by FileX */
 #define FX_STM32_SD_INSTANCE                                  0
@@ -128,8 +128,10 @@ extern __IO UINT sd_tx_cplt;
                                               UINT start = HAL_GetTick(); \
                                               while (HAL_GetTick() - start < FX_STM32_SD_DEFAULT_TIMEOUT) \
                                               {\
-                                                if (sd_rx_cplt == 1) \
+                                                if (sd_rx_cplt == 1) {\
                                                   break;\
+                                                }\
+                                                __WFI();\
                                               }\
                                               if (sd_rx_cplt == 0) \
                                                 return FX_IO_ERROR; \
@@ -144,8 +146,10 @@ extern __IO UINT sd_tx_cplt;
                                               UINT start = HAL_GetTick(); \
                                               while (HAL_GetTick() - start < FX_STM32_SD_DEFAULT_TIMEOUT) \
                                               {\
-                                                if (sd_tx_cplt == 1) \
+                                                if (sd_tx_cplt == 1) {\
                                                   break;\
+                                                }\
+                                                __WFI();\
                                               }\
                                               if (sd_tx_cplt == 0) \
                                                 return FX_IO_ERROR;\
@@ -172,7 +176,7 @@ extern __IO UINT sd_tx_cplt;
 
 #define FX_STM32_SD_WRITE_TRANSFER_ERROR				FX_STM32_SD_READ_TRANSFER_ERROR
 
-/* USER CODE END FX_STM32_SD_WRITE_TRANFSER_ERROR */
+/* USER CODE END FX_STM32_SD_WRITE_TRANSFER_ERROR */
 
 /* Exported functions prototypes ---------------------------------------------*/
 
