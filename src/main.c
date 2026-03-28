@@ -296,8 +296,10 @@ int main(void) {
     acq_pressure_init(tag_config.pressure.samplerate_Hz);
     burnwire_init();
     // if (tag_config.imu.enabled) {
-    //     acq_imu_init();// note IMU must be initialized after audio due to shared SPI bus
-    // }
+
+    acq_imu_init(); /// @note IMU must be initialized after audio due to shared SPI bus
+    // MX_USART2_UART_Init();
+    // satellite_init();
 
     /* Detect if the external interface is present to enable USB for offload/debug/DFU */
     if (usb_iface_present()) {

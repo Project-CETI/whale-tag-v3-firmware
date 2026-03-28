@@ -56,6 +56,10 @@ CetiTagRuntimeConfiguration nv_tag_config = {
 
     .imu = {
         .enabled = IMU_ENABLED,
+	    .quaternion_samplerate_Hz = IMU_SAMPLE_RATE_HZ,
+	    .accel_samplerate_Hz  = IMU_SAMPLE_RATE_HZ,
+	    .gyro_samplerate_Hz  = IMU_SAMPLE_RATE_HZ,
+	    .mag_samplerate_Hz = IMU_SAMPLE_RATE_HZ,
     },
     .pressure = {
         .enabled = PRESSURE_ENABLED,

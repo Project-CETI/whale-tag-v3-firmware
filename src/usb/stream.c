@@ -8,10 +8,13 @@
 #include "stream.h"
 #include "tusb.h"
 
-#include "gps/gps.h"
+#include "config.h"
+
 #include "audio/acq_audio.h"
-#include "pressure/acq_pressure.h"
+#include "imu/acq_imu.h"
 #include "battery/acq_battery.h"
+#include "gps/gps.h"
+#include "pressure/acq_pressure.h"
 
 #include <string.h>
 
@@ -47,6 +50,22 @@ static void __stream_battery_push_sample(const CetiBatterySample *p_sample) {
 
 static void __stream_gps_push_sample(const uint8_t *p_msg, uint16_t len) {
     stream_push_packet(STREAM_SENSOR_GPS, p_msg, len);
+}
+
+static void __stream_accel_push_sample(const sh2_SensorValue_t *p_val) {
+    stream_push_packet(STREAM_SENSOR_IMU_ACCEL, &p_val->un.accelerometer, sizeof(sh2_Accelerometer_t));
+}
+
+static void __stream_gyro_push_sample(const sh2_SensorValue_t *p_val) {
+    stream_push_packet(STREAM_SENSOR_IMU_GYRO, &p_val->un.gyroscope, sizeof(sh2_Gyroscope_t));
+}
+
+static void __stream_mag_push_sample(const sh2_SensorValue_t *p_val) {
+    stream_push_packet(STREAM_SENSOR_IMU_MAG, &p_val->un.magneticField, sizeof(sh2_MagneticField_t));
+}
+
+static void __stream_quat_push_sample(const sh2_SensorValue_t *p_val) {
+    stream_push_packet(STREAM_SENSOR_IMU_QUAT, &p_val->un.rotationVector, sizeof(sh2_RotationVectorWAcc_t));
 }
 
 static uint32_t ring_used(void) {
@@ -130,15 +149,23 @@ void stream_subscribe(StreamSensorId sensor) {
             break;
             
         case STREAM_SENSOR_IMU_ACCEL:
+            acq_imu_register_callback(IMU_SENSOR_ACCELEROMETER, __stream_accel_push_sample);
+            acq_imu_start_sensor(IMU_SENSOR_ACCELEROMETER, 1000000/(uint32_t)tag_config.imu.accel_samplerate_Hz);
             break;
 
         case STREAM_SENSOR_IMU_MAG:
+            acq_imu_register_callback(IMU_SENSOR_MAGNETOMETER, __stream_mag_push_sample);
+            acq_imu_start_sensor(IMU_SENSOR_MAGNETOMETER, 1000000/(uint32_t)tag_config.imu.mag_samplerate_Hz);
             break;
         
         case STREAM_SENSOR_IMU_GYRO:
+            acq_imu_register_callback(IMU_SENSOR_GYROSCOPE, __stream_gyro_push_sample);
+            acq_imu_start_sensor(IMU_SENSOR_GYROSCOPE, 1000000/(uint32_t)tag_config.imu.gyro_samplerate_Hz);
             break;
 
         case STREAM_SENSOR_IMU_QUAT:
+            acq_imu_register_callback(IMU_SENSOR_ROTATION, __stream_quat_push_sample);
+            acq_imu_start_sensor(IMU_SENSOR_ROTATION, 1000000/(uint32_t)tag_config.imu.quaternion_samplerate_Hz);
             break;
 
         case STREAM_SENSOR_ECG:
@@ -186,15 +213,23 @@ void stream_unsubscribe(StreamSensorId sensor) {
             break;
 
         case STREAM_SENSOR_IMU_ACCEL:
+            acq_imu_stop_sensor(IMU_SENSOR_ACCELEROMETER);
+            acq_imu_register_callback(IMU_SENSOR_ACCELEROMETER, NULL);
             break;
 
         case STREAM_SENSOR_IMU_MAG:
+            acq_imu_stop_sensor(IMU_SENSOR_MAGNETOMETER);
+            acq_imu_register_callback(IMU_SENSOR_MAGNETOMETER, NULL);
             break;
         
         case STREAM_SENSOR_IMU_GYRO:
+            acq_imu_stop_sensor(IMU_SENSOR_GYROSCOPE);
+            acq_imu_register_callback(IMU_SENSOR_GYROSCOPE, NULL);
             break;
 
         case STREAM_SENSOR_IMU_QUAT:
+            acq_imu_stop_sensor(IMU_SENSOR_ROTATION);
+            acq_imu_register_callback(IMU_SENSOR_ROTATION, NULL);
             break;
 
         case STREAM_SENSOR_ECG:
@@ -253,6 +288,10 @@ int stream_push_packet(StreamSensorId sensor_id, const void *payload, uint16_t p
 }
 
 void stream_task(void) {
+    if (s_subscriptions &= ((1 << STREAM_SENSOR_IMU_ACCEL) | (1 << STREAM_SENSOR_IMU_GYRO) | (1 << STREAM_SENSOR_IMU_MAG) | (1 << STREAM_SENSOR_IMU_QUAT))) {
+        acq_imu_task();
+    }
+
     // Drain ring buffer into vendor bulk IN endpoint
     uint32_t avail = ring_used();
     if (avail == 0) {

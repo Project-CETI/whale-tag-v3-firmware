@@ -6,6 +6,8 @@
  *   @authors   Michael Salino-Hugg, [TODO: Add other contributors here]
  *   @note      based on example from https://github.com/ceva-dsp/sh2-demo-nucleo
  *****************************************************************************/
+#include "acq_imu.h"
+
 #include "sh2.h"
 #include "sh2_SensorValue.h"
 #include "sh2_err.h"
@@ -28,6 +30,13 @@ static int acq_imu_spi_open(sh2_Hal_t *self);
 static int acq_imu_spi_hal_read(sh2_Hal_t *self, uint8_t *pBuffer, unsigned len, uint32_t *t);
 static int acq_imu_spi_hal_write(sh2_Hal_t *self, uint8_t *pBuffer, unsigned len);
 static void __acq_imu_init_spi(void);
+
+sh2_Quaternion_t s_onboard_compensation = {
+    .w = 1.0,
+    .x = 0.0,
+    .y = 0.0,
+    .z = 0.0,
+};
 
 typedef enum {
     SPI_INIT,
@@ -180,24 +189,32 @@ static void usDelay(uint32_t delay) {
  * SH2 SPI HAL Methods
  */
 
+/// @brief imu packet timestamping method
+/// @param self pointer to sh2 object
+/// @return timestamp in microseconds
+/// @note must be able to call inside of interrupt
 static uint32_t acq_imu_get_time_us(sh2_Hal_t *self) {
     return timing_get_time_since_on_us();
 }
 
+/// @brief initializes imu hardware and opens communication with spi bus
+/// @param self pointer to sh2 object
+/// @return SH2_OK on success
 static int acq_imu_spi_open(sh2_Hal_t *self) {
     if (s_spi_is_open) {
         return SH2_ERR; // can't open another instance
     }
     s_spi_is_open = 1;
 
-    // initialize spi hardware
-    __acq_imu_init_spi();
 
     // hold in reset
     rstn(GPIO_PIN_RESET);
 
     // deassert CSN
     csn(GPIO_PIN_SET);
+
+    // initialize spi hardware
+    __acq_imu_init_spi();
 
     s_rx_buf_len = 0;
     s_tx_buf_len = 0;
@@ -222,6 +239,8 @@ static int acq_imu_spi_open(sh2_Hal_t *self) {
     return SH2_OK;
 }
 
+/// @brief closes spi bus and deinitializes imu hardware
+/// @param self pointer to sh2 object
 static void acq_imu_spi_close(sh2_Hal_t *self) {
     acq_imu_disable_interrupts();
 
@@ -237,6 +256,12 @@ static void acq_imu_spi_close(sh2_Hal_t *self) {
     return;
 }
 
+/// @brief spi method sh2_Hal_t object calls inorder to read data from sensor
+/// @param self pointer to sh2 object
+/// @param pBuffer pointer to receiving buffer
+/// @param len expected number of bytes to receive
+/// @param t pointer to packet timestamp
+/// @return number of bytes received
 static int acq_imu_spi_hal_read(sh2_Hal_t *self, uint8_t *pBuffer, unsigned len, uint32_t *t) {
     int retval = 0;
 
@@ -276,6 +301,11 @@ static int acq_imu_spi_hal_read(sh2_Hal_t *self, uint8_t *pBuffer, unsigned len,
     return retval;
 }
 
+/// @brief spi method sh2_Hal_t object calls inorder to write data to sensor
+/// @param self pointer to sh2 object
+/// @param pBuffer pointer to data to transmit to sensor
+/// @param len length of transmission
+/// @return actual number of bytes transmitted
 static int acq_imu_spi_hal_write(sh2_Hal_t *self, uint8_t *pBuffer, unsigned len) {
     int retval = SH2_OK;
 
@@ -315,17 +345,11 @@ sh2_SensorValue_t s_acq_imu_sensor_value_buffer[ACQ_IMU_SENSOR_BUFFER_LENGTH];
 static volatile size_t s_acq_imu_sensor_write_position = 0;
 static volatile size_t s_acq_imu_sensor_read_position = 0;
 
-typedef enum {
-    IMU_SENSOR_ROTATION,
-    IMU_SENSOR_ACCELEROMETER,
-    IMU_SENSOR_MAGNETOMETER,
-    IMU_SENSOR_GYROSCOPE,
-} ImuSensor;
 
-const struct {
+static struct {
     int sensor_id;
     sh2_SensorConfig_t config;
-} s_sensor_config[] = {
+} s_sensor_config[IMU_SENSOR_COUNT] = {
     [IMU_SENSOR_ACCELEROMETER] = {SH2_ACCELEROMETER, {.reportInterval_us = 20000}},
     [IMU_SENSOR_GYROSCOPE] = {SH2_GYROSCOPE_CALIBRATED, {.reportInterval_us = 20000}},
     [IMU_SENSOR_MAGNETOMETER] = {SH2_MAGNETIC_FIELD_CALIBRATED, {.reportInterval_us = 20000}},
@@ -345,6 +369,10 @@ sh2_SensorValue_t s_accel_sample;
 sh2_SensorValue_t s_gyro_sample;
 sh2_SensorValue_t s_mag_sample;
 
+/// @brief callback callled by sh2 library when an imu event is received on 
+/// the corresponding spi bus. 
+/// @param cookie 
+/// @param pEvent 
 void acq_imu_sensor_callback(void *cookie, sh2_SensorEvent_t *pEvent) {
     int status;
 
@@ -382,6 +410,8 @@ void acq_imu_sensor_callback(void *cookie, sh2_SensorEvent_t *pEvent) {
     }
 }
 
+/// @brief initializes spi hardware associated with imu
+/// @param  
 static void __acq_imu_init_spi(void){
     SPI_AutonomousModeConfTypeDef HAL_SPI_AutonomousMode_Cfg_Struct = {0};
 
@@ -403,7 +433,7 @@ static void __acq_imu_init_spi(void){
     hspi1.Init.MasterSSIdleness = SPI_MASTER_SS_IDLENESS_00CYCLE;
     hspi1.Init.MasterInterDataIdleness = SPI_MASTER_INTERDATA_IDLENESS_00CYCLE;
     hspi1.Init.MasterReceiverAutoSusp = SPI_MASTER_RX_AUTOSUSP_DISABLE;
-    hspi1.Init.MasterKeepIOState = SPI_MASTER_KEEP_IO_STATE_DISABLE;
+    hspi1.Init.MasterKeepIOState = SPI_MASTER_KEEP_IO_STATE_ENABLE;
     hspi1.Init.IOSwap = SPI_IO_SWAP_DISABLE;
     hspi1.Init.ReadyMasterManagement = SPI_RDY_MASTER_MANAGEMENT_INTERNALLY;
     hspi1.Init.ReadyPolarity = SPI_RDY_POLARITY_HIGH;
@@ -420,56 +450,14 @@ static void __acq_imu_init_spi(void){
     }
 }
 
-
-/******BLOCKING MODE TESTS*************************************************************************/
-// Read one SHTP packet (blocking). Returns total length.
-static uint16_t bno08x_blocking_read(uint8_t *buf, uint16_t buf_size) {
-    // Wait for NINT assertion (active low) with timeout
-    uint32_t start = HAL_GetTick();
-    while (HAL_GPIO_ReadPin(IMU_NINT_GPIO_EXTI10_GPIO_Port,
-                            IMU_NINT_GPIO_EXTI10_Pin) != GPIO_PIN_RESET) {
-        if ((HAL_GetTick() - start) > 500) return 0; // timeout
-    }
-
-    csn(GPIO_PIN_RESET); // assert CS
-
-    // Read 4-byte SHTP header
-    HAL_SPI_Receive(&IMU_hspi, buf, 4, 100);
-    uint16_t len = ((uint16_t)(buf[1] & 0x7F) << 8) | buf[0];
-    if (len > buf_size) len = buf_size;
-
-    // Read remaining body
-    if (len > 4) {
-        HAL_SPI_Receive(&IMU_hspi, buf + 4, len - 4, 200);
-    }
-
-    csn(GPIO_PIN_SET); // deassert CS
-    return len;
-}
-
-
-// SHTP packet: 6 bytes total, channel 2, report 0xF9
-static const uint8_t prodIdReq[] = {
-    0x06, 0x00,  // length = 6 (header + 2 byte payload)
-    0x02,        // channel 2 (sensorhub control)
-    0x00,        // sequence 0
-    0xF9, 0x00,  // Product ID Request (report 0xF9), reserved
-};
-
-static void bno08x_blocking_write(const uint8_t *data, uint16_t len) {
-    uint8_t rxDummy[128];
-    csn(GPIO_PIN_RESET);
-    HAL_SPI_TransmitReceive(&IMU_hspi, (uint8_t *)data, rxDummy, len, 200);
-    csn(GPIO_PIN_SET);
-}
-
 /******BLOCKING MODE TESTS*************************************************************************/
 
+/// @brief initialize imu hardware
+/// @param  
 void acq_imu_init(void) {
     sh2_ProductIds_t pid;
     acq_imu_disable_interrupts();
     __HAL_RCC_SPI1_CLK_ENABLE();
-    // __acq_imu_init_spi();
 
     int status = sh2_open(&bno08x, NULL, NULL);
     if (status != SH2_OK) {
@@ -478,70 +466,63 @@ void acq_imu_init(void) {
     sh2_setSensorCallback(acq_imu_sensor_callback, NULL);
     // ToDo: get product id to verify sensor
 
-    acq_imu_disable_interrupts();
-
+    acq_imu_enable_interrupts();
     HAL_Delay(2000);
 
-    // After reset sequence and 2s delay:
-    uint8_t pktBuf[256];
-
-    // Drain boot packets (advertisement + reset notification)
-    uint16_t len;
-    do {
-        len = bno08x_blocking_read(pktBuf, sizeof(pktBuf));
-        // pktBuf[2] = channel: 0=advert, 1=executable
-        // You can inspect pktBuf here in debugger
-    } while (len > 0);
-
-    // Send product ID request
-    bno08x_blocking_write(prodIdReq, sizeof(prodIdReq));
-
-    // Read response — report 0xF8 on channel 2
-    len = bno08x_blocking_read(pktBuf, sizeof(pktBuf));
-    // pktBuf[4] should be 0xF8 (Product ID Response)
-    // pktBuf[5] = reset cause
-    // pktBuf[6] = SW version major
-    // pktBuf[7] = SW version minor
-
-    while(1) {
-        HAL_Delay(2000);
-    }
-
-    // status = sh2_getProdIds(&pid);
-    // if (status != SH2_OK) {
-    //     // ToDo: sh2 error handling
-    // }
-
     // ToDo: configure IMU orientation to tag frame
-    // sh2_setReorientation(&s_imu_reorientation_quat);
+    // sh2_setReorientation(&s_onboard_compensation);
+    // sh2_clearTare();
+}
+
+/// @brief start data capture of specific imu sensor
+/// @param sensor sensor to start
+/// @param time_interval_us time interval between consecutive sensors
+/// @return 
+int acq_imu_start_sensor(ImuSensor sensor, uint32_t time_interval_us) {
+    s_sensor_config[sensor].config.reportInterval_us = time_interval_us;
+    return sh2_setSensorConfig(s_sensor_config[sensor].sensor_id, &s_sensor_config[sensor].config);
+
+}
+
+/// @brief stop acquisition of specific imu sensor data 
+/// @param sensor sensor to stop
+/// @return 
+int acq_imu_stop_sensor(ImuSensor sensor) {
+    return acq_imu_start_sensor(sensor, 0);
 }
 
 
-
-void acq_imu_start(void) {
-    for (int i = 0; i < sizeof(s_sensor_config) / sizeof(s_sensor_config[0]); i++) {
+/// @brief stop acquisition of all imu sensor data
+/// @param  
+void acq_imu_stop_all(void) {
+    for (int i = 0; i < IMU_SENSOR_COUNT; i++) {
+        s_sensor_config[i].config.reportInterval_us  = 0;
         int status = sh2_setSensorConfig(s_sensor_config[i].sensor_id, &s_sensor_config[i].config);
         if (status != 0) {
             // ToDo: report error
         }
     }
-}
-
-void acq_imu_stop(void) {
     #warning ToDo: implement acq_imu_stop()
 }
 
+/// @brief stops imu data acquisition and deinitalizes imu hardware
+/// @param  
 void acq_imu_deinit(void) {
-    acq_imu_stop();
+    acq_imu_stop_all();
     #warning ToDo: implement acq_imu_deinit()
 }
 
+/// @brief imu acquisition task
+/// @param 
+/// @note call periodically in main loop
 void acq_imu_task(void) {
     // process events
     sh2_service();
 }
 
-
+/// @brief register a call back for a give supported sensor type
+/// @param sensor_kind sensor to register callback to
+/// @param callback callback method
 void acq_imu_register_callback(ImuSensor sensor_kind, void (*callback)(const sh2_SensorValue_t *)) {
     s_callback[sensor_kind] = callback;
 }

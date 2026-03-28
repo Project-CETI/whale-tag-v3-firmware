@@ -40,7 +40,6 @@
 /* BURNWIRE*/
 #define BURNWIRE_ENABLED (1)
 
-
 /* ECG CONFIG */
 #define ECG_ENABLED (0)
 
@@ -52,7 +51,8 @@
 
 
 /* IMU CONFIG */
-#define IMU_ENABLED (0)
+#define IMU_ENABLED (1)
+#define IMU_SAMPLE_RATE_HZ (1)
 
 /* PRESSURE CONFIG */
 #define PRESSURE_ENABLED (1)

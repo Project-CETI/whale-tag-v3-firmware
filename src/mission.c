@@ -677,6 +677,7 @@ static void __update_state_dependent_task_list(MissionState state) {
     ) {
         if (tag_config.imu.enabled) {
             // __push_task(log_imu_task);
+            __push_task(acq_imu_task);
             __push_audio_task(state);
         }
     }
@@ -756,10 +757,20 @@ void mission_set_state(MissionState next_state) {
         if ((MISSION_STATE_LOW_POWER_BURN == next_state) 
             || (MISSION_STATE_LOW_POWER_RETRIEVE == next_state)
         ) {
-            // ToDo: disable imu acquisiton
+            acq_imu_stop_all();
             // ToDo: disable imu logging
         } else {
-            acq_imu_start();
+            // ToDo: register imu logging functions
+            //acq_imu_register_callback(IMU_SENSOR_ROTATION, );
+            //acq_imu_register_callback(IMU_SENSOR_ACCELEROMETER, );
+            //acq_imu_register_callback(IMU_SENSOR_GYROSCOPE, );
+            //acq_imu_register_callback(IMU_SENSOR_MAGNETOMETER, );
+
+            // start capture
+            acq_imu_start_sensor(IMU_SENSOR_ROTATION, 1000000/(uint32_t)tag_config.imu.quaternion_samplerate_Hz);
+            acq_imu_start_sensor(IMU_SENSOR_ACCELEROMETER, 1000000/(uint32_t)tag_config.imu.accel_samplerate_Hz);
+            acq_imu_start_sensor(IMU_SENSOR_GYROSCOPE, 1000000/(uint32_t)tag_config.imu.gyro_samplerate_Hz);
+            acq_imu_start_sensor(IMU_SENSOR_MAGNETOMETER, 1000000/(uint32_t)tag_config.imu.mag_samplerate_Hz);
         }
     }
 
