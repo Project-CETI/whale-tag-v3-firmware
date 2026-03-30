@@ -1,4 +1,5 @@
-# BOARD ?= msh
+
+# BOARD ?= v3_1_1
 BOARD ?= v3_2
 DEBUG ?= 1
 
@@ -39,33 +40,19 @@ FPU = -mfpu=fpv4-sp-d16
 FLOAT-ABI = -mfloat-abi=hard
 MCU = $(CPU) -mthumb $(FPU) $(FLOAT-ABI)
 
-ifeq ($(BOARD), nucleo)
-	C_DEFS += -DSTM32U5A5xx
-	C_DEFS += -DHW_VERSION=0
-# link script
-	LDSCRIPT = -Tboard/STM32U5A5ZJTXQ_FLASH.ld
-endif
-
-ifeq ($(BOARD), v3_1)
-	C_DEFS += -DSTM32U595xx
-	C_DEFS += -DHW_VERSION=1
-# link script
-	LDSCRIPT = -Tboard/STM32U595xx_FLASH.ld
-endif
-
-ifeq ($(BOARD), msh)
-	C_DEFS += -DSTM32U595xx
+### Hardware specific definitions
+SUPPORTED_BOARDS := v3_1_1 v3_2
+ifeq ($(BOARD), v3_1_1)
 	C_DEFS += -DHW_VERSION=2
-# link script
-	LDSCRIPT = -Tboard/STM32U595xx_FLASH.ld
+else ifeq ($(BOARD), v3_2)
+	C_DEFS += -DHW_VERSION=3
+else
+$(error Target hardware $(BOARD) not supported. Supported hardware: $(SUPPORTED_BOARDS)) 
 endif
 
-ifeq ($(BOARD), v3_2)
-	C_DEFS += -DSTM32U595xx
-	C_DEFS += -DHW_VERSION=3
+C_DEFS += -DSTM32U595xx
 # link script
-	LDSCRIPT = -Tboard/STM32U595xx_FLASH.ld
-endif
+LDSCRIPT = -Tboard/STM32U595xx_FLASH.ld
 
 C_DEFS +=  \
 -DFX_INCLUDE_USER_DEFINE_FILE \
@@ -128,8 +115,6 @@ $(shell find lib/tinyusb/src/host 	-type f -iname '*.c' 2> /dev/null) \
 $(shell find lib/tinyusb/src/typec 	-type f -iname '*.c' 2> /dev/null) \
 $(shell find lib/tinyusb/src/portable/synopsys 	-type f -iname '*.c' 2> /dev/null) \
 lib/tinyusb/src/tusb.c
-
-
 
 # lib/sh2 (for imu)
 C_SRCS += $(shell find lib/sh2 -type f -iname '*.c' 2> /dev/null) #sh2 for BNO08x

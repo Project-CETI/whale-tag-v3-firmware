@@ -6,7 +6,7 @@
 // USB Mass Storage Class — exposes SD card as a single LUN via DMA.
 // FileX must be closed before USB MSC is started (see main.c).
 // DMA completion flags (sd_rx_cplt / sd_tx_cplt) and HAL_SD callbacks are
-// defined in board/msh/FileX/Target/fx_stm32_sd_driver_glue.c.
+// defined in board/v3_1_1/FileX/Target/fx_stm32_sd_driver_glue.c.
 //-----------------------------------------------------------------------------
 
 #include "app_filex.h"

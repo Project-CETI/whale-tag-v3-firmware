@@ -284,7 +284,7 @@ int main(void) {
 
     acq_battery_init(); // initialize battery sample acquisition
 
-#if HW_VERSION == HW_VERSION_3_1_0 || HW_VERSION == HW_VERSION_3_1_0_MSH
+#if HW_VERSION == HW_VERSION_3_1_0 || HW_VERSION == HW_VERSION_3_1_1
     // Note: on these versions of the tag, GPS must be powered to prevent the
     // shared i2c bus from being pulled low.
     HAL_GPIO_WritePin(GPS_PWR_EN_GPIO_Output_GPIO_Port, GPS_PWR_EN_GPIO_Output_Pin, GPIO_PIN_SET);
