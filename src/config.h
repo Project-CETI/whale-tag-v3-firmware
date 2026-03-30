@@ -169,11 +169,16 @@ typedef struct {
 
 extern CetiTagRuntimeConfiguration tag_config;
 
+
+
 void aop_update(uint8_t *data, uint16_t data_size);
 
 void config_apply_to_system(void);
 void config_save(void);
 void config_reload(void);
 HAL_StatusTypeDef config_init(void);
+
+#include <assert.h>
+_Static_assert(sizeof(CetiTagRuntimeConfiguration) < 8*1024, "!!! Configuration structure exceeds size of allocated config flash region !!!");
 
 #endif // CETI_CONFIG_H

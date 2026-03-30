@@ -16,9 +16,11 @@
 #include "battery/acq_battery.h"
 #include "battery/log_battery.h"
 #include "burnwire.h"
+#include "ecg/acq_ecg.h"
 #include "error.h"
 #include "gps/gps.h"
 #include "imu/acq_imu.h"
+#include "imu/log_imu.h"
 #include "led/led.h"
 #include "pressure/acq_pressure.h"
 #include "pressure/log_pressure.h"
@@ -676,8 +678,10 @@ static void __update_state_dependent_task_list(MissionState state) {
         && (MISSION_STATE_LOW_POWER_RETRIEVE != state)
     ) {
         if (tag_config.imu.enabled) {
-            // __push_task(log_imu_task);
             __push_task(acq_imu_task);
+            __push_audio_task(state);
+
+            __push_task(log_imu_task);
             __push_audio_task(state);
         }
     }
@@ -758,13 +762,13 @@ void mission_set_state(MissionState next_state) {
             || (MISSION_STATE_LOW_POWER_RETRIEVE == next_state)
         ) {
             acq_imu_stop_all();
-            // ToDo: disable imu logging
+            log_imu_deinit();
+
         } else {
-            // ToDo: register imu logging functions
-            //acq_imu_register_callback(IMU_SENSOR_ROTATION, );
-            //acq_imu_register_callback(IMU_SENSOR_ACCELEROMETER, );
-            //acq_imu_register_callback(IMU_SENSOR_GYROSCOPE, );
-            //acq_imu_register_callback(IMU_SENSOR_MAGNETOMETER, );
+            acq_imu_register_callback(IMU_SENSOR_ROTATION, log_imu_quat_sample_callback);
+            acq_imu_register_callback(IMU_SENSOR_ACCELEROMETER, log_imu_accel_sample_callback);
+            acq_imu_register_callback(IMU_SENSOR_GYROSCOPE, log_imu_gyro_sample_callback);
+            acq_imu_register_callback(IMU_SENSOR_MAGNETOMETER, log_imu_mag_sample_callback);
 
             // start capture
             acq_imu_start_sensor(IMU_SENSOR_ROTATION, 1000000/(uint32_t)tag_config.imu.quaternion_samplerate_Hz);
@@ -881,12 +885,12 @@ void mission_init(void) {
 
     if (tag_config.imu.enabled) {
         CETI_LOG("Initializing IMU Logging");
-        acq_imu_init();
+        log_imu_init();
     }
 
     if (tag_config.ecg.enabled) {
         CETI_LOG("Initializing ECG Logging");
-        acq_ecg_start();
+        // acq_ecg_start();
     }
 
     if (tag_config.argos.enabled) {

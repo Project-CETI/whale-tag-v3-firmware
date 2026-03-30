@@ -10,6 +10,7 @@
 
 #include "stm32u5xx_hal.h"
 
+
 // defines the section start and end
 extern uint8_t _tag_config_flash_start;
 extern uint8_t _tag_config_flash_end;

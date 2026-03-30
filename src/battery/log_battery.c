@@ -155,7 +155,7 @@ static const char *__protAlrt_to_str(uint16_t raw) {
 
 /// @brief opens/creates a new csv file. initializes csv header
 /// @param filename 
-static void __open_csv_file(const char *filename) {
+static void __open_csv_file(char *filename) {
     /* Create/open pressure file */
     UINT fx_create_result = fx_file_create(&sdio_disk, filename);
     if ((fx_create_result != FX_SUCCESS) && (fx_create_result != FX_ALREADY_CREATED)) {
@@ -212,7 +212,7 @@ static size_t s_sample_buffer_read_cursor = 0;
 /// @brief add a sample to the sample logging buffer
 /// @param p_sample pointer to sample to be buffered
 void log_battery_buffer_sample(const CetiBatterySample *p_sample) {
-    static overflow = 0;
+    static uint8_t overflow = 0;
     CetiBatterySample *p_buffer = &s_sample_buffer[s_sample_buffer_write_cursor];
     *p_buffer = *p_sample;
     if (overflow) {
@@ -240,8 +240,6 @@ void log_battery_init(void) {
 /// @brief Perfom non-time critical logging tasks. Call periodically.
 /// @param  
 void log_battery_task(void) {
-    size_t encoded_bytes = 0;
-
     // check if new samples to log
     while (s_sample_buffer_read_cursor != s_sample_buffer_write_cursor) {
         uint8_t csv_encode_buffer[512];

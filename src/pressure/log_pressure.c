@@ -32,7 +32,7 @@ static BufferWriter s_bw = {
 
 #define PRESSURE_FILENAME "data_pressure.csv"
 
-const char *log_pressure_csv_header =
+char *log_pressure_csv_header =
     "Timestamp [us]"
     ", Notes"
     ", Pressure [bar]"
@@ -42,7 +42,7 @@ const char *log_pressure_csv_header =
 /// @brief creates a .csv file and a writes pressure csv header to file if file
 /// was newly created
 /// @param
-static void __create_csv_file(const char *filename) {
+static void __create_csv_file(char *filename) {
     /* Create/open pressure file */
     UINT fx_create_result = fx_file_create(&sdio_disk, filename);
     if ((fx_create_result != FX_SUCCESS) && (fx_create_result != FX_ALREADY_CREATED)) {

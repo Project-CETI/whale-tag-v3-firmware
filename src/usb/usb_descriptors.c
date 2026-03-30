@@ -65,12 +65,12 @@ enum {
 
 // array of pointer to string descriptors
 char *string_desc_arr[] = {
-    [STRID_LANGID] = (const char[]){0x09, 0x04}, // 0: is supported language is English (0x0409)
-    [STRID_MANUFACTURER] = "Project CETI",       // 1: Manufacturer
-    [STRID_PRODUCT] = tag_config.hostname,        // 2: Product
-    [STRID_SERIAL] = NULL,                       // 3: Serials will use unique ID if possible
-    [STRID_CDC] = "CetiTag CDC",                 // 4: CDC Interface
-    [STRID_MSC] = "CetiTag MSC",                 // 5: MSC Interface
+    [STRID_LANGID] = (char[]){0x09, 0x04},         // 0: is supported language is English (0x0409)
+    [STRID_MANUFACTURER] = "Project CETI",         // 1: Manufacturer
+    [STRID_PRODUCT] = (char *)tag_config.hostname, // 2: Product
+    [STRID_SERIAL] = NULL,                         // 3: Serials will use unique ID if possible
+    [STRID_CDC] = "CetiTag CDC",                   // 4: CDC Interface
+    [STRID_MSC] = "CetiTag MSC",                   // 5: MSC Interface
     [STRID_VENDOR] = "CetiTag Stream",             // 6: Vendor Stream Interface
     [STRID_DFU + DFU_ALT_CONFIG] = "@Config Flash/0x083FC000/01*008Kg",   // 7: DFU Alt 1
     [STRID_DFU + DFU_ALT_AOP] = "@AOP Flash/0x083FCE00/01*008Kg",      // 8: DFU Alt 2

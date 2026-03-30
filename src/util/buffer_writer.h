@@ -18,8 +18,8 @@ typedef struct {
     FX_FILE fp;
 } BufferWriter;
 
-UINT buffer_writer_open(BufferWriter *w, const char * filename);
-UINT buffer_writer_write(BufferWriter *w, const uint8_t *p_bytes, size_t len);
+UINT buffer_writer_open(BufferWriter *w, char * filename);
+UINT buffer_writer_write(BufferWriter *w, uint8_t *p_bytes, size_t len);
 UINT buffer_writer_close(BufferWriter *w);
 UINT buffer_writer_flush(BufferWriter *w);
 

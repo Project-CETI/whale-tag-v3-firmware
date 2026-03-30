@@ -18,11 +18,11 @@ static UINT __flush(BufferWriter *w) {
 }
 
 /********* PUblic ************************************************************/
-UINT buffer_writer_open(BufferWriter *w, const char * filename) {
+UINT buffer_writer_open(BufferWriter *w, char * filename) {
     return fx_file_open(&sdio_disk, &w->fp, filename, FX_OPEN_FOR_WRITE);
 }
 
-UINT buffer_writer_write(BufferWriter *w, const uint8_t *p_bytes, size_t len) {
+UINT buffer_writer_write(BufferWriter *w, uint8_t *p_bytes, size_t len) {
     UINT w_result = FX_SUCCESS;
     size_t remaining_capacity =  w->capacity - w->cursor;
     while (len > remaining_capacity) {

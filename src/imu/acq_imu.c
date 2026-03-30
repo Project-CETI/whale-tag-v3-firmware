@@ -31,13 +31,6 @@ static int acq_imu_spi_hal_read(sh2_Hal_t *self, uint8_t *pBuffer, unsigned len,
 static int acq_imu_spi_hal_write(sh2_Hal_t *self, uint8_t *pBuffer, unsigned len);
 static void __acq_imu_init_spi(void);
 
-sh2_Quaternion_t s_onboard_compensation = {
-    .w = 1.0,
-    .x = 0.0,
-    .y = 0.0,
-    .z = 0.0,
-};
-
 typedef enum {
     SPI_INIT,
     SPI_DUMMY,
@@ -455,7 +448,6 @@ static void __acq_imu_init_spi(void){
 /// @brief initialize imu hardware
 /// @param  
 void acq_imu_init(void) {
-    sh2_ProductIds_t pid;
     acq_imu_disable_interrupts();
     __HAL_RCC_SPI1_CLK_ENABLE();
 
@@ -464,14 +456,12 @@ void acq_imu_init(void) {
         // ToDo: sh2 error handling
     }
     sh2_setSensorCallback(acq_imu_sensor_callback, NULL);
-    // ToDo: get product id to verify sensor
+    // get product id to verify sensor
 
     acq_imu_enable_interrupts();
     HAL_Delay(2000);
 
-    // ToDo: configure IMU orientation to tag frame
-    // sh2_setReorientation(&s_onboard_compensation);
-    // sh2_clearTare();
+    // Configure IMU orientation to tag frame
 }
 
 /// @brief start data capture of specific imu sensor

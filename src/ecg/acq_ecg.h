@@ -11,5 +11,7 @@
 void acq_ecg_EXTI_Callback(void);
 void acq_ecg_enable(void);
 void acq_ecg_update(void);
+void acq_ecg_init(void);
+void acq_ecg_start(void);
 
 #endif // CETI_ACQ_ECG_H
