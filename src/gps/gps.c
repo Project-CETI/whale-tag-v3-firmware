@@ -43,6 +43,12 @@ static int rx_buffer_index = 0;
 
 // === PRIVATE METHODS ===
 
+static inline void __power_en(GPIO_PinState state) {
+#ifdef GPS_PWR_EN_GPIO_Output_Pin
+    HAL_GPIO_WritePin(GPS_PWR_EN_GPIO_Output_GPIO_Port, GPS_PWR_EN_GPIO_Output_Pin, state);
+#endif
+}
+
 // === PUBLIC METHODS ===
 static uint8_t gps_raw_buffer[2 * GPS_BULK_TRANSFER_SIZE];
 static volatile uint16_t gps_raw_buffer_read_position = 0;
@@ -147,7 +153,7 @@ const uint8_t *gps_pop_sentence(void) {
 /// @brief Turns GPS off (through power FET) and starts buffering thread
 void gps_sleep(void) {
     // disable power to gps module
-    HAL_GPIO_WritePin(GPS_PWR_EN_GPIO_Output_GPIO_Port, GPS_PWR_EN_GPIO_Output_Pin, GPIO_PIN_RESET);
+    __power_en(GPIO_PIN_RESET);
     s_gps_state = GPS_STATE_OFF;
 
     // stop the DMA
@@ -254,9 +260,9 @@ void gps_wake(void) {
     if (GPS_STATE_OFF == s_gps_state) {
         // Enable power to GPS module and starts buffering thread
         HAL_GPIO_WritePin(GPS_NRST_GPIO_Output_GPIO_Port, GPS_NRST_GPIO_Output_Pin, GPIO_PIN_RESET);
-        HAL_GPIO_WritePin(GPS_PWR_EN_GPIO_Output_GPIO_Port, GPS_PWR_EN_GPIO_Output_Pin, GPIO_PIN_RESET);
+        __power_en(GPIO_PIN_RESET);
         HAL_Delay(500);
-        HAL_GPIO_WritePin(GPS_PWR_EN_GPIO_Output_GPIO_Port, GPS_PWR_EN_GPIO_Output_Pin, GPIO_PIN_SET);
+        __power_en(GPIO_PIN_SET);
         HAL_GPIO_WritePin(GPS_NRST_GPIO_Output_GPIO_Port, GPS_NRST_GPIO_Output_Pin, GPIO_PIN_SET);
     } else if (GPS_STATE_STANDBY == s_gps_state) {
         GPIO_InitTypeDef GPIO_InitStruct;

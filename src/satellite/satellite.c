@@ -40,6 +40,12 @@ static volatile uint8_t satellite_response_end_position = 0;
 static volatile uint8_t satellite_response_ok = 0;
 static volatile uint8_t satellite_response_complete = 0;
 
+static inline void __power_en(GPIO_PinState state) {
+#ifdef SAT_PWR_EN_GPIO_Output_Pin
+    HAL_GPIO_WritePin(SAT_PWR_EN_GPIO_Output_GPIO_Port, SAT_PWR_EN_GPIO_Output_Pin, state);
+#endif
+}
+
 /// @brief callback to process latest input from UART RX line DMA
 /// @param huart uart handle pointer
 /// @param position current position in DMA buffer
@@ -130,7 +136,7 @@ void satellite_wait_for_programming(void) {
     GPIO_InitTypeDef GPIO_InitStruct = {0};
 
     // Enable power to module
-    HAL_GPIO_WritePin(SAT_PWR_EN_GPIO_Output_GPIO_Port, SAT_PWR_EN_GPIO_Output_Pin, GPIO_PIN_SET);
+    __power_en(GPIO_PIN_SET);
 
     // set NRST as input so that stlink can take control
     GPIO_InitStruct.Pin = SAT_NRST_GPIO_Output_Pin;
@@ -387,7 +393,7 @@ int satellite_set_secret_key(const char secret_key[static ARGOS_SECRET_KEY_LENGT
 /// @param
 void satellite_hw_init(void) {
     // Enable power to module
-    HAL_GPIO_WritePin(SAT_PWR_EN_GPIO_Output_GPIO_Port, SAT_PWR_EN_GPIO_Output_Pin, GPIO_PIN_RESET);
+    __power_en(GPIO_PIN_RESET);
     resetKMACProfile();
 }
 
@@ -401,11 +407,11 @@ void satellite_init(void) {
     //	}
 
     // Reset AArribada module
-    HAL_GPIO_WritePin(SAT_PWR_EN_GPIO_Output_GPIO_Port, SAT_PWR_EN_GPIO_Output_Pin, GPIO_PIN_RESET);
+    __power_en(GPIO_PIN_RESET);
     HAL_GPIO_WritePin(SAT_NRST_GPIO_Output_GPIO_Port, SAT_NRST_GPIO_Output_Pin, GPIO_PIN_RESET);
     HAL_Delay(100);
     __satellite_read_dma();
-    HAL_GPIO_WritePin(SAT_PWR_EN_GPIO_Output_GPIO_Port, SAT_PWR_EN_GPIO_Output_Pin, GPIO_PIN_SET);
+    __power_en(GPIO_PIN_SET);
     HAL_GPIO_WritePin(SAT_NRST_GPIO_Output_GPIO_Port, SAT_NRST_GPIO_Output_Pin, GPIO_PIN_SET);
     HAL_Delay(2000);
     while ((0 != __satellite_wait_for_response(10000)) || !satellite_response_ok) {

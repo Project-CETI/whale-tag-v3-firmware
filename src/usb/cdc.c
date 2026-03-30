@@ -269,21 +269,18 @@ static void __cmd_update(int argc, const char *const *argv) {
 }
 
 static void __cmd_vhf_pinger(int argc, const char *const *argv) {
-#if HW_VERSION == HW_VERSION_3_1_0_MSH
-    // initial version did not have control of vhf pinger
-    return;
-#else
+#ifdef VHF_EN_GPIO_Output_Pin
     if (argc < 2) {
         return;
     }    
 
     switch(argv[1][0]) {
         case '0':
-            HAL_GPIO_WritePin(VHF_PINGER_EN_GPIO_Output_GPIO_Port, VHF_PINGER_EN_GPIO_Output_Pin, GPIO_PIN_RESET);
+            HAL_GPIO_WritePin(VHF_EN_GPIO_Output_GPIO_Port, VHF_EN_GPIO_Output_Pin, GPIO_PIN_RESET);
             break;
         
         case '1':
-            HAL_GPIO_WritePin(VHF_PINGER_EN_GPIO_Output_GPIO_Port, VHF_PINGER_EN_GPIO_Output_Pin, GPIO_PIN_SET);
+            HAL_GPIO_WritePin(VHF_EN_GPIO_Output_GPIO_Port, VHF_EN_GPIO_Output_Pin, GPIO_PIN_SET);
             break;
 
         default:

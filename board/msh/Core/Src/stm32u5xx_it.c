@@ -52,11 +52,11 @@
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+extern DMA_HandleTypeDef s_audio_dma_channel;
 
 /* USER CODE END 0 */
 
 /* External variables --------------------------------------------------------*/
-extern DMA_HandleTypeDef s_audio_dma_channel;
 extern DMA_HandleTypeDef handle_GPDMA1_Channel0;
 extern I2C_HandleTypeDef hi2c1;
 extern DMA_NodeTypeDef Node_GPDMA1_Channel1;

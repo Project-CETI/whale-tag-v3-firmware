@@ -1,4 +1,5 @@
-BOARD ?= msh
+# BOARD ?= msh
+BOARD ?= v3_2
 DEBUG ?= 1
 
 BUILD_ROOT = build
@@ -55,6 +56,13 @@ endif
 ifeq ($(BOARD), msh)
 	C_DEFS += -DSTM32U595xx
 	C_DEFS += -DHW_VERSION=2
+# link script
+	LDSCRIPT = -Tboard/STM32U595xx_FLASH.ld
+endif
+
+ifeq ($(BOARD), v3_2)
+	C_DEFS += -DSTM32U595xx
+	C_DEFS += -DHW_VERSION=3
 # link script
 	LDSCRIPT = -Tboard/STM32U595xx_FLASH.ld
 endif
@@ -282,6 +290,5 @@ $(DOCKER_IMAGE): Dockerfile packages.txt
 	release \
 	deps \
 	$(DOCKER_IMAGE) \
-	$(AOP_H) \
 	$(VERSION_H)
 

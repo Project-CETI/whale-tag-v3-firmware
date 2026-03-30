@@ -9,6 +9,7 @@ design/
 
 #ignore version file
 src/version.h
+src/satellite/aop.h
 
 #ignore agros certification key
 src/satellite/arribada_secret.h
