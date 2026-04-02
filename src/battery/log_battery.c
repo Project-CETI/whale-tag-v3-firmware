@@ -8,6 +8,8 @@
 #include "main.h"
 
 #include "acq_battery.h"
+#include "log_battery.h"
+
 #include "syslog.h"
 #include "util/buffer_writer.h"
 
