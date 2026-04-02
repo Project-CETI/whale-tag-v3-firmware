@@ -11,22 +11,23 @@ Sensors are seperated into the following types of code. Keeping these as seperat
 
 4) Mission Control Code - this is high level logic that controls when the tag should perform specific actions  
 
+5) USB Control Code - this is high level logic that controls when the tag should perform specific actions  
+
 5) Misc. - this can include things such as common error definitions, fw/hw version control, etc.
 
 ## ToDo's
 "ToDo" items not listed in any particular order
 
 ### Tag Firmware
-1) Implement MSC USB device via tinyUSB to forward SD card to HS USB
-2) Implement CDC USB device via tinyUSB to controlling tag from host PC
-3) Integrate Pressure sensor capture, logging, and use (for state transistion)
-4) Integrate IMU sensor cpature, logging, and use (for state transistion)
+1) implement error handling throughout database
+2) Investigate audio compression options
 
 ### Tag Firmware Build System and Tools
-1) setup openOCD config
-2) set up `debug` make command that launches gdb on available STLink device
-3) set up unit tests
-4) migrate away from stm32cubeIDE/MX, directly use stm32u5core?
+1) set up unit tests
+2) Set up github CI/CD pipelines
+3) setup openOCD config
+4) set up `debug` make command that launches gdb on available STLink device
+5) set up HIL tests 
 
 ### Questions to Answer
 1) Investigate wireless data offload options. Optical SPI link?

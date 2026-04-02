@@ -204,6 +204,22 @@ static void jump_to_system_bootloader(void) {
     while (1); // never reached
 }
 
+void mission_loop(void) {
+    while (1) {
+#ifdef BENCHMARK
+        __cyg_profile_func_enter(mission_loop, NULL);
+#endif
+        /* perform main task */
+        mission_task();
+        fx_media_flush(&sdio_disk);
+        /* sleep until new tasks occur */
+        mission_sleep();
+#ifdef BENCHMARK
+        __cyg_profile_func_exit(mission_loop, NULL);
+#endif
+    }
+}
+
 /// @brief Main
 /// @param  
 /// @return 
@@ -254,6 +270,7 @@ int main(void) {
     /* load system configuration from nonvolatile memory */
     config_init();
 
+
     // verify and update volume name
     char volume_name[12];
     fx_media_volume_get(&sdio_disk, (char *)volume_name, FX_BOOT_SECTOR);
@@ -265,6 +282,12 @@ int main(void) {
     HAL_I2C_RegisterCallback(&hi2c1, HAL_I2C_MSPINIT_CB_ID, HAL_I2C_MspInit);
     HAL_I2C_RegisterCallback(&hi2c1, HAL_I2C_MSPDEINIT_CB_ID, HAL_I2C_MspDeInit);
     MX_I2C1_Init();
+
+#ifdef BENCHMARK
+if (!usb_iface_present()) {
+    profile_init();
+}
+#endif
 
     /* basic BMS validation */
     if (tag_config.battery.enabled) {
@@ -324,14 +347,11 @@ int main(void) {
     } else {
         /* Enter Mission loop */
         mission_init();
+#ifdef BENCHMARK
+        profile_flush();
+#endif
+        mission_loop();
 
-        while (1) {
-            /* perform main task */
-            mission_task();
-            fx_media_flush(&sdio_disk);
-            /* sleep until new tasks occur */
-            mission_sleep();
-        }
     }
     // we should never get here
     Error_Handler();

@@ -3,6 +3,7 @@
 extern FX_MEDIA sdio_disk;
 
 /********* Private ***********************************************************/
+__attribute__((no_instrument_function))
 static UINT __flush(BufferWriter *w) {
     if (0 == w->cursor) {
         return FX_SUCCESS;
@@ -18,10 +19,12 @@ static UINT __flush(BufferWriter *w) {
 }
 
 /********* PUblic ************************************************************/
+__attribute__((no_instrument_function))
 UINT buffer_writer_open(BufferWriter *w, char * filename) {
     return fx_file_open(&sdio_disk, &w->fp, filename, FX_OPEN_FOR_WRITE);
 }
 
+__attribute__((no_instrument_function))
 UINT buffer_writer_write(BufferWriter *w, uint8_t *p_bytes, size_t len) {
     UINT w_result = FX_SUCCESS;
     size_t remaining_capacity =  w->capacity - w->cursor;
@@ -59,6 +62,7 @@ UINT buffer_writer_write(BufferWriter *w, uint8_t *p_bytes, size_t len) {
     
 }
 
+__attribute__((no_instrument_function))
 UINT buffer_writer_close(BufferWriter *w) {
     UINT fx_result = __flush(w);
     if (FX_SUCCESS != fx_result) {
@@ -70,6 +74,7 @@ UINT buffer_writer_close(BufferWriter *w) {
 /// @brief flushes any buffered data to SD card
 /// @param w pointer to buffer writer
 /// @return 
+__attribute__((no_instrument_function))
 UINT buffer_writer_flush(BufferWriter *w) {
     /* write any data in internal buffer */
     UINT fx_result = __flush(w);

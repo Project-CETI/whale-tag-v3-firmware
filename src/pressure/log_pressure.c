@@ -93,6 +93,7 @@ static uint16_t s_pressure_sample_buffer_read_position = 0;
 /// @brief adds a pressure sample to the sample buffer
 /// @param p_sample pointer to input sample
 /// @note
+__attribute__((no_instrument_function))
 void log_pressure_buffer_sample(const CetiPressureSample *p_sample) {
     uint16_t nv_write_position = s_pressure_sample_buffer_write_position;
     memcpy(&pressure_sample_buffer[nv_write_position], p_sample, sizeof(CetiPressureSample));
@@ -101,6 +102,9 @@ void log_pressure_buffer_sample(const CetiPressureSample *p_sample) {
         // ToDo: Handle overflow
     }
     s_pressure_sample_buffer_write_position = nv_write_position;
+    if (log_pressure_sample_buffer_is_half_full()) {
+        HAL_PWR_DisableSleepOnExit();
+    }
 }
 
 /// @brief initialize pressure logging subsystem

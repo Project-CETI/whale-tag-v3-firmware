@@ -127,6 +127,7 @@ void gps_rx_callback(UART_HandleTypeDef *huart, uint16_t pos) {
             gps_bulk_read_position ^= 1; // advance read position as well
         }
         gps_bulk_write_position = next_bulk_write_position;
+        HAL_PWR_DisableSleepOnExit();
     }
 }
 

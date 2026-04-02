@@ -39,6 +39,7 @@ static char *log_battery_csv_header =
     ", Battery V1 [V]"
     ", Battery V2 [V]"
     ", Battery I [mA]"
+    ", Battery Average Power [mW]"
     ", Battery T1 [C]"
     ", Battery T2 [C]"
     ", State of Charge [\%]"
@@ -194,6 +195,7 @@ static int __sample_to_csv(const CetiBatterySample *pSample, uint8_t *pBuffer, s
     offset += snprintf((char *)&pBuffer[offset], buffer_len - offset, ", %.3f", pSample->cell_voltage_v[0]);
     offset += snprintf((char *)&pBuffer[offset], buffer_len - offset, ", %.3f", pSample->cell_voltage_v[1]);
     offset += snprintf((char *)&pBuffer[offset], buffer_len - offset, ", %.3f", pSample->current_mA);
+    offset += snprintf((char *)&pBuffer[offset], buffer_len - offset, ", %.3f", pSample->average_power_mw);
     offset += snprintf((char *)&pBuffer[offset], buffer_len - offset, ", %.3f", pSample->cell_temperature_c[0]);
     offset += snprintf((char *)&pBuffer[offset], buffer_len - offset, ", %.3f", pSample->cell_temperature_c[0]);
     offset += snprintf((char *)&pBuffer[offset], buffer_len - offset, ", %.3f", pSample->state_of_charge_percent);
@@ -226,6 +228,9 @@ void log_battery_buffer_sample(const CetiBatterySample *p_sample) {
         overflow = 1;
     } else {
         s_sample_buffer_write_cursor = next_w_pos;
+    }
+    if(log_battery_sample_buffer_is_half_full()) {
+        HAL_PWR_DisableSleepOnExit();
     }
 
 }

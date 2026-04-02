@@ -35,13 +35,16 @@ time_t rtc_get_epoch_s(void) {
     return timestamp;
 }
 
+__attribute__((no_instrument_function))
 time_t rtc_get_epoch_ms(void) { return rtc_get_epoch_us() / 1000; }
 
+__attribute__((no_instrument_function))
 time_t rtc_get_epoch_us(void) {
     // use the systemclock for better accuracy
     return s_timer_sync_rtc_epoch_us + (time_t)timing_get_time_since_on_us();
 }
 
+__attribute__((no_instrument_function))
 time_t timing_get_time_since_on_us(void) {
     return (time_t)uS_htim.Instance->CNT;
 }
@@ -84,11 +87,11 @@ void rtc_set_epoch_s(time_t epoch) {
 }
 
 void rtc_get_datetime(RTC_DateTypeDef *p_date, RTC_TimeTypeDef *p_time) {
-    if (NULL != p_date) {
-        HAL_RTC_GetDate(&hrtc, p_date, RTC_FORMAT_BCD);
-    }
     if (NULL != p_time) {
         HAL_RTC_GetTime(&hrtc, p_time, RTC_FORMAT_BCD);
+    }
+    if (NULL != p_date) {
+        HAL_RTC_GetDate(&hrtc, p_date, RTC_FORMAT_BCD);
     }
 }
 

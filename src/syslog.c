@@ -56,8 +56,8 @@ UINT __syslog_write(const str *identifier, const char *fmt, ...) {
     // add date/time to scratch buffer
     RTC_DateTypeDef date;
     RTC_TimeTypeDef time;
-    HAL_RTC_GetDate(&hrtc, &date, 0);
     HAL_RTC_GetTime(&hrtc, &time, 0);
+    HAL_RTC_GetDate(&hrtc, &date, 0);
     position += snprintf(
         (char *)position, sizeof(scratch_buffer) - (position - scratch_buffer) - 1,
         "20%02d-%02d-%02d %02d:%02d:%02d ",

@@ -1,7 +1,9 @@
 
-# BOARD ?= v3_1_1
-BOARD ?= v3_2
-DEBUG ?= 1
+BOARD ?= v3_1_1
+SUPPORTED_BOARDS := v3_1_1 v3_2
+
+MODE ?= debug
+SUPPORTED_MODES := debug bench release
 
 BUILD_ROOT = build
 
@@ -41,7 +43,6 @@ FLOAT-ABI = -mfloat-abi=hard
 MCU = $(CPU) -mthumb $(FPU) $(FLOAT-ABI)
 
 ### Hardware specific definitions
-SUPPORTED_BOARDS := v3_1_1 v3_2
 ifeq ($(BOARD), v3_1_1)
 	C_DEFS += -DHW_VERSION=2
 else ifeq ($(BOARD), v3_2)
@@ -58,11 +59,18 @@ C_DEFS +=  \
 -DFX_INCLUDE_USER_DEFINE_FILE \
 -DUSE_HAL_DRIVER
 
-ifeq ($(DEBUG), 1)
-	COPT = -Og -g -gdwarf-2
-	C_DEFS += -DDEBUG
+ifeq ($(MODE), debug) 
+COPT = -Og -g -gdwarf-2
+C_DEFS += -DDEBUG
+else ifeq ($(MODE), bench)
+COPT = -O3
+C_DEFS += -DBENCHMARK
+CFLAGS += -finstrument-functions
+CFLAGS += -finstrument-functions-exclude-file-list=board/,profile,lib/
+else ifeq ($(MODE), release)
+COPT = -O3
 else
-	COPT = -O2
+$(error Unknown compilation mode $(MODE). Supported modes: $(SUPPORTED_MODES))
 endif
 
 # Generate dependency information
@@ -100,7 +108,8 @@ SRC_DIR = src
 VERSION_H := $(SRC_DIR)/version.h
 AOP_H := $(SRC_DIR)/satellite/aop.h
 
-C_SRCS = $(shell find src -type f -iname '*.c' 2> /dev/null)
+USER_C_SRCS = $(shell find src -type f -iname '*.c' 2> /dev/null)
+C_SRCS = $(USER_C_SRCS)
 C_SRCS += $(shell find board/$(BOARD) -type f -iname '*.c' 2> /dev/null)
 C_SRCS += $(shell find lib/stm32u5xx-hal-driver/Src -type f -iname '*.c' -not -name '*_template.c' 2> /dev/null)
 C_SRCS += $(shell find lib/stm32-mw-filex/common/src -type f -iname '*.c' 2> /dev/null)
@@ -129,11 +138,7 @@ ALL_OBJS = $(C_OBJS) $(ASM_OBJS)
 C_DEPS = $(addprefix $(BUILD_DIR)/,$(patsubst %.c, %.d, $(C_SRCS)))
 
 # Build folders
-ifeq ($(DEBUG), 1)
-	BUILD_DIR = $(BUILD_ROOT)/$(BOARD)/debug
-else
-	BUILD_DIR = $(BUILD_ROOT)/$(BOARD)/release
-endif
+BUILD_DIR = $(BUILD_ROOT)/$(BOARD)/$(MODE)
 C_BUILD_DIRS := $(sort $(dir $(C_OBJS)))
 ASM_BUILD_DIRS := $(sort $(dir $(ASM_OBJS)))
 ALL_DIRS := $(BUILD_DIR) $(C_BUILD_DIRS) $(ASM_BUILD_DIRS)
@@ -210,12 +215,17 @@ $(BUILD_DIR)/$(TARGET).bin: $(BUILD_DIR)/$(TARGET).elf
 
 # Per file specific flags
 # $(BUILD_DIR)/lib/minmea/minmea.c.o: CFLAGS += -Dtimegm=mktime
-
+ifeq ($(MODE), bench)
+# BENCHED_C_SOURCE = $(USER_C_OBJS)
+# BENCHED_C_OBJS = $(addprefix $(BUILD_DIR)/,$(addsuffix .o,$(BENCHED_C_SOURCE)))
+# $(USER_C_OBJS): CFLAGS += -finstrument-functions
+endif
 
 # ADDITIONAL DEPENDENCIES
 -include $(C_DEPS)
 
 src/satellite/argos_tx_mgr.c: $(AOP_H)
+
 
 # Unit testing framework
 include Test.mk

@@ -75,6 +75,7 @@ void argos_tx_mgr_TIM_IRQ(TIM_HandleTypeDef *htim) {
         s_argos_tx_ready = 1;
         s_next_tx_interval_s = __get_rand_tx_interval_s();
         s_second_count = 0;
+        HAL_PWR_DisableSleepOnExit();
     }
 }
 
@@ -152,8 +153,8 @@ void __update_next_satellite_pass_alarms(void) {
     RTC_DateTypeDef rtc_date;
     RTC_TimeTypeDef rtc_time;
 
-    HAL_RTC_GetDate(&hrtc, &rtc_date, RTC_FORMAT_BCD);
     HAL_RTC_GetTime(&hrtc, &rtc_time, RTC_FORMAT_BCD);
+    HAL_RTC_GetDate(&hrtc, &rtc_date, RTC_FORMAT_BCD);
     if (!s_valid_coordinates) {
         /* Do not have adequate information to perform pass prediction */
         __timer_enable();

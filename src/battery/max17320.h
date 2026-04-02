@@ -30,19 +30,20 @@
 
 #define MAX17320_REG_DESIGN_CAP 0x018
 
+#define MAX17320_REG_VOLTAGE_ALT_THR 0x001
+#define MAX17320_REG_TIME_TO_EMPTY 0x011
 #define MAX17320_REG_TEMPERATURE 0x01B
 #define MAX17320_REG_BATT_CURRENT 0x01C
 #define MAX17320_REG_AVG_BATT_CURRENT 0x01D
-#define MAX17320_REG_TIME_TO_EMPTY 0x011
 #define MAX17320_REG_TIME_TO_FULL 0x020
-#define MAX17320_REG_CURRENT_ALT_THR 0x0AC
-#define MAX17320_REG_VOLTAGE_ALT_THR 0x001
+#define MAX17320_REG_DEV_NAME 0x021
+#define MAX17320_REG_DIETEMP 0x034
 #define MAX17320_REG_COMM_STAT 0x061
 #define MAX17320_REG_COMMAND 0x060
-#define MAX17320_REG_DEV_NAME 0x021
-#define MAX17320_REG_REMAINING_WRITES 0x1FD
 #define MAX17320_REG_CONFIG2 0x0AB
-#define MAX17320_REG_DIETEMP 0x034
+#define MAX17320_REG_CURRENT_ALT_THR 0x0AC
+#define MAX17320_REG_AVG_POWER 0x0B3
+#define MAX17320_REG_REMAINING_WRITES 0x1FD
 
 // Registers for Non-Volatile Writes
 #define MAX17320_REG_NPACKCFG 0x1B5
@@ -124,6 +125,7 @@ int max17320_get_cell_voltage_v(int cell_index, double *vCells_v);
 int max17320_get_current_raw(uint16_t *pCurrent);
 int max17320_get_current_mA(double *pCurrent_mA);
 int max17320_get_average_current_mA(double *pAvgI_mA);
+int max17320_get_average_power_mw(double *pAvg_mW);
 int max17320_get_state_of_charge(double *pSoc);
 
 CetiStatus max17320_clear_write_protection(void);

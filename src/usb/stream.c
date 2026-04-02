@@ -34,10 +34,10 @@ static volatile uint32_t s_subscriptions; // bitmask of subscribed sensors
 #define AUDIO_STREAM_BUFFER_SIZE_BLOCKS (2)
 #define AUDIO_STREAM_BLOCK_SIZE_MAX (STREAM_RINGBUF_SIZE/2)
 #define AUDIO_STREAM_BLOCK_SIZE ((AUDIO_STREAM_BLOCK_SIZE_MAX) - ((AUDIO_STREAM_BLOCK_SIZE_MAX) % AUDIO_SAMPLE_SIZE_LSM))
-uint8_t audio_stream_buffer[AUDIO_STREAM_BUFFER_SIZE_BLOCKS][AUDIO_STREAM_BLOCK_SIZE];
+extern uint8_t g_audio_buffer;
 
 static void __stream_audio_block_complete_callback(uint16_t block) {
-    stream_push_packet(STREAM_SENSOR_AUDIO, audio_stream_buffer[block], AUDIO_STREAM_BLOCK_SIZE);
+    stream_push_packet(STREAM_SENSOR_AUDIO, &g_audio_buffer + (block * AUDIO_STREAM_BLOCK_SIZE), AUDIO_STREAM_BLOCK_SIZE);
 }
 
 static void __stream_pressure_push_sample(const CetiPressureSample *p_sample) {
@@ -129,7 +129,7 @@ void stream_subscribe(StreamSensorId sensor) {
     switch(sensor) {
         case STREAM_SENSOR_AUDIO:
             acq_audio_register_block_complete_callback(__stream_audio_block_complete_callback);
-            acq_audio_start(&audio_stream_buffer[0][0], AUDIO_STREAM_BUFFER_SIZE_BLOCKS, AUDIO_STREAM_BLOCK_SIZE);
+            acq_audio_start(&g_audio_buffer, AUDIO_STREAM_BUFFER_SIZE_BLOCKS, AUDIO_STREAM_BLOCK_SIZE);
             break;
 
         case STREAM_SENSOR_PRESSURE:
@@ -288,7 +288,7 @@ int stream_push_packet(StreamSensorId sensor_id, const void *payload, uint16_t p
 }
 
 void stream_task(void) {
-    if (s_subscriptions &= ((1 << STREAM_SENSOR_IMU_ACCEL) | (1 << STREAM_SENSOR_IMU_GYRO) | (1 << STREAM_SENSOR_IMU_MAG) | (1 << STREAM_SENSOR_IMU_QUAT))) {
+    if (s_subscriptions & ((1 << STREAM_SENSOR_IMU_ACCEL) | (1 << STREAM_SENSOR_IMU_GYRO) | (1 << STREAM_SENSOR_IMU_MAG) | (1 << STREAM_SENSOR_IMU_QUAT))) {
         acq_imu_task();
     }
 

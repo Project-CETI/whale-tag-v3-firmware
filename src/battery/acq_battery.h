@@ -19,6 +19,7 @@ typedef struct {
     double cell_temperature_c[2];
     double current_mA;
     double state_of_charge_percent;
+    double average_power_mw;
     uint16_t status;
     uint16_t protection_alert;
 } CetiBatterySample;

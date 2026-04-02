@@ -58,14 +58,17 @@ static sh2_Hal_t bno08x = {
 /*******************************************************************************
  * SPI HW Control Methods
  */
+__attribute__((no_instrument_function))
 static void csn(GPIO_PinState state) {
     HAL_GPIO_WritePin(IMU_NCS_GPIO_Output_GPIO_Port, IMU_NCS_GPIO_Output_Pin, state);
 }
 
+__attribute__((no_instrument_function))
 static void ps0_waken(GPIO_PinState state) {
     HAL_GPIO_WritePin(IMU_PS0_GPIO_Output_GPIO_Port, IMU_PS0_GPIO_Output_Pin, state);
 }
 
+__attribute__((no_instrument_function))
 static void rstn(GPIO_PinState state) {
     HAL_GPIO_WritePin(IMU_NRESET_GPIO_Output_GPIO_Port, IMU_NRESET_GPIO_Output_Pin, state);
 }
@@ -74,6 +77,7 @@ static void rstn(GPIO_PinState state) {
  * SPI Interrupt Callback Methods
  */
 
+ __attribute__((no_instrument_function))
 static void acq_imu_start_spi_transfer(void) {
     if ((s_spi_state != SPI_IDLE) || (s_rx_buf_len != 0)) {
         return; // spi is busy
@@ -103,6 +107,7 @@ static void acq_imu_start_spi_transfer(void) {
     }
 }
 
+__attribute__((no_instrument_function))
 void acq_imu_spi_complete_callback(void) {
     // Get length of payload avaiable
     uint16_t rxLen = ((uint16_t)(rxBuf[1] & ~0x80) << 8) | (uint16_t)rxBuf[0];
@@ -143,19 +148,30 @@ void acq_imu_spi_complete_callback(void) {
         default:
             break;
     }
+    HAL_PWR_DisableSleepOnExit();
 }
 
+__attribute__((no_instrument_function))
 void acq_imu_EXTI_Callback(void) {
     s_rx_timestamp_us = timing_get_time_since_on_us();
     inReset = 0;
     s_rx_ready = 1;
     acq_imu_start_spi_transfer();
+    // If SPI couldn't start because rxBuf still has unprocessed data from a
+    // prior transfer that completed while the main loop was already running
+    // (so DisableSleepOnExit had no effect), wake the main loop now so it
+    // can call sh2_service() and drain rxBuf.
+    if (s_rx_buf_len != 0) {
+        HAL_PWR_DisableSleepOnExit();
+    }
 }
 
+__attribute__((no_instrument_function))
 void HAL_SPI_TxRxCpltCallback(SPI_HandleTypeDef *hspi) {
     acq_imu_spi_complete_callback();
 }
 
+__attribute__((no_instrument_function))
 void HAL_SPI_RxCpltCallback(SPI_HandleTypeDef *hspi) {
     acq_imu_spi_complete_callback();
 }
@@ -171,23 +187,35 @@ static void acq_imu_enable_interrupts(void) {
 }
 
 static void usDelay(uint32_t delay) {
-    volatile uint32_t now = timing_get_time_since_on_us();
-    uint32_t start = now;
+    time_t now = rtc_get_epoch_us();
+    time_t start = now;
     while ((now - start) < delay) {
-        now = timing_get_time_since_on_us();
+        now = rtc_get_epoch_us();
     }
 }
 
 /*******************************************************************************
  * SH2 SPI HAL Methods
  */
-
+static uint8_t s_epoch_set = 0;
+static uint64_t s_epoch_diff_us = 0;
 /// @brief imu packet timestamping method
 /// @param self pointer to sh2 object
 /// @return timestamp in microseconds
 /// @note must be able to call inside of interrupt
+/// @note since the library expects uint32_t for us time keeping and then
+/// internally tracks the number of rollovers, the timer has an additional 
+/// timestamp must be captured and added to the 
+__attribute__((no_instrument_function))
 static uint32_t acq_imu_get_time_us(sh2_Hal_t *self) {
+    if (!s_epoch_set) {
+        uint64_t ts = (uint64_t)timing_get_time_since_on_us();
+        s_epoch_diff_us = rtc_get_epoch_us() - ts;
+        s_epoch_set = 1;
+        return ts;
+    }
     return timing_get_time_since_on_us();
+    
 }
 
 /// @brief initializes imu hardware and opens communication with spi bus
@@ -227,7 +255,6 @@ static int acq_imu_spi_open(sh2_Hal_t *self) {
     rstn(GPIO_PIN_SET);
 
     acq_imu_enable_interrupts();
-    usDelay(2000000);
 
     return SH2_OK;
 }
@@ -369,6 +396,9 @@ sh2_SensorValue_t s_mag_sample;
 void acq_imu_sensor_callback(void *cookie, sh2_SensorEvent_t *pEvent) {
     int status;
 
+    // correct timestamp to be epoch time
+    pEvent->timestamp_uS += s_epoch_diff_us;
+
     switch (pEvent->reportId) {
         case SH2_ACCELEROMETER:
             status = sh2_decodeSensorEvent(&s_accel_sample, pEvent);
@@ -459,7 +489,7 @@ void acq_imu_init(void) {
     // get product id to verify sensor
 
     acq_imu_enable_interrupts();
-    HAL_Delay(2000);
+//    HAL_Delay(20);
 
     // Configure IMU orientation to tag frame
 }
@@ -470,6 +500,7 @@ void acq_imu_init(void) {
 /// @return 
 int acq_imu_start_sensor(ImuSensor sensor, uint32_t time_interval_us) {
     s_sensor_config[sensor].config.reportInterval_us = time_interval_us;
+    s_sensor_config[sensor].config.batchInterval_us = 50000; // grab reports every second
     return sh2_setSensorConfig(s_sensor_config[sensor].sensor_id, &s_sensor_config[sensor].config);
 
 }

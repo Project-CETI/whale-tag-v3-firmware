@@ -32,6 +32,7 @@
 #include "main.h"
 #include <usart.h>
 
+void SystemClock_Config(void);
 
 #define MISSION_DIVE_THRESHOLD_BAR (5.0)
 #define MISSION_SURFACE_THRESHOLD_BAR (1.0)
@@ -171,7 +172,7 @@ static time_t s_burn_start_timestamp_s = 0;
 /// @return bool
 static int __is_time_to_burn(void) {
     time_t now_timestamp_s;
-    now_timestamp_s = rtc_get_epoch_s();
+    now_timestamp_s = rtc_get_epoch_us()/1000000;
     return (now_timestamp_s >= s_burn_start_timestamp_s);
 }
 
@@ -185,7 +186,7 @@ static int __is_burn_complete(void) {
     if (!s_burn_started) {
         return 0;
     }
-    time_t elapsed_time = rtc_get_epoch_s() - s_burn_start_timestamp_s;
+    time_t elapsed_time = rtc_get_epoch_us()/1000000 - s_burn_start_timestamp_s;
     return (elapsed_time > MISSION_BURNWIRE_BURN_PERIOD_MIN * 60);
 }
 
@@ -771,10 +772,17 @@ void mission_set_state(MissionState next_state) {
             acq_imu_register_callback(IMU_SENSOR_MAGNETOMETER, log_imu_mag_sample_callback);
 
             // start capture
-            acq_imu_start_sensor(IMU_SENSOR_ROTATION, 1000000/(uint32_t)tag_config.imu.quaternion_samplerate_Hz);
-            acq_imu_start_sensor(IMU_SENSOR_ACCELEROMETER, 1000000/(uint32_t)tag_config.imu.accel_samplerate_Hz);
-            acq_imu_start_sensor(IMU_SENSOR_GYROSCOPE, 1000000/(uint32_t)tag_config.imu.gyro_samplerate_Hz);
-            acq_imu_start_sensor(IMU_SENSOR_MAGNETOMETER, 1000000/(uint32_t)tag_config.imu.mag_samplerate_Hz);
+            int ret;
+            ret = acq_imu_start_sensor(IMU_SENSOR_ROTATION, 1000000/(uint32_t)tag_config.imu.quaternion_samplerate_Hz);
+            CETI_LOG("start rotation: %d", ret);
+            ret = acq_imu_start_sensor(IMU_SENSOR_ACCELEROMETER, 1000000/(uint32_t)tag_config.imu.accel_samplerate_Hz);
+            CETI_LOG("start accel: %d", ret);
+            ret = acq_imu_start_sensor(IMU_SENSOR_GYROSCOPE, 1000000/(uint32_t)tag_config.imu.gyro_samplerate_Hz);
+            CETI_LOG("start gyro: %d", ret);
+            ret = acq_imu_start_sensor(IMU_SENSOR_MAGNETOMETER, 1000000/(uint32_t)tag_config.imu.mag_samplerate_Hz);
+            CETI_LOG("start imu: %d", ret);
+            syslog_flush();
+
         }
     }
 
@@ -866,7 +874,7 @@ void mission_init(void) {
     if (tag_config.audio.enabled) {
         CETI_LOG("Initializing Audio Logging");
         // link log_audio to acq_audio
-        log_audio_init();
+        log_audio_init(&tag_config.audio);
         acq_audio_register_block_complete_callback(log_audio_block_complete_callback);
     }
 
@@ -906,7 +914,7 @@ void mission_init(void) {
     error_queue_init(); // initialize error queue so we can log when issues occur
     __initialize_average_voltage_tracker();
 #warning ToDo: initialize mission hardware
-    time_t now_timestamp_s = rtc_get_epoch_s();
+    time_t now_timestamp_s = rtc_get_epoch_us()/1000000;
     // start burn timer
     s_burn_start_timestamp_s = now_timestamp_s + 4 * 60 * 60;
 
@@ -1052,6 +1060,9 @@ void mission_task(void) {
     error_queue_flush();
 
     syslog_flush(); // flush the syslog
+#ifdef BENCHMARK
+    profile_flush();
+#endif
 }
 
 /// @brief call after mission_task to puts the system to sleep until
@@ -1067,8 +1078,14 @@ void mission_sleep(void) {
             if (gps_bulk_queue_is_empty()
                 && !log_battery_sample_buffer_is_half_full()
                 && !log_pressure_sample_buffer_is_half_full()
+                && !log_imu_any_buffer_half_full()
             ) {
-            
+                // nothing to currently do!
+                // go to sleep until next interrupt
+                HAL_SuspendTick();
+                HAL_PWR_EnableSleepOnExit();
+                HAL_PWR_EnterSLEEPMode(PWR_MAINREGULATOR_ON, PWR_SLEEPENTRY_WFI);
+                HAL_ResumeTick();
             }
             __enable_irq();
             break;
@@ -1081,13 +1098,13 @@ void mission_sleep(void) {
                 && !argos_tx_mgr_ready_to_tx()
                 && !log_battery_sample_buffer_is_half_full()
                 && !log_pressure_sample_buffer_is_half_full()
+                && !log_imu_any_buffer_half_full()
             ) {
                 // nothing to currently do!
                 // go to sleep until next interrupt
                 HAL_SuspendTick();
+                HAL_PWR_EnableSleepOnExit();
                 HAL_PWR_EnterSLEEPMode(PWR_MAINREGULATOR_ON, PWR_SLEEPENTRY_WFI);
-                // ToDo: reenable clocks
-
                 HAL_ResumeTick();
             }
             __enable_irq();
@@ -1095,36 +1112,41 @@ void mission_sleep(void) {
         }
 
         case MISSION_STATE_RECORD_DIVE:
+            __disable_irq();
             if ( !log_battery_sample_buffer_is_half_full()
                 && !log_pressure_sample_buffer_is_half_full()
+                && !log_imu_any_buffer_half_full()
             ) {
-
+                // nothing to currently do!
+                // go to sleep until next interrupt
+                HAL_SuspendTick();
+                HAL_PWR_EnableSleepOnExit();
+                HAL_PWR_EnterSLEEPMode(PWR_MAINREGULATOR_ON, PWR_SLEEPENTRY_WFI);
+                HAL_ResumeTick();
             }
+            __enable_irq();
             break;
 
         case MISSION_STATE_BURN:
+            __disable_irq();
             if ( gps_bulk_queue_is_empty() 
                  && gps_queue_is_empty() 
                  && !argos_tx_mgr_ready_to_tx()
                  && !log_battery_sample_buffer_is_half_full()
                  && !log_pressure_sample_buffer_is_half_full()
+                 && !log_imu_any_buffer_half_full()
             ) {
-
+                // nothing to currently do!
+                // go to sleep until next interrupt
+                HAL_SuspendTick();
+                HAL_PWR_EnableSleepOnExit();
+                HAL_PWR_EnterSLEEPMode(PWR_MAINREGULATOR_ON, PWR_SLEEPENTRY_WFI);
+                HAL_ResumeTick();
             }
+            __enable_irq();
             break;
 
         case MISSION_STATE_LOW_POWER_BURN:
-            if ( gps_bulk_queue_is_empty() 
-                 && gps_queue_is_empty() 
-                 && !argos_tx_mgr_ready_to_tx()
-                 && !log_battery_sample_buffer_is_half_full()
-                 && !log_pressure_sample_buffer_is_half_full()
-            ) {
-
-            }
-            break;
-
-        case MISSION_STATE_RETRIEVE: {
             __disable_irq();
             if ( gps_bulk_queue_is_empty() 
                  && gps_queue_is_empty() 
@@ -1135,8 +1157,31 @@ void mission_sleep(void) {
                 // nothing to currently do!
                 // go to sleep until next interrupt
                 HAL_SuspendTick();
+                
+                // ToDo: enter STOP1 mode instead
+                HAL_PWREx_EnterSTOP1Mode(PWR_STOPENTRY_WFI);
+
+                // HAL_PWR_EnterSLEEPMode(PWR_MAINREGULATOR_ON, PWR_SLEEPENTRY_WFI);
+                SystemClock_Config();
+                HAL_ResumeTick();
+            }
+            __enable_irq();
+            break;
+
+        case MISSION_STATE_RETRIEVE: {
+            __disable_irq();
+            if ( gps_bulk_queue_is_empty() 
+                 && gps_queue_is_empty() 
+                 && !argos_tx_mgr_ready_to_tx()
+                 && !log_battery_sample_buffer_is_half_full()
+                 && !log_pressure_sample_buffer_is_half_full()
+                 && !log_imu_any_buffer_half_full()
+            ) {
+                // nothing to currently do!
+                // go to sleep until next interrupt
+                HAL_SuspendTick();
+                HAL_PWR_EnableSleepOnExit();
                 HAL_PWR_EnterSLEEPMode(PWR_MAINREGULATOR_ON, PWR_SLEEPENTRY_WFI);
-                // ToDo: reenable clocks
 
                 HAL_ResumeTick();
             }
@@ -1153,8 +1198,12 @@ void mission_sleep(void) {
                 // nothing to currently do!
                 // go to sleep until next interrupt
                 HAL_SuspendTick();
-                HAL_PWR_EnterSLEEPMode(PWR_MAINREGULATOR_ON, PWR_SLEEPENTRY_WFI);
-                // ToDo: reenable clocks
+
+                // ToDo: enter STOP1 mode instead
+                HAL_PWREx_EnterSTOP1Mode(PWR_STOPENTRY_WFI);
+
+                // HAL_PWR_EnterSLEEPMode(PWR_MAINREGULATOR_ON, PWR_SLEEPENTRY_WFI);
+                SystemClock_Config();
 
                 HAL_ResumeTick();
             }

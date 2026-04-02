@@ -30,13 +30,11 @@ typedef enum {
 static uint8_t s_log_audio_enabled = 0;
 
 static time_t s_audio_start_time_us;
-static char audiofilename[32] = {};
+static char audiofilename[64] = {};
+static char audiofilename_extension[32] = {};
 
 extern FX_MEDIA sdio_disk;
 FX_FILE audio_file = {};
-
-
-
 
 #define AUDIO_FILE_DURATION_S (5 * 60)
 
@@ -48,23 +46,26 @@ FX_FILE audio_file = {};
 // #define EXPECTED_FILE_SIZE_BYTES (FILE_SIZE_BUFFERS * (AUDIO_BUFFER_SIZE_BYTES/2))
 
 #define AUDIO_BUFFER_BLOCK_TO_HALF(block) ((block) / (AUDIO_LOG_BUFFER_SIZE_BLOCKS / 2))
-static union {
+union {
     uint8_t block[AUDIO_LOG_BUFFER_SIZE_BLOCKS][AUDIO_LOG_BLOCK_SIZE];        // accessed for DMA
     uint8_t half[2][AUDIO_LOG_BLOCK_SIZE * AUDIO_LOG_BUFFER_SIZE_BLOCKS / 2]; // access for SD card write
-} s_audio_buffer;
+} g_audio_buffer;
 
 static uint8_t s_audio_buffer_read_half = 0;
 static volatile uint8_t s_audio_buffer_write_half = 0;
 static uint8_t sd_card_writing = 0;
 
-uint8_t *log_audio_buffer = s_audio_buffer.block[0];
+uint8_t *log_audio_buffer = g_audio_buffer.block[0];
 
 
 #if AUDIO_LOG_TYPE == AUDIO_LOG_RAW
 static void log_audio_create_raw_file(void) {
     /* Create file based on RTC time */
     s_audio_start_time_us = rtc_get_epoch_us();
-    snprintf(audiofilename, sizeof(audiofilename) - 1, "%lld.bin", s_audio_start_time_us);
+    snprintf(audiofilename, sizeof(audiofilename) - 1, 
+        "%lld.%s", 
+        s_audio_start_time_us, audiofilename_extension 
+    );
 
     /* Create/open audio file */
     UINT fx_result = FX_ACCESS_ERROR;
@@ -95,16 +96,26 @@ int log_audio_raw_write(uint8_t *pData, uint32_t size) {
     // check if new file needs to be created
     time_t now_us = rtc_get_epoch_us();
     if (now_us - s_audio_start_time_us >= AUDIO_FILE_DURATION_S * 1000000) {
+        fx_file_close(&audio_file);
         log_audio_create_raw_file();
     }
     return 0;
 }
 #endif
 
-void log_audio_init(void) {
-    if (!tag_config.audio.enabled){
+void log_audio_init(const AudioConfig *settings) {
+    if (!settings->enabled){
         return;
     }
+
+    uint8_t channel_count = 0;
+    for (int i = 0; i < 4; i++) {
+        channel_count += settings->channel_enabled[i];
+    }
+    snprintf(audiofilename_extension, sizeof(audiofilename_extension) - 1, 
+        "be.%dbit.%dch.%ldsps.bin", 
+        settings->bitdepth, channel_count, settings->samplerate_sps 
+    );
 
     // enable audio acquisition
 #if AUDIO_LOG_TYPE == AUDIO_LOG_RAW
@@ -145,7 +156,7 @@ void log_audio_task(void) {
     if (nv_read_half != s_audio_buffer_write_half) {
         uint8_t *p_data;
         size_t data_size;
-        p_data = s_audio_buffer.half[nv_read_half];
+        p_data = g_audio_buffer.half[nv_read_half];
         data_size = AUDIO_LOG_BLOCK_SIZE * AUDIO_LOG_BUFFER_SIZE_BLOCKS / 2;
         log_audio_raw_write(p_data, data_size);
         sd_card_writing = 0;

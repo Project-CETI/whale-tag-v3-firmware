@@ -44,6 +44,11 @@ static void __get_sample(void) {
     if (s_sample.error == CETI_STATUS_OK) {
         s_sample.error = max17320_get_state_of_charge(&s_sample.state_of_charge_percent);
     }
+
+    if (s_sample.error == CETI_STATUS_OK) {
+        s_sample.error =  max17320_get_average_power_mw(&s_sample.average_power_mw);
+    }
+
     if (s_sample.error == CETI_STATUS_OK) {
         s_sample.error = max17320_read(MAX17320_REG_STATUS, &s_sample.status);
     }
