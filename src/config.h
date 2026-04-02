@@ -52,7 +52,7 @@
 
 /* IMU CONFIG */
 #define IMU_ENABLED (1)
-#define IMU_SAMPLE_RATE_HZ (1)
+#define IMU_SAMPLE_RATE_HZ (20)
 
 /* PRESSURE CONFIG */
 #define PRESSURE_ENABLED (1)
@@ -109,7 +109,6 @@ typedef struct {
     uint16_t accel_samplerate_Hz;
     uint16_t gyro_samplerate_Hz;
     uint16_t mag_samplerate_Hz;
-    float quaternion_offest[4][2];
 } ImuConfig;
 
 typedef struct {
