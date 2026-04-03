@@ -13,7 +13,7 @@
 #include "audio/acq_audio.h"
 #include "imu/acq_imu.h"
 #include "battery/acq_battery.h"
-#include "gps/gps.h"
+#include "gps/acq_gps.h"
 #include "pressure/acq_pressure.h"
 
 #include <string.h>
@@ -150,22 +150,22 @@ void stream_subscribe(StreamSensorId sensor) {
             
         case STREAM_SENSOR_IMU_ACCEL:
             acq_imu_register_callback(IMU_SENSOR_ACCELEROMETER, __stream_accel_push_sample);
-            acq_imu_start_sensor(IMU_SENSOR_ACCELEROMETER, 1000000/(uint32_t)tag_config.imu.accel_samplerate_Hz);
+            acq_imu_start_sensor(IMU_SENSOR_ACCELEROMETER, 1000 * (uint32_t)tag_config.imu.sensor[IMU_SENSOR_ACCELEROMETER].samplerate_ms);
             break;
 
         case STREAM_SENSOR_IMU_MAG:
             acq_imu_register_callback(IMU_SENSOR_MAGNETOMETER, __stream_mag_push_sample);
-            acq_imu_start_sensor(IMU_SENSOR_MAGNETOMETER, 1000000/(uint32_t)tag_config.imu.mag_samplerate_Hz);
+            acq_imu_start_sensor(IMU_SENSOR_MAGNETOMETER, 1000 * (uint32_t)tag_config.imu.sensor[IMU_SENSOR_MAGNETOMETER].samplerate_ms);
             break;
         
         case STREAM_SENSOR_IMU_GYRO:
             acq_imu_register_callback(IMU_SENSOR_GYROSCOPE, __stream_gyro_push_sample);
-            acq_imu_start_sensor(IMU_SENSOR_GYROSCOPE, 1000000/(uint32_t)tag_config.imu.gyro_samplerate_Hz);
+            acq_imu_start_sensor(IMU_SENSOR_GYROSCOPE, 1000 * (uint32_t)tag_config.imu.sensor[IMU_SENSOR_GYROSCOPE].samplerate_ms);
             break;
 
         case STREAM_SENSOR_IMU_QUAT:
             acq_imu_register_callback(IMU_SENSOR_ROTATION, __stream_quat_push_sample);
-            acq_imu_start_sensor(IMU_SENSOR_ROTATION, 1000000/(uint32_t)tag_config.imu.quaternion_samplerate_Hz);
+            acq_imu_start_sensor(IMU_SENSOR_ROTATION, 1000 * (uint32_t)tag_config.imu.sensor[IMU_SENSOR_ROTATION].samplerate_ms);
             break;
 
         case STREAM_SENSOR_ECG:

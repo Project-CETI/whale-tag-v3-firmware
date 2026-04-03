@@ -35,13 +35,14 @@
 
 /* BMS CONFIG */
 #define BMS_ENABLED (1)
-#define BMS_SAMPLERATE_HZ (1)
+#define BMS_SAMPLERATE_mS (1000)
 
 /* BURNWIRE*/
 #define BURNWIRE_ENABLED (1)
 
 /* ECG CONFIG */
 #define ECG_ENABLED (0)
+#define ECG_SAMPLERATE_mS (1)
 
 /* ANTENNA FLASHER CONFIG*/
 #define FLASHER_ENABLED (0)
@@ -52,15 +53,15 @@
 
 /* IMU CONFIG */
 #define IMU_ENABLED (1)
-#define IMU_SAMPLE_RATE_HZ (20)
+#define IMU_ROTATION_SAMPLERATE_mS (50) // 20 Hz
+#define IMU_9DOF_SAMPLERATE_mS (20) // 50 Hz
 
 /* PRESSURE CONFIG */
 #define PRESSURE_ENABLED (1)
-#define PRESSURE_SAMPLERATE_HZ (1)
+#define PRESSURE_SAMPLERATE_mS (1000)
 
 /* ARGOS ENABLED */
 #define SATELLITE_ENABLED (1)
-
 
 typedef struct {
     uint8_t enabled;
@@ -85,10 +86,12 @@ typedef struct {
 
 typedef struct {
     uint8_t enabled;
+    uint16_t samplerate_ms;
 } BmsConfig;
 
 typedef struct {
     uint8_t enabled;
+    uint16_t samplerate_ms;
 } EcgConfig;
 
 typedef struct {
@@ -99,16 +102,23 @@ typedef struct {
     uint8_t enabled;
 } GpsConfig;
 
+typedef enum {
+    IMU_SENSOR_ROTATION,
+    IMU_SENSOR_ACCELEROMETER,
+    IMU_SENSOR_MAGNETOMETER,
+    IMU_SENSOR_GYROSCOPE,
+    IMU_SENSOR_COUNT,
+} ImuSensor;
+
+
 typedef struct {
     uint8_t enabled;
-    uint8_t quat_enabled;
-    uint8_t accel_enabled;
-    uint8_t gyro_enabled;
-    uint8_t mag_enabled;
-    uint16_t quaternion_samplerate_Hz;
-    uint16_t accel_samplerate_Hz;
-    uint16_t gyro_samplerate_Hz;
-    uint16_t mag_samplerate_Hz;
+    uint16_t samplerate_ms;
+} ImuSensorConfig;
+
+typedef struct {
+    uint8_t enabled;
+    ImuSensorConfig sensor[IMU_SENSOR_COUNT];
 } ImuConfig;
 
 typedef struct {
@@ -131,21 +141,53 @@ typedef struct {
 
 typedef struct {
     uint8_t enabled;
-    uint16_t samplerate_Hz;
+    uint16_t samplerate_ms;
 } PressureConfig;
 
+typedef enum {
+    ECG_HW_CONFIG_3_TERMINAL,
+    ECG_HW_CONFIG_2_TERMINAL,
+} EcgHardwareConfig;
+
 typedef struct {
-    uint8_t argos_enabled;
-    uint8_t audio_channels_enabled[4];
-    uint8_t burnwire_enabled;
-    uint8_t bms_enabled;
-    uint8_t ecg_enabled;
-    uint8_t flasher_enabled;
-    uint8_t water_sensor_enabled;
-    uint8_t gps_enabled;
-    uint8_t imu_enabled;
-    uint8_t pressure_enabled;
-} DevConfig;
+    struct {
+        uint8_t available;
+    } argos;
+    struct {
+        uint8_t available;
+        uint8_t channels[4];
+    } audio;
+    struct {
+        uint8_t available;
+    } burnwire;
+    struct {
+        uint8_t available;
+    } bms;
+    struct {
+        uint8_t available;
+        EcgHardwareConfig configuration;
+        float gain_db;
+    } ecg;
+    struct {
+        uint8_t available;
+    } flasher;
+    struct {
+        uint8_t available;
+    } water_sensor;
+    struct {
+        uint8_t available;
+    } gps;
+    struct {
+        uint8_t available;
+    } imu;
+    struct { 
+        uint8_t available;
+    } pressure;
+    struct {
+        uint8_t available;
+        float carrier_frequency_mhz;
+    } vhf_pinger;
+} HwConfig;
 
 typedef struct {
     uint32_t config_version; // used to identify what tag configuration is being used
@@ -163,7 +205,7 @@ typedef struct {
     GpsConfig gps;
     MissionConfig mission;
     PressureConfig pressure;
-    DevConfig dev_config;
+    HwConfig hw_config;
 } CetiTagRuntimeConfiguration;
 
 extern CetiTagRuntimeConfiguration tag_config;
@@ -172,7 +214,6 @@ extern CetiTagRuntimeConfiguration tag_config;
 
 void aop_update(uint8_t *data, uint16_t data_size);
 
-void config_apply_to_system(void);
 void config_save(void);
 void config_reload(void);
 HAL_StatusTypeDef config_init(void);

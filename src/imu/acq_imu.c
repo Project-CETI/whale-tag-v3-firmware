@@ -376,7 +376,6 @@ static struct {
     [IMU_SENSOR_ROTATION] = {SH2_ROTATION_VECTOR, {.reportInterval_us = 50000}},
 };
 
-typedef void(* ImuCallback)(const sh2_SensorValue_t *);
 static ImuCallback s_callback[] ={
     [IMU_SENSOR_ACCELEROMETER] = NULL,
     [IMU_SENSOR_GYROSCOPE] = NULL,
@@ -544,7 +543,7 @@ void acq_imu_task(void) {
 /// @brief register a call back for a give supported sensor type
 /// @param sensor_kind sensor to register callback to
 /// @param callback callback method
-void acq_imu_register_callback(ImuSensor sensor_kind, void (*callback)(const sh2_SensorValue_t *)) {
+void acq_imu_register_callback(ImuSensor sensor_kind, ImuCallback callback) {
     s_callback[sensor_kind] = callback;
 }
 

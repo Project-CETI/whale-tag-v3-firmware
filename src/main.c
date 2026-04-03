@@ -28,7 +28,7 @@
 #include "burnwire.h"
 #include "config.h"
 #include "ecg/acq_ecg.h"
-#include "gps/gps.h"
+#include "gps/acq_gps.h"
 #include "imu/acq_imu.h"
 #include "led/led.h"
 #include "mission.h"
@@ -316,7 +316,7 @@ if (!usb_iface_present()) {
     // acq_ecg_enable();
     gps_init();
     gps_standby();
-    acq_pressure_init(tag_config.pressure.samplerate_Hz);
+    acq_pressure_init(tag_config.pressure.samplerate_ms);
     burnwire_init();
     // if (tag_config.imu.enabled) {
 

@@ -18,7 +18,7 @@
 #include "burnwire.h"
 #include "ecg/acq_ecg.h"
 #include "error.h"
-#include "gps/gps.h"
+#include "gps/acq_gps.h"
 #include "imu/acq_imu.h"
 #include "imu/log_imu.h"
 #include "led/led.h"
@@ -766,23 +766,19 @@ void mission_set_state(MissionState next_state) {
             log_imu_deinit();
 
         } else {
-            acq_imu_register_callback(IMU_SENSOR_ROTATION, log_imu_quat_sample_callback);
-            acq_imu_register_callback(IMU_SENSOR_ACCELEROMETER, log_imu_accel_sample_callback);
-            acq_imu_register_callback(IMU_SENSOR_GYROSCOPE, log_imu_gyro_sample_callback);
-            acq_imu_register_callback(IMU_SENSOR_MAGNETOMETER, log_imu_mag_sample_callback);
-
-            // start capture
-            int ret;
-            ret = acq_imu_start_sensor(IMU_SENSOR_ROTATION, 1000000/(uint32_t)tag_config.imu.quaternion_samplerate_Hz);
-            CETI_LOG("start rotation: %d", ret);
-            ret = acq_imu_start_sensor(IMU_SENSOR_ACCELEROMETER, 1000000/(uint32_t)tag_config.imu.accel_samplerate_Hz);
-            CETI_LOG("start accel: %d", ret);
-            ret = acq_imu_start_sensor(IMU_SENSOR_GYROSCOPE, 1000000/(uint32_t)tag_config.imu.gyro_samplerate_Hz);
-            CETI_LOG("start gyro: %d", ret);
-            ret = acq_imu_start_sensor(IMU_SENSOR_MAGNETOMETER, 1000000/(uint32_t)tag_config.imu.mag_samplerate_Hz);
-            CETI_LOG("start imu: %d", ret);
-            syslog_flush();
-
+            const ImuCallback cb[] = {
+                [IMU_SENSOR_ACCELEROMETER] = log_imu_accel_sample_callback,
+                [IMU_SENSOR_GYROSCOPE] = log_imu_gyro_sample_callback,
+                [IMU_SENSOR_MAGNETOMETER] = log_imu_mag_sample_callback,
+                [IMU_SENSOR_ROTATION] = log_imu_quat_sample_callback,
+            };
+            for (int sensor_indx = 0; sensor_indx < IMU_SENSOR_COUNT; sensor_indx++) {
+                if (tag_config.imu.sensor[sensor_indx].enabled) {
+                    continue;
+                }
+                acq_imu_register_callback(sensor_indx, cb[sensor_indx]);
+                int ret = acq_imu_start_sensor(sensor_indx, (uint32_t)tag_config.imu.sensor[sensor_indx].samplerate_ms * 1000);
+            }
         }
     }
 

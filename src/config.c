@@ -40,6 +40,7 @@ CetiTagRuntimeConfiguration nv_tag_config = {
     },
     .battery = {
         .enabled = BMS_ENABLED,
+        .samplerate_ms = BMS_SAMPLERATE_mS,
     },
     .burnwire = {
         .enabled = BURNWIRE_ENABLED,
@@ -54,17 +55,28 @@ CetiTagRuntimeConfiguration nv_tag_config = {
     .gps = {
         .enabled = GPS_ENABLED,
     },
-
     .imu = {
         .enabled = IMU_ENABLED,
-	    .quaternion_samplerate_Hz = IMU_SAMPLE_RATE_HZ,
-	    .accel_samplerate_Hz  = IMU_SAMPLE_RATE_HZ,
-	    .gyro_samplerate_Hz  = IMU_SAMPLE_RATE_HZ,
-	    .mag_samplerate_Hz = IMU_SAMPLE_RATE_HZ,
+        .sensor[IMU_SENSOR_ROTATION] = {
+            .enabled = IMU_ENABLED,
+            .samplerate_ms = IMU_ROTATION_SAMPLERATE_mS,
+        },
+        .sensor[IMU_SENSOR_ACCELEROMETER] = {
+            .enabled = IMU_ENABLED,
+            .samplerate_ms = IMU_9DOF_SAMPLERATE_mS,
+        },
+        .sensor[IMU_SENSOR_GYROSCOPE] = {
+            .enabled = IMU_ENABLED,
+            .samplerate_ms = IMU_9DOF_SAMPLERATE_mS,
+        },
+        .sensor[IMU_SENSOR_MAGNETOMETER] = {
+            .enabled = IMU_ENABLED,
+            .samplerate_ms = IMU_9DOF_SAMPLERATE_mS,
+        },
     },
     .pressure = {
         .enabled = PRESSURE_ENABLED,
-        .samplerate_Hz = 1,
+        .samplerate_ms = PRESSURE_SAMPLERATE_mS,
     },
     .dev_config = {
         .argos_enabled = AUDIO_ENABLED,

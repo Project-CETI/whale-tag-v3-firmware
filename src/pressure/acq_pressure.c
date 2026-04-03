@@ -48,7 +48,7 @@ static void __acq_pressure_timer_complete_cb(TIM_HandleTypeDef *htim) {
 
 /// @brief Initialize pressure acquistion system
 /// @param
-void acq_pressure_init(uint16_t samplerate_hz) {
+void acq_pressure_init(uint16_t samplerate_ms) {
     if(s_initialized) {
         acq_pressure_deinit();
     }
@@ -70,7 +70,7 @@ void acq_pressure_init(uint16_t samplerate_hz) {
     pressure_htim.Instance = PRESSURE_TIM;
     pressure_htim.Init.Prescaler = (40000 - 1); // 0.25 mS
     pressure_htim.Init.CounterMode = TIM_COUNTERMODE_UP;
-    pressure_htim.Init.Period = ((4000 / samplerate_hz) - 1);
+    pressure_htim.Init.Period = ((4 * (uint32_t)samplerate_ms) - 1);
     pressure_htim.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
     pressure_htim.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
 

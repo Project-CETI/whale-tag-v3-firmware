@@ -1,5 +1,5 @@
 /*****************************************************************************
- *   @file      gps.h
+ *   @file      acq_gps.h
  *   @brief     This header is the api to communicate with the GPS module
  *              (uBlox M10s)
  *   @project   Project CETI

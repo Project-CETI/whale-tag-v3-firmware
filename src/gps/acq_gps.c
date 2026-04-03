@@ -7,7 +7,7 @@
  *   @copyright Harvard University Wood Lab
  *   @authors   Michael Salino-Hugg, [TODO: Add other contributors here]
  *****************************************************************************/
-#include "gps.h"
+#include "acq_gps.h"
 
 #include "error.h"
 #include "m10s.h"
