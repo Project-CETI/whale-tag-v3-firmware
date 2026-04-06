@@ -36,45 +36,45 @@ static void __write_static_hardware_config(void) {
     if (tag_config.hw_config.audio.available) {
         offset += snprintf((char *)&buffer[offset], sizeof(buffer) - offset, 
             "  audio:\n"
+            "    adc: { manufacturer: Analog Devices, model: AD7768-4 }\n"
             "    channels:\n"
             "      - hydrophone:\n"
             "          manufacturer: Project CETI\n"
             "          model: PH2\n"
             "          shape: spherical\n"
-            "          gain: { value: 18, unit: dB }\n"
+            "          gain: { value: 18, units: dB }\n"
             "          frequency_range:\n" 
-            "            min: { value: 100, unit: Hz }\n"
-            "            max: { value: 100, unit: kHz }\n"
+            "            min: { value: 100, units: Hz }\n"
+            "            max: { value: 100, units: kHz }\n"
             "          placement:\n"
-            "            x: { value: , unit: mm}\n"
-            "            y: { value: , unit: mm}\n"
-            "            z: { value: , unit: mm}\n" 
+            "            x: { value: 32.6, units: mm }\n"
+            "            y: { value: -51.4, units: mm }\n"
+            "            z: { value: 34.8, units: mm }\n" 
             "      - null\n"
             "      - hydrophone:\n"
             "          manufacturer: Project CETI\n"
             "          model: PH2\n"
             "          shape: spherical\n"
-            "          gain: {value: 18, unit: dB }\n"
+            "          gain: {value: 18, units: dB }\n"
             "          frequency_range:\n" 
-            "            min: { value: 100, unit: Hz }\n"
-            "            max: { value: 100, unit: kHz }\n"
+            "            min: { value: 100, units: Hz }\n"
+            "            max: { value: 100, units: kHz }\n"
             "          placement:\n"
-            "            x: { value: , unit: mm}\n"
-            "            y: { value: , unit: mm}\n"
-            "            z: { value: , unit: mm}\n" 
+            "            x: { value: -32.6, units: mm }\n"
+            "            y: { value: -51.4, units: mm }\n"
+            "            z: { value: 34.8, units: mm }\n" 
             "      - hydrophone:\n"
             "          manufacturer: Project CETI\n"
             "          model: PH2\n"
             "          shape: spherical\n"
-            "          gain: { value: 18, unit: dB }\n"
+            "          gain: { value: 18, units: dB }\n"
             "          frequency_range:\n" 
-            "            min: { value: 100, unit: Hz }\n"
-            "            max: { value: 100, unit: kHz }\n"
+            "            min: { value: 100, units: Hz }\n"
+            "            max: { value: 100, units: kHz }\n"
             "          placement:\n"
-            "            x: { value: , unit: mm }\n"
-            "            y: { value: , unit: mm }\n"
-            "            z: { value: , unit: mm }\n" 
-            "    adc: { manufacturer: Analog Devices, model: AD7768-4 }\n"
+            "            x: { value: -32.6, units: mm }\n"
+            "            y: { value: 51.4, units: mm }\n"
+            "            z: { value: 34.8, units: mm }\n" 
         );
     }
     if (tag_config.hw_config.bms.available) {
@@ -87,8 +87,8 @@ static void __write_static_hardware_config(void) {
             "    cell:\n"
             "      manufacturer: AA Portable Power Corp\n"
             "      model: PL-605060-2C\n"
-            "      nominal_voltage: { value: 3.7, unit: V }\n"
-            "      capacity: { value: 2000, unit: mAh }\n"
+            "      nominal_voltage: { value: 3.7, units: V }\n"
+            "      capacity: { value: 2000, units: mAh }\n"
             "    configuration: 2S\n"
             "    thermistors: 1\n"
         );
@@ -100,11 +100,11 @@ static void __write_static_hardware_config(void) {
             "    adc:\n"
             "      manufacturer: Texas Instruments\n"
             "      model: ADS1219\n"
-            "    amp: 1\n"
+            "    amp:\n"
             "      manufacturer: Analog Devices\n"
             "      model: AD8232\n"
             "    configuration: %s\n"
-            "    gain: { value: %0.2f , unit: dB } \n",
+            "    gain: { value: %0.2f , units: dB } \n",
             (tag_config.hw_config.ecg.configuration == ECG_HW_CONFIG_2_TERMINAL) ? "2 Terminal"
             : (tag_config.hw_config.ecg.configuration == ECG_HW_CONFIG_3_TERMINAL) ? "3 Terminal" 
             : "unknown",
@@ -129,6 +129,10 @@ static void __write_static_hardware_config(void) {
             "      x: starboard\n"
             "      y: bow\n"
             "      z: up\n"
+            "    placement:\n"
+            "      x: { value: 0.0, units: mm }\n"
+            "      y: { value: 31.8, units: mm }\n"
+            "      z: { value: 21.0, units: mm }\n" 
         );
     }
 
@@ -142,7 +146,7 @@ static void __write_static_hardware_config(void) {
 
     if (tag_config.hw_config.argos.available) {
         offset += snprintf((char *)&buffer[offset], sizeof(buffer) - offset, 
-            "  ARGOs:\n"
+            "  argos:\n"
             "    manufacturer: Arribada\n"
             "    model: SMD\n"
         );
@@ -152,8 +156,8 @@ static void __write_static_hardware_config(void) {
         offset += snprintf((char *)&buffer[offset], sizeof(buffer) - offset, 
             "  vhf_pinger:\n"
             "    controllable: %s"
-            "    ping_rate: { value: 1, unit: Hz }"
-            "    carrier_frequency: { value: %.3f, unit: MHz }\n"
+            "    ping_rate: { value: 1, units: Hz }"
+            "    carrier_frequency: { value: %.3f, units: MHz }\n"
             , (HW_VERSION == HW_VERSION_3_2_0) ? "true" : "false" 
             , tag_config.hw_config.vhf_pinger.carrier_frequency_mhz
         );
@@ -185,7 +189,7 @@ static void __write_static_software_config(void) {
                 "    bitdepth: { value: %d, units: bits }\n"
                 "    filter_type: %s\n"
                 "    priority: %s\n"
-                "    sample_rate: { value: %ld, units: Hz}\n"
+                "    sample_rate: { value: %ld, units: Hz }\n"
                 "    channels:\n"
                 "      - enabled: %s\n"
                 "      - enabled: %s\n"
@@ -241,7 +245,7 @@ static void __write_static_software_config(void) {
             offset += snprintf((char *)&buffer[offset], sizeof(buffer) - offset, 
                 "  bms:\n"
                 "    enabled: true\n"
-                "    sample_rate: { value: %d, units: Hz}\n"
+                "    sample_rate: { value: %d, units: Hz }\n"
                 , (1000 / tag_config.battery.samplerate_ms)
             );
         }
@@ -257,7 +261,7 @@ static void __write_static_software_config(void) {
             offset += snprintf((char *)&buffer[offset], sizeof(buffer) - offset, 
                 "  ecg:\n"
                 "    enabled: true\n"
-                "    sample_rate: { value: %d, units: Hz}\n"
+                "    sample_rate: { value: %d, units: Hz }\n"
                 , (1000 / tag_config.ecg.samplerate_ms)
             );
         }
@@ -287,7 +291,7 @@ static void __write_static_software_config(void) {
             offset += snprintf((char *)&buffer[offset], sizeof(buffer) - offset, 
                 "  pressure:\n"
                 "    enabled: true\n"
-                "    sample_rate: { value: %d, units: Hz}\n"
+                "    sample_rate: { value: %d, units: Hz }\n"
                 , (1000 / tag_config.pressure.samplerate_ms)
             );
         }
@@ -332,7 +336,6 @@ static void __write_static_mission_config(void) {
                 , tag_config.burnwire.duration_s
             );
         }
-
     }
     if (tag_config.hw_config.bms.available) {
         if (!tag_config.mission.low_power_release.enabled) {
@@ -344,7 +347,7 @@ static void __write_static_mission_config(void) {
             offset += snprintf((char *)&buffer[offset], sizeof(buffer) - offset, 
                 "  low_power_release:\n"
                 "    enabled: true\n"
-                "    voltage: {value: %d, units: mv}\n"
+                "    voltage: {value: %d, units: mv }\n"
                 , tag_config.mission.low_power_release.threshold_mV
             );
         }
@@ -383,6 +386,7 @@ static void __write_static_mission_config(void) {
 
     UINT fx_write_result = fx_file_write(&s_fp, buffer, offset);
 }
+
 
 void metadata_create(void) {
     // create file

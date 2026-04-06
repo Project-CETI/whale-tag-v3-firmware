@@ -31,6 +31,7 @@
 #include "gps/acq_gps.h"
 #include "imu/acq_imu.h"
 #include "led/led.h"
+#include "metadata.h"
 #include "mission.h"
 #include "pressure/acq_pressure.h"
 #include "satellite/satellite.h"
