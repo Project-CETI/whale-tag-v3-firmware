@@ -346,10 +346,45 @@ if (!usb_iface_present()) {
         NVIC_SystemReset();
     } else {
         /* Enter Mission loop */
+        // create new deployment directory
+        RTC_DateTypeDef date;
+        RTC_TimeTypeDef time;
+        
+        HAL_RTC_GetDate(&hrtc, &date, RTC_FORMAT_BIN);
+        
+        char directory_base[16] = {};
+        char directory[32] = {};
+        snprintf(
+            directory_base, sizeof(directory_base) - 1, 
+            "20%02d-%02d-%02d",
+            date.Year, date.Month, date.Date
+        );
+        int index = 0;
+        UINT fx_create_dir_result = FX_SUCCESS;
+        do {
+            snprintf(
+                directory, sizeof(directory) - 1, 
+                "%s_%d",
+                directory_base, index
+            );
+            fx_create_dir_result = fx_directory_create(&sdio_disk, directory);
+            if (FX_SUCCESS != fx_create_dir_result && FX_ALREADY_CREATED != fx_create_dir_result) {
+                CETI_ERR("Failed to create mission directory");
+                Error_Handler();
+            }
+            index++;
+        } while(fx_create_dir_result != FX_SUCCESS);
+        fx_directory_default_set(&sdio_disk, directory);
+
+        // generate mission metadata
+        metadata_create();
+        
+        // initialize mission
         mission_init();
 #ifdef BENCHMARK
         profile_flush();
 #endif
+        // do the thing
         mission_loop();
 
     }

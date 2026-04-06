@@ -74,26 +74,37 @@ CetiTagRuntimeConfiguration nv_tag_config = {
             .samplerate_ms = IMU_9DOF_SAMPLERATE_mS,
         },
     },
+    .mission = {
+        .low_power_release = {
+            .enabled = BMS_ENABLED,
+            .threshold_mV = 3600,
+        }
+    },
     .pressure = {
         .enabled = PRESSURE_ENABLED,
         .samplerate_ms = PRESSURE_SAMPLERATE_mS,
     },
-    .dev_config = {
-        .argos_enabled = AUDIO_ENABLED,
-        .audio_channels_enabled = {
-            [0] = AUDIO_CH_0_EN,
-            [1] = AUDIO_CH_1_EN,
-            [2] = AUDIO_CH_2_EN,
-            [3] = AUDIO_CH_3_EN,
+    .hw_config = {
+        .argos.available = AUDIO_ENABLED,
+        .audio = {
+            .available = AUDIO_ENABLED,
+            .channels = {
+                [0] = AUDIO_CH_0_EN,
+                [1] = AUDIO_CH_1_EN,
+                [2] = AUDIO_CH_2_EN,
+                [3] = AUDIO_CH_3_EN,
+            }
         },
-        .burnwire_enabled = BURNWIRE_ENABLED,
-        .bms_enabled = BMS_ENABLED,
-        .ecg_enabled = ECG_ENABLED,
-        .flasher_enabled = FLASHER_ENABLED,
-        .water_sensor_enabled = 0,
-        .gps_enabled = GPS_ENABLED,
-        .imu_enabled = IMU_ENABLED,
-        .pressure_enabled = PRESSURE_ENABLED,
+        .burnwire.available = BURNWIRE_ENABLED,
+        .bms.available = BMS_ENABLED,
+        .ecg = {
+            .available = ECG_ENABLED,
+        },
+        .flasher.available = FLASHER_ENABLED,
+        .water_sensor.available = 0,
+        .gps.available = GPS_ENABLED,
+        .imu.available = IMU_ENABLED,
+        .pressure.available = PRESSURE_ENABLED,
     }
 };
 
