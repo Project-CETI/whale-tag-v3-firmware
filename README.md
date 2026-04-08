@@ -34,7 +34,7 @@ git clone --recursive https://github.com/Project-CETI/ceti-whale-tag-v3-fw.git
 or, if you've already cloned the repo but forgot the `--recursive` flag:
 
 ```
-git submodule update --init --rcursive
+git submodule update --init --recursive
 ```
 
 #### 2. Install dependencies

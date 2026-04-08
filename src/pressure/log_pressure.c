@@ -7,6 +7,7 @@
  *****************************************************************************/
 #include "log_pressure.h"
 #include "acq_pressure.h"
+#include "metadata.h"
 
 #include "syslog.h"
 #include "util/buffer_writer.h"
@@ -31,6 +32,7 @@ static BufferWriter s_bw = {
 /********* CSV ***************************************************************/
 
 #define PRESSURE_FILENAME "data_pressure.csv"
+#define PRESSURE_CSV_VERSION (0)
 
 char *log_pressure_csv_header =
     "Timestamp [us]"
@@ -56,6 +58,8 @@ static void __create_csv_file(char *filename) {
         #warning "ToDo: Handle Error opening file"
         return;
     }
+
+    metadata_log_file_creation(filename, DATA_TYPE_PRESSURE, DATA_FORMAT_CSV, PRESSURE_CSV_VERSION);
 
     /* file was newly created. Initialize header */
     if (FX_ALREADY_CREATED != fx_create_result) {

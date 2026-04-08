@@ -6,16 +6,16 @@
  *   @copyright Harvard University Wood Lab
  *   @authors   Michael Salino-Hugg, [Add other contributors here]
  *****************************************************************************/
+#include "metadata.h"
 
 #include <app_filex.h>
 #include <stdint.h>
 #include <stdio.h>
 
 #include "config.h"
+#include "timing.h"
 #include "version.h"
 #include "version_hw.h"
-
-
 
 extern FX_MEDIA sdio_disk;
 static FX_FILE s_fp = {};
@@ -387,8 +387,58 @@ static void __write_static_mission_config(void) {
     UINT fx_write_result = fx_file_write(&s_fp, buffer, offset);
 }
 
+static void __write_file_name_section(char *mission_directory) {
+    uint16_t offset = 0;
+    char buffer[2048];
+    offset += snprintf((char *)&buffer[offset], sizeof(buffer) - offset, 
+        "logging:\n"
+        "  directory_path: %s\n"
+        "  files:\n"
+        , mission_directory
+    );
+    UINT fx_write_result = fx_file_write(&s_fp, buffer, offset);
+    return;
+}
 
-void metadata_create(void) {
+static const char * data_type_str[] = {
+    [DATA_TYPE_METADATA] = "metadata",
+    [DATA_TYPE_ARGOS] = "argos",
+    [DATA_TYPE_AUDIO] = "audio",
+    [DATA_TYPE_BMS] = "bms",
+    [DATA_TYPE_BENCHMARK] = "benchmark",
+    [DATA_TYPE_ECG] = "ecg",
+    [DATA_TYPE_ERRORS] = "errors",
+    [DATA_TYPE_GPS] = "gps",
+    [DATA_TYPE_IMU_ROTATION] = "rotation",
+    [DATA_TYPE_IMU_ACCEL] = "accelerometer",
+    [DATA_TYPE_IMU_GYRO] = "gryoscope",
+    [DATA_TYPE_IMU_MAG] = "magnetometer",
+    [DATA_TYPE_MISSION] = "mission",
+    [DATA_TYPE_PRESSURE] = "pressure",
+};
+
+static const char * format_str[] = {
+    [DATA_FORMAT_YAML] = "yaml",
+    [DATA_FORMAT_CSV] = "csv",
+    [DATA_FORMAT_BIN] = "bin",
+    [DATA_FORMAT_TXT] = "txt",
+};
+
+void metadata_log_file_creation(char * filename, DataType data_type, DataFormat format, uint16_t version) {
+    uint16_t offset = 0;
+    char buffer[2048];
+    offset += snprintf((char *)&buffer[offset], sizeof(buffer) - offset, 
+        "    - file: { filename: %s, type: %s, format: %s, version: %d }\n"
+        , filename 
+        , data_type_str[data_type]
+        , format_str[format]
+        , version
+    );
+    UINT fx_write_result = fx_file_write(&s_fp, buffer, offset);
+    return;
+}
+
+void metadata_create(char * mission_directory) {
     // create file
     UINT fx_create_result = fx_file_create(&sdio_disk, "tag_info.yaml");
 
@@ -401,7 +451,7 @@ void metadata_create(void) {
     offset += snprintf((char *)&buffer[offset], sizeof(buffer) - offset, 
         "---\n"
         "id: %s\n"
-        "timestamp: %d\n"
+        "timestamp: %lld\n"
         , tag_config.hostname
         , rtc_get_epoch_s()
     );
@@ -413,5 +463,7 @@ void metadata_create(void) {
     __write_static_mission_config();
 
     // log files as they get created
-    fx_file_close(&s_fp);
+    __write_file_name_section(mission_directory);
+    metadata_log_file_creation("tag_info.yaml", DATA_TYPE_METADATA, DATA_FORMAT_YAML, 0);
 }
+

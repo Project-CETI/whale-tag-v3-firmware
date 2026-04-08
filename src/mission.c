@@ -22,6 +22,7 @@
 #include "imu/acq_imu.h"
 #include "imu/log_imu.h"
 #include "led/led.h"
+#include "metadata.h"
 #include "pressure/acq_pressure.h"
 #include "pressure/log_pressure.h"
 #include "satellite/argos_tx_mgr.h"
@@ -242,7 +243,7 @@ static void __satellite_transmit_from_raw_with_log(RecoveryArgoModulation rconf,
 }
 
 /* MISSION LOG ****************************************************************/
-#define MISSION_LOG_CSV_FILENAME "data_state_machine.csv"
+#define MISSION_LOG_CSV_FILENAME "tag_mission.csv"
 #define MISSION_LOG_CSV_HEADER "Timestamp [us],RTC Count,Notes,State To Process,Next State\n"
 #include <app_filex.h>
 
@@ -266,6 +267,9 @@ static int __log_mission_init(void) {
         error_queue_push(CETI_ERROR(ERR_SUBSYS_LOG_MISSION, ERR_TYPE_FILEX, fx_open_result));
         return -1;
     }
+
+    metadata_log_file_creation(MISSION_LOG_CSV_FILENAME, DATA_TYPE_MISSION, DATA_FORMAT_CSV, 0);
+
 
     // check that the file has no contents
     if ((0 == s_mission_log_file.fx_file_current_file_size)) {
@@ -308,12 +312,13 @@ static FX_FILE gps_log_file = {};
 /// @param
 static void __log_gps_init(void) {
     // try to create file
-    CETI_LOG("Created new gps file \"gps.log\"");
-    UINT fx_create_result = fx_file_create(&sdio_disk, "gps.log");
+    CETI_LOG("Created new gps file \"data_gps.log\"");
+    UINT fx_create_result = fx_file_create(&sdio_disk, "data_gps.log");
     if ((FX_SUCCESS != fx_create_result) && (FX_ALREADY_CREATED != fx_create_result)) {
         error_queue_push(CETI_ERROR(ERR_SUBSYS_LOG_GPS, ERR_TYPE_FILEX, fx_create_result));
     }
-    UINT fx_result = fx_file_open(&sdio_disk, &gps_log_file, "gps.log", FX_OPEN_FOR_WRITE);
+    UINT fx_result = fx_file_open(&sdio_disk, &gps_log_file, "data_gps.log", FX_OPEN_FOR_WRITE);
+    metadata_log_file_creation("data_gps.log", DATA_TYPE_GPS, DATA_FORMAT_TXT, 0);
 }
 
 /// @brief initialize gps logging

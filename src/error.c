@@ -4,7 +4,7 @@
 // Contributors: Michael Salino-Hugg, [TODO: Add other contributors here]
 //-----------------------------------------------------------------------------
 #include "error.h"
-
+#include "metadata.h"
 #include <fx_api.h>
 #include <time.h>
 
@@ -18,7 +18,7 @@ extern FX_MEDIA sdio_disk;
 
 #define ERROR_QUEUE_SIZE (1024 / sizeof(ErrorQueueElement))
 #if ERROR_FILE_FORMAT == FILE_FORMAT_BIN
-#define ERROR_FILE_FILENAME "errors.bin"
+#define ERROR_FILE_FILENAME "tag_errors.bin"
 #define ERROR_QUEUE_ELEMENT_HEADER {'C', 'E', 'T', 'I'}
 #else
 #error "Unsupported error file format"
@@ -52,6 +52,7 @@ int error_queue_init(void) {
         return;
     }
 
+    metadata_log_file_creation(ERROR_FILE_FILENAME, DATA_TYPE_ERRORS, DATA_FORMAT_BIN, 0);
     return 0;
 }
 

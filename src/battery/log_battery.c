@@ -10,6 +10,7 @@
 #include "acq_battery.h"
 #include "log_battery.h"
 
+#include "metadata.h"
 #include "syslog.h"
 #include "util/buffer_writer.h"
 
@@ -172,6 +173,9 @@ static void __open_csv_file(char *filename) {
         #warning "ToDo: Handle Error opening file"
         return;
     }
+    
+    metadata_log_file_creation(filename, DATA_TYPE_BMS, DATA_FORMAT_CSV, 0);
+
 
     /* file was newly created. Initialize header */
     if (FX_ALREADY_CREATED != fx_create_result) {

@@ -378,7 +378,7 @@ if (!usb_iface_present()) {
         fx_directory_default_set(&sdio_disk, directory);
 
         // generate mission metadata
-        metadata_create();
+        metadata_create(directory);
         
         // initialize mission
         mission_init();

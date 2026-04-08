@@ -9,6 +9,9 @@
 #include "log_imu.h"
 
 #include "acq_imu.h"
+
+#include "metadata.h"
+
 #include "syslog.h"
 #include "util/buffer_writer.h"
 /*
@@ -139,12 +142,16 @@ static void __create_csv_file(ImuSensor sensor_type) {
         return;
     }
 
+    metadata_log_file_creation(s_filename[sensor_type], DATA_TYPE_IMU_ROTATION + sensor_type, DATA_FORMAT_CSV, 0);
+    
     /* file was newly created. Initialize header */
     if (FX_ALREADY_CREATED != fx_create_result) {
         CETI_LOG("Created new imu file \"%s\"", s_filename[sensor_type]);
         buffer_writer_write(&s_bw[sensor_type], (uint8_t *)s_csv_header[sensor_type], strlen(s_csv_header[sensor_type]));
         buffer_writer_flush(&s_bw[sensor_type]);
     }
+
+
 }
 
 size_t __accel_sample_to_csv_line(const sh2_SensorValue_t *p_sample, uint8_t *p_buffer, size_t buffer_len) {

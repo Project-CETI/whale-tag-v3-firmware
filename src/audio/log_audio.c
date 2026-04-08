@@ -11,6 +11,8 @@
 
 #include "syslog.h"
 #include "timing.h"
+#include "metadata.h"
+
 
 // stm libraries
 #include <app_filex.h>
@@ -77,6 +79,7 @@ static void log_audio_create_raw_file(void) {
 
     /* Try to allocate expected file size */
     fx_result = fx_file_open(&sdio_disk, &audio_file, audiofilename, FX_OPEN_FOR_WRITE);
+    metadata_log_file_creation(audiofilename, DATA_TYPE_AUDIO, DATA_FORMAT_BIN, 0);
 }
 
 void log_audio_deinit(void) {

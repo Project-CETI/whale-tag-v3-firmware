@@ -81,6 +81,9 @@ void profile_init(void) {
     if (FX_SUCCESS != fx_open_result) {
         return;
     }
+
+    metadata_log_file_creation("profile.bin", DATA_TYPE_BENCHMARK, DATA_FORMAT_BIN, 0);
+
     s_profiling_enabled = 1;
 }
 
