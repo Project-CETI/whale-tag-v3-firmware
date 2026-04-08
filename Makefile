@@ -1,8 +1,8 @@
 
-BOARD ?= v3_1_1
+BOARD ?= v3_2
 SUPPORTED_BOARDS := v3_1_1 v3_2
 
-MODE ?= debug
+MODE ?= release
 SUPPORTED_MODES := debug bench release
 
 BUILD_ROOT = build

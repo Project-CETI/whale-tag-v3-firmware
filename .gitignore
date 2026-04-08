@@ -3,6 +3,7 @@ build/
 
 #ignore temporary files
 tmp/
+example_output/
 
 #ignore design docs
 design/
