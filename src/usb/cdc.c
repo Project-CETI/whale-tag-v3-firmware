@@ -216,7 +216,7 @@ static void __cmd_i2cdetect(int argc, const char *const *argv) {
     }
 
     I2C_HandleTypeDef *hi2c = NULL;
-    switch (argv[0][1]) {
+    switch (argv[1][0]) {
         case '1': 
             hi2c = &hi2c1;
             break;
