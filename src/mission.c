@@ -749,19 +749,6 @@ void mission_set_state(MissionState next_state) {
         return; // nothing to do
     }
 
-    // Sensing
-    // Audio
-    if (tag_config.audio.enabled) {
-        if ((MISSION_STATE_LOW_POWER_BURN == next_state) 
-            || (MISSION_STATE_LOW_POWER_RETRIEVE == next_state)
-        ) {
-            acq_audio_disable();
-            log_audio_disable();
-        } else {
-            acq_audio_start(log_audio_buffer, AUDIO_LOG_BUFFER_SIZE_BLOCKS, AUDIO_LOG_BLOCK_SIZE);
-        }
-    }
-
     // Imu
     if (tag_config.imu.enabled) {
         if ((MISSION_STATE_LOW_POWER_BURN == next_state) 
@@ -787,18 +774,6 @@ void mission_set_state(MissionState next_state) {
         }
     }
 
-    // ECG
-    if (tag_config.ecg.enabled) {
-        if ((MISSION_STATE_LOW_POWER_BURN == next_state) 
-            || (MISSION_STATE_LOW_POWER_RETRIEVE == next_state)
-        ) {
-            // ToDo: disable ecg acquisiton
-            // ToDo: disable ecg logging
-        } else {
-            // enable ecg acquisition
-        }
-    }
-
     // Pressure
     if (tag_config.pressure.enabled) {
         if (MISSION_STATE_LOW_POWER_RETRIEVE == next_state) {
@@ -818,14 +793,6 @@ void mission_set_state(MissionState next_state) {
         }
     }
 
-    // LED
-    if ((MISSION_STATE_RECORD_DIVE == next_state) || (MISSION_STATE_RETRIEVE == next_state) || (MISSION_STATE_LOW_POWER_RETRIEVE == next_state)) {
-        led_heartbeat_dim();
-    } else if ((MISSION_STATE_BURN == next_state) || (MISSION_STATE_LOW_POWER_BURN == next_state)) {
-        led_burn();
-    } else {
-        led_heartbeat();
-    }
 
     // GPS
     if (tag_config.gps.enabled) {
@@ -858,6 +825,31 @@ void mission_set_state(MissionState next_state) {
         }
     }
 
+    // ECG
+    if (tag_config.ecg.enabled) {
+        if ((MISSION_STATE_LOW_POWER_BURN == next_state)
+            || (MISSION_STATE_LOW_POWER_RETRIEVE == next_state)
+        ) {
+        	acq_ecg_deinit();
+            // ToDo: disable ecg acquisiton
+        } else {
+            // ToDo: linking ecg longging to acquisition callback
+        	acq_ecg_start();
+        }
+    }
+
+    // Audio
+    if (tag_config.audio.enabled) {
+        if ((MISSION_STATE_LOW_POWER_BURN == next_state)
+            || (MISSION_STATE_LOW_POWER_RETRIEVE == next_state)
+        ) {
+            acq_audio_disable();
+            log_audio_disable();
+        } else {
+            acq_audio_start(log_audio_buffer, AUDIO_LOG_BUFFER_SIZE_BLOCKS, AUDIO_LOG_BLOCK_SIZE);
+        }
+    }
+
     // update state dependent tasks
     __update_state_dependent_task_list(next_state);
 
@@ -866,6 +858,16 @@ void mission_set_state(MissionState next_state) {
 
     // update state
     s_state = next_state;
+
+    // LED
+    if ((MISSION_STATE_RECORD_DIVE == next_state) || (MISSION_STATE_RETRIEVE == next_state) || (MISSION_STATE_LOW_POWER_RETRIEVE == next_state)) {
+        led_heartbeat_dim();
+    } else if ((MISSION_STATE_BURN == next_state) || (MISSION_STATE_LOW_POWER_BURN == next_state)) {
+        led_burn();
+    } else {
+        led_heartbeat();
+    }
+
 }
 
 /// @brief Initialize mission state machine

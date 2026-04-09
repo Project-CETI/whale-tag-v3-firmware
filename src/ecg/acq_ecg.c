@@ -50,6 +50,9 @@ void acq_ecg_EXTI_Callback(void) {
 }
 
 void acq_ecg_deinit(void) {
+    acq_ecg_stop();
+
+
     /* disable acq_ecg interrupt */
     HAL_NVIC_DisableIRQ(EXTI2_IRQn);
     // ToDo: reconfigure ECG_NDRDY as analog to save power
@@ -59,6 +62,8 @@ void acq_ecg_deinit(void) {
     HAL_GPIO_WritePin(ECG_ADC_NRSET_GPIO_Output_GPIO_Port, ECG_ADC_NRSET_GPIO_Output_Pin, GPIO_PIN_RESET);
 
     /* ToDo: Disable i2c2 peripheral to save power */
+    HAL_I2C_DeInit(&ECG_hi2c);
+
     s_sample_complete_callback = NULL;
 }
 

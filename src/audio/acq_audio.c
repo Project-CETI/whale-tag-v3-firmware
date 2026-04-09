@@ -343,9 +343,9 @@ void acq_audio_start(uint8_t *p_buffer, uint16_t buffer_size_blocks, uint16_t bl
 
     // initiate transfers
     acq_audio_sai_dma_init(p_buffer, buffer_size_blocks, block_size_bytes);
-    acq_audio_sai_dma_start(p_buffer, block_size_bytes);
     s_audio_dma_node_count = buffer_size_blocks;
     s_audio_running = 1;
+    acq_audio_sai_dma_start(p_buffer, block_size_bytes);
 }
 
 void acq_audio_stop(void) {
