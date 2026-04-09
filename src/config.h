@@ -41,7 +41,7 @@
 #define BURNWIRE_ENABLED (1)
 
 /* ECG CONFIG */
-#define ECG_ENABLED (1)
+#define ECG_ENABLED (0)
 #define ECG_SAMPLERATE_mS (1)
 
 /* ANTENNA FLASHER CONFIG*/

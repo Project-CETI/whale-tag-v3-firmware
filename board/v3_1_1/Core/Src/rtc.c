@@ -65,15 +65,15 @@ void MX_RTC_Init(void)
     Error_Handler();
   }
 
-  /** Enable the reference Clock input
-  */
-  if (HAL_RTCEx_SetRefClock(&hrtc) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  /* USER CODE BEGIN RTC_Init 2 */
+  // /** Enable the reference Clock input
+  // */
+  // if (HAL_RTCEx_SetRefClock(&hrtc) != HAL_OK)
+  // {
+  //   Error_Handler();
+  // }
+  // /* USER CODE BEGIN RTC_Init 2 */
 
-  /* USER CODE END RTC_Init 2 */
+  // /* USER CODE END RTC_Init 2 */
 
 }
 

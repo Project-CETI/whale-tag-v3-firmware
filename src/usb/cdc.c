@@ -159,7 +159,7 @@ static void __cmd_datetime(int argc, const char *const *argv) {
     }
 
     if (strcmp(argv[1], "?") == 0) {
-        time_t epoch = rtc_get_epoch_s();
+        uint64_t epoch = rtc_get_epoch_s();
         char buf[32];
         snprintf(buf, sizeof(buf), "%ld" ENDL, (long)epoch);
         cdc_print(buf);
@@ -173,7 +173,7 @@ static void __cmd_datetime(int argc, const char *const *argv) {
         return;
     }
 
-    rtc_set_epoch_s((time_t)epoch);
+    rtc_set_epoch_s((uint64_t)epoch);
     cdc_print("OK" ENDL);
 }
 

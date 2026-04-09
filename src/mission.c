@@ -166,13 +166,13 @@ static int __is_high_pressure(void) {
 /* BURN CONTROLS *************************************************************/
 
 static uint8_t s_burn_started = 0;
-static time_t s_burn_start_timestamp_s = 0;
+static uint64_t s_burn_start_timestamp_s = 0;
 
 /// @brief check if burn should be activated based on timeout
 /// @param
 /// @return bool
 static int __is_time_to_burn(void) {
-    time_t now_timestamp_s;
+    uint64_t now_timestamp_s;
     now_timestamp_s = rtc_get_epoch_us()/1000000;
     return (now_timestamp_s >= s_burn_start_timestamp_s);
 }
@@ -187,7 +187,7 @@ static int __is_burn_complete(void) {
     if (!s_burn_started) {
         return 0;
     }
-    time_t elapsed_time = rtc_get_epoch_us()/1000000 - s_burn_start_timestamp_s;
+    uint64_t elapsed_time = rtc_get_epoch_us()/1000000 - s_burn_start_timestamp_s;
     return (elapsed_time > MISSION_BURNWIRE_BURN_PERIOD_MIN * 60);
 }
 
@@ -287,7 +287,7 @@ static int __log_mission_init(void) {
 /// @param current_state state at the start of the transistion
 /// @param next_state state at the end of the transistion
 static void __log_mission_state_transition(MissionState current_state, MissionState next_state) {
-    time_t transistion_time_us = rtc_get_epoch_us();
+    uint64_t transistion_time_us = rtc_get_epoch_us();
 
     // generate log string
     char transition_string[256] = {};
@@ -915,7 +915,7 @@ void mission_init(void) {
     error_queue_init(); // initialize error queue so we can log when issues occur
     __initialize_average_voltage_tracker();
 #warning ToDo: initialize mission hardware
-    time_t now_timestamp_s = rtc_get_epoch_us()/1000000;
+    uint64_t now_timestamp_s = rtc_get_epoch_us()/1000000;
     // start burn timer
     s_burn_start_timestamp_s = now_timestamp_s + 4 * 60 * 60;
 

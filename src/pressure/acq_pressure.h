@@ -12,7 +12,7 @@
 #include "timing.h"
 
 typedef struct {
-    time_t timestamp_us;
+    uint64_t timestamp_us;
     Keller4LD_Measurement data;
 } CetiPressureSample;
 

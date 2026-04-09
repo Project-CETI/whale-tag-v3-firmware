@@ -13,7 +13,7 @@
 
 
 typedef struct {
-    time_t time_us;
+    uint64_t time_us;
     uint32_t error;
     double cell_voltage_v[2];
     double cell_temperature_c[2];

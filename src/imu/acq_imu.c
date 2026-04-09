@@ -187,8 +187,8 @@ static void acq_imu_enable_interrupts(void) {
 }
 
 static void usDelay(uint32_t delay) {
-    time_t now = rtc_get_epoch_us();
-    time_t start = now;
+    uint64_t now = rtc_get_epoch_us();
+    uint64_t start = now;
     while ((now - start) < delay) {
         now = rtc_get_epoch_us();
     }

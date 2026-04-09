@@ -27,14 +27,14 @@ extern FX_MEDIA sdio_disk;
 typedef struct {
     uint8_t frame_header[4];
     CetiStatus error;
-    time_t timestamp;
+    uint64_t timestamp;
 } ErrorQueueElement;
 
 static volatile size_t s_error_write_position = 0;
 static size_t s_error_read_position = 0;
 ErrorQueueElement s_error_queue[ERROR_QUEUE_SIZE] = {};
 static FX_FILE s_error_queue_file = {};
-time_t s_error_queue_overflow_timestamp = 0;
+uint64_t s_error_queue_overflow_timestamp = 0;
 
 /// @brief initializes the error queue
 /// @param

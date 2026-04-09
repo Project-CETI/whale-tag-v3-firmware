@@ -31,7 +31,7 @@ typedef enum {
 #define AUDIO_LOG_TYPE AUDIO_LOG_RAW
 static uint8_t s_log_audio_enabled = 0;
 
-static time_t s_audio_start_time_us;
+static uint64_t s_audio_start_time_us;
 static char audiofilename[64] = {};
 static char audiofilename_extension[32] = {};
 
@@ -97,7 +97,7 @@ int log_audio_raw_write(uint8_t *pData, uint32_t size) {
     write_count++;
 
     // check if new file needs to be created
-    time_t now_us = rtc_get_epoch_us();
+    uint64_t now_us = rtc_get_epoch_us();
     if (now_us - s_audio_start_time_us >= AUDIO_FILE_DURATION_S * 1000000) {
         fx_file_close(&audio_file);
         log_audio_create_raw_file();
