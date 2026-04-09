@@ -17,47 +17,39 @@
 
 extern I2C_HandleTypeDef ECG_hi2c;
 
-typedef struct {
-    uint64_t timestamp;
-    int32_t value;
-    uint8_t lod_p;
-    uint8_t lod_n;
-} EcgSample;
-
-EcgSample ecg_sample_buffer[2000] = {};
+EcgSample s_latest_ecg_sample = {};
 static volatile int ecg_sample_write_position = 0;
 static int ecg_sample_read_position = 0;
 
-static uint8_t s_waiting_for_sample = 0;
+static volatile uint8_t s_waiting_for_sample = 0;
+static volatile uint32_t s_dropped_sample_count = 0;
 
-static void acq_ecg_acquire_sample_callback(void) {
+static void (*s_sample_complete_callback)(const EcgSample *) = NULL;
+
+static void acq_ecg_sample_ready_callback(void) {
     s_waiting_for_sample = 0;
+    if (NULL != s_sample_complete_callback) {
+        s_sample_complete_callback(&s_latest_ecg_sample);
+    }
 }
 
-// ToDo: implement ecg EXTI callback to store sample into sample buffer
 void acq_ecg_EXTI_Callback(void) {
-    EcgSample *curent_sample = &ecg_sample_buffer[ecg_sample_write_position];
-
-    // acquire sample
     if (s_waiting_for_sample) {
-        __NOP();
-        // ToDo: throw error as i2c read still occuring
+        // Previous I2C read still in progress; drop this sample rather than
+        // launching an overlapping transaction.
+        s_dropped_sample_count++;
+        return;
     }
+
+    s_latest_ecg_sample.timestamp_us = rtc_get_epoch_us();
+    s_latest_ecg_sample.lod_p = HAL_GPIO_ReadPin(ECG_LOD_P_GPIO_Input_GPIO_Port, ECG_LOD_P_GPIO_Input_Pin);
+    s_latest_ecg_sample.lod_n = HAL_GPIO_ReadPin(ECG_LOD_N_GPIO_Input_GPIO_Port, ECG_LOD_N_GPIO_Input_Pin);
 
     s_waiting_for_sample = 1;
-    curent_sample->timestamp = rtc_get_epoch_us();
-    ads1219_read_data_raw_it(&curent_sample->value, acq_ecg_acquire_sample_callback);
-    curent_sample->lod_p = HAL_GPIO_ReadPin(ECG_LOD_P_GPIO_Input_GPIO_Port, ECG_LOD_P_GPIO_Input_Pin);
-    curent_sample->lod_n = HAL_GPIO_ReadPin(ECG_LOD_N_GPIO_Input_GPIO_Port, ECG_LOD_N_GPIO_Input_Pin);
-
-    // increment sample_position
-    ecg_sample_write_position = (ecg_sample_write_position + 1) % 2000;
-    if (ecg_sample_write_position == ecg_sample_read_position) {
-        // ToDo: handle buffer overflow
-    }
+    ads1219_read_data_raw_it(&s_latest_ecg_sample.value, acq_ecg_sample_ready_callback);
 }
 
-void acq_ecg_disable(void) {
+void acq_ecg_deinit(void) {
     /* disable acq_ecg interrupt */
     HAL_NVIC_DisableIRQ(EXTI2_IRQn);
     // ToDo: reconfigure ECG_NDRDY as analog to save power
@@ -67,24 +59,29 @@ void acq_ecg_disable(void) {
     HAL_GPIO_WritePin(ECG_ADC_NRSET_GPIO_Output_GPIO_Port, ECG_ADC_NRSET_GPIO_Output_Pin, GPIO_PIN_RESET);
 
     /* ToDo: Disable i2c2 peripheral to save power */
+    s_sample_complete_callback = NULL;
 }
 
-void acq_ecg_enable(void) {
+void acq_ecg_init(void) {
     // ToDo: error reporting
     /* turn on ADC */
     HAL_GPIO_WritePin(ECG_NSD_GPIO_Output_GPIO_Port, ECG_NSD_GPIO_Output_Pin, GPIO_PIN_SET);
     HAL_GPIO_WritePin(ECG_ADC_NRSET_GPIO_Output_GPIO_Port, ECG_ADC_NRSET_GPIO_Output_Pin, GPIO_PIN_SET);
 
     // enable i2c bus
-    HAL_I2C_RegisterCallback(&hi2c3, HAL_I2C_MSPINIT_CB_ID, HAL_I2C_MspInit);
-    HAL_I2C_RegisterCallback(&hi2c3, HAL_I2C_MSPDEINIT_CB_ID, HAL_I2C_MspDeInit);
+    HAL_I2C_RegisterCallback(&ECG_hi2c, HAL_I2C_MSPINIT_CB_ID, HAL_I2C_MspInit);
+    HAL_I2C_RegisterCallback(&ECG_hi2c, HAL_I2C_MSPDEINIT_CB_ID, HAL_I2C_MspDeInit);
     MX_I2C2_Init();
 
+    HAL_Delay(1);
     // ToDo: enable lead off detection
 
-    // configure adc
-    ads1219_reset();
     // Send a reset command
+    ads1219_reset();
+    HAL_Delay(1);
+    
+    
+    // configure adc
     const ADS1219_Configuration adc_config = {
         .vref = ADS1219_VREF_EXTERNAL,
         .gain = ADS1219_GAIN_ONE,
@@ -111,4 +108,10 @@ void acq_ecg_start(void) {
     ads1219_start();
 }
 
-void acq_ecg_task(void) {}
+void acq_ecg_stop(void) {
+    ads1219_stop();
+}
+
+void acq_ecg_register_sample_callback(void(*callback)(const EcgSample *p_sample)) {
+    s_sample_complete_callback = callback;
+}

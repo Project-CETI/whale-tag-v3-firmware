@@ -48,6 +48,7 @@ CetiTagRuntimeConfiguration nv_tag_config = {
     },
     .ecg = {
         .enabled = ECG_ENABLED,
+        .samplerate_ms = 1,
     },
     .flasher = {
         .enabled = FLASHER_ENABLED,

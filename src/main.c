@@ -291,7 +291,7 @@ if (!usb_iface_present()) {
 #endif
 
     /* basic BMS validation */
-    if (tag_config.battery.enabled) {
+    if (tag_config.hw_config.bms.available) {
         int bms_settings_verified = bms_ctl_verify();
         if (!bms_settings_verified) {
             // CETI_ERR("MAX17320 nonvolatile memory was not as expected: %s", wt_strerror_r(hw_result, err_str, sizeof(err_str)));
@@ -304,9 +304,13 @@ if (!usb_iface_present()) {
     }
 
     /* Initialize system sample acquistion (used by both mission and usb) ****/
-    acq_audio_init(&tag_config.audio);
+    if (tag_config.hw_config.audio.available) {
+        acq_audio_init(&tag_config.audio);
+    }
 
-    acq_battery_init(); // initialize battery sample acquisition
+    if (tag_config.hw_config.bms.available) {
+        acq_battery_init(); // initialize battery sample acquisition
+    }
 
 #if HW_VERSION == HW_VERSION_3_1_0 || HW_VERSION == HW_VERSION_3_1_1
     // Note: on these versions of the tag, GPS must be powered to prevent the
@@ -314,16 +318,35 @@ if (!usb_iface_present()) {
     HAL_GPIO_WritePin(GPS_PWR_EN_GPIO_Output_GPIO_Port, GPS_PWR_EN_GPIO_Output_Pin, GPIO_PIN_SET);
     HAL_GPIO_WritePin(GPS_NRST_GPIO_Output_GPIO_Port, GPS_NRST_GPIO_Output_Pin, GPIO_PIN_SET);
 #endif
-    // acq_ecg_enable();
-    gps_init();
-    gps_standby();
-    acq_pressure_init(tag_config.pressure.samplerate_ms);
-    burnwire_init();
-    // if (tag_config.imu.enabled) {
-
-    acq_imu_init(); /// @note IMU must be initialized after audio due to shared SPI bus
-    // MX_USART2_UART_Init();
-    // satellite_init();
+    if (tag_config.hw_config.ecg.available) {
+        acq_ecg_init();
+    }
+    if (tag_config.hw_config.flasher.available) {
+        // ToDo: initialize flasher hardware
+    }
+    if (tag_config.hw_config.water_sensor.available) {
+        // ToDo: initialize flasher hardware
+    }
+    if (tag_config.hw_config.gps.available) {
+        gps_init();
+        gps_standby();
+    }
+    if (tag_config.hw_config.pressure.available) {
+        acq_pressure_init(tag_config.pressure.samplerate_ms);
+    }
+    if (tag_config.hw_config.burnwire.available) {
+        burnwire_init();
+    }
+    if (tag_config.hw_config.imu.available) {
+        acq_imu_init(); /// @note IMU must be initialized after audio due to shared SPI bus
+    }
+    if (tag_config.hw_config.argos.available) {
+        // MX_USART2_UART_Init();
+        // satellite_init();
+    }
+    if (tag_config.hw_config.vhf_pinger.available) {
+        // ToDo: initialize flasher hardware
+    }
 
     /* Detect if the external interface is present to enable USB for offload/debug/DFU */
     if (usb_iface_present()) {

@@ -13,6 +13,7 @@
 #include "audio/acq_audio.h"
 #include "imu/acq_imu.h"
 #include "battery/acq_battery.h"
+#include "ecg/acq_ecg.h"
 #include "gps/acq_gps.h"
 #include "pressure/acq_pressure.h"
 
@@ -46,6 +47,10 @@ static void __stream_pressure_push_sample(const CetiPressureSample *p_sample) {
 
 static void __stream_battery_push_sample(const CetiBatterySample *p_sample) {
     stream_push_packet(STREAM_SENSOR_BATTERY, p_sample, sizeof(CetiBatterySample));
+}
+
+static void __stream_ecg_push_sample(const EcgSample* p_sample) {
+    stream_push_packet(STREAM_SENSOR_ECG, p_sample, sizeof(EcgSample));
 }
 
 static void __stream_gps_push_sample(const uint8_t *p_msg, uint16_t len) {
@@ -169,7 +174,10 @@ void stream_subscribe(StreamSensorId sensor) {
             break;
 
         case STREAM_SENSOR_ECG:
+            acq_ecg_register_sample_callback(__stream_ecg_push_sample);
+            acq_ecg_start();
             break;
+            
         default:
             break;
     }
@@ -233,6 +241,8 @@ void stream_unsubscribe(StreamSensorId sensor) {
             break;
 
         case STREAM_SENSOR_ECG:
+            acq_ecg_stop();
+            acq_ecg_register_sample_callback(NULL);
             break;
 
         default:

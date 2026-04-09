@@ -12,11 +12,11 @@ typedef enum {
     ADS1219_MUX_DIFF_0_1 = 0x00,
     ADS1219_MUX_DIFF_2_3 = 0x01,
     ADS1219_MUX_DIFF_1_2 = 0x02,
-    ADS1219_MUX_SINGLE_0 = 0x60,
-    ADS1219_MUX_SINGLE_1 = 0x80,
-    ADS1219_MUX_SINGLE_2 = 0xA0,
-    ADS1219_MUX_SINGLE_3 = 0xC0,
-    ADS1219_MUX_SHORTED = 0xE0,
+    ADS1219_MUX_SINGLE_0 = 0x03,
+    ADS1219_MUX_SINGLE_1 = 0x04,
+    ADS1219_MUX_SINGLE_2 = 0x05,
+    ADS1219_MUX_SINGLE_3 = 0x06,
+    ADS1219_MUX_SHORTED = 0x07,
 } ADS1219_Mux;
 
 typedef enum {
@@ -54,5 +54,6 @@ void ads1219_read_data_raw(int32_t *reading);
 void ads1219_read_data_raw_it(int32_t *reading, void (*callback)(void));
 void ads1219_reset(void);
 void ads1219_start(void);
+void ads1219_stop(void);
 
 #endif // ADS1219_H_

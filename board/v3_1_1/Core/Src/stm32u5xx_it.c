@@ -53,6 +53,7 @@
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 extern DMA_HandleTypeDef s_audio_dma_channel;
+extern I2C_HandleTypeDef hi2c2;
 
 /* USER CODE END 0 */
 
@@ -469,5 +470,19 @@ void SDMMC1_IRQHandler(void)
 }
 
 /* USER CODE BEGIN 1 */
+/**
+  * @brief This function handles I2C2 Event interrupt.
+  */
+void I2C2_EV_IRQHandler(void)
+{
+  HAL_I2C_EV_IRQHandler(&hi2c2);
+}
 
+/**
+  * @brief This function handles I2C2 Error interrupt.
+  */
+void I2C2_ER_IRQHandler(void)
+{
+  HAL_I2C_ER_IRQHandler(&hi2c2);
+}
 /* USER CODE END 1 */
