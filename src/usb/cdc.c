@@ -10,6 +10,7 @@
 #include "version_hw.h"
 #include "satellite/satellite.h"
 
+#include <stdbool.h>
 #include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -36,12 +37,14 @@ static void __cmd_burnwire(int argc, const char *const *argv);
 static void __cmd_datetime(int argc, const char *const *argv);
 static void __cmd_flasher(int argc, const char *const *argv);
 static void __cmd_help(int argc, const char *const *argv);
-static void __cmd_i2cdetect(int argc, const char *const *argv);
 static void __cmd_shutdown(int argc, const char *const *argv);
 static void __cmd_restart(int argc, const char *const *argv);
 static void __cmd_update(int argc, const char *const *argv);
 static void __cmd_vhf_pinger(int argc, const char *const *argv);
 
+static void __cmd_i2cdetect(int argc, const char *const *argv);
+static void __cmd_i2cset(int argc, const char *const *argv);
+static void __cmd_i2cget(int argc, const char *const *argv);
 
 static char s_cmdline[CMDLINE_MAX];
 static int s_cmdlen;
@@ -55,13 +58,15 @@ static const CdcCommand cdc_options[] = {
     {.key = "datetime", .description = "get/set RTC epoch", .action = __cmd_datetime},
     {.key = "flasher", .description = "enable/disanble antenna LED flasher", .action = __cmd_flasher},
     {.key = "help", .description = "list available commands", .action = __cmd_help},
-    {.key = "i2cdetect", .description = "list devices on specified i2c bus", .action = __cmd_i2cdetect},
     {.key = "restart", .description = "restart tag", .action = __cmd_restart},
     {.key = "shutdown", .description = "powerdown tag", .action = __cmd_shutdown},
     {.key = "update", .description = "reboot into DFU system bootloader", .action = __cmd_update},
     {.key = "vhf_pinger", .description = "enable/disabled VHF pinger", .action = __cmd_vhf_pinger},
-
+    
     // i2c passthrough
+    {.key = "i2cdetect", .description = "list devices on specified i2c bus", .action = __cmd_i2cdetect},
+    {.key = "i2cget", .description = "i2cget [b|w] <bus> <device> [register] [count]", .action = __cmd_i2cget},
+    {.key = "i2cset", .description = "i2cset [b|w] <bus> <device> <register> <value> [value...]", .action = __cmd_i2cset},
     // 
 };
 
@@ -210,38 +215,171 @@ static void __cmd_help(int argc, const char *const *argv) {
 extern I2C_HandleTypeDef hi2c1;
 extern I2C_HandleTypeDef hi2c2;
 extern I2C_HandleTypeDef hi2c3;
+
+static I2C_HandleTypeDef *__i2c_bus_from_arg(const char *arg) {
+    switch (arg[0]) {
+        case '1': return &hi2c1;
+        case '2': return &hi2c2;
+        case '3': return &hi2c3;
+        default:  return NULL;
+    }
+}
+
 static void __cmd_i2cdetect(int argc, const char *const *argv) {
     if (argc < 2) {
+        cdc_print("usage: i2cdetect <bus>" ENDL);
         return;
     }
 
-    I2C_HandleTypeDef *hi2c = NULL;
-    switch (argv[1][0]) {
-        case '1': 
-            hi2c = &hi2c1;
-            break;
-        case '2': 
-            hi2c = &hi2c2;
-            break;
-        case '3': 
-            hi2c = &hi2c3;
-            break;
-            
-        default:
-            break;
+    I2C_HandleTypeDef *hi2c = __i2c_bus_from_arg(argv[1]);
+    if (NULL == hi2c) {
+        cdc_print("invalid bus (1-3)" ENDL);
+        return;
     }
 
-    if (NULL != hi2c) {
-        for (uint8_t device_address = 0; device_address < 0x80; device_address++) {
-            // print out device address if it exists on the bus
-            if (HAL_OK == HAL_I2C_IsDeviceReady(hi2c, (device_address << 1), 3, 5)) {
-                char buf[32];
-                snprintf(buf, sizeof(buf), "%02x ", device_address);
-                cdc_print(buf);
-            }
+    for (uint8_t device_address = 0; device_address < 0x80; device_address++) {
+        if (HAL_OK == HAL_I2C_IsDeviceReady(hi2c, (device_address << 1), 3, 5)) {
+            char buf[32];
+            snprintf(buf, sizeof(buf), "%02x ", device_address);
+            cdc_print(buf);
         }
     }
     cdc_print(ENDL);
+}
+
+// i2cset [b|w] <bus> <device> <register> <value> [value...]
+static void __cmd_i2cset(int argc, const char *const *argv) {
+    if (argc < 5) {
+        cdc_print("usage: i2cset [b|w] <bus> <device> <register> <value> [value...]" ENDL);
+        return;
+    }
+
+    // optional width flag as first arg (default: byte)
+    int arg = 1;
+    int width = 1;
+    if (argv[arg][0] == 'b' && argv[arg][1] == '\0') {
+        arg++;
+    } else if (argv[arg][0] == 'w' && argv[arg][1] == '\0') {
+        width = 2;
+        arg++;
+    }
+
+    if (argc - arg < 4) {
+        cdc_print("usage: i2cset [b|w] <bus> <device> <register> <value> [value...]" ENDL);
+        return;
+    }
+
+    I2C_HandleTypeDef *hi2c = __i2c_bus_from_arg(argv[arg]);
+    if (NULL == hi2c) {
+        cdc_print("invalid bus (1-3)" ENDL);
+        return;
+    }
+    arg++;
+
+    uint8_t dev_addr = (uint8_t)strtol(argv[arg++], NULL, 0);
+    uint8_t reg_addr = (uint8_t)strtol(argv[arg++], NULL, 0);
+
+    int n_values = argc - arg;
+    uint8_t data[16];
+    int size = 0;
+    for (int i = 0; i < n_values && size < (int)sizeof(data); i++) {
+        uint16_t val = (uint16_t)strtol(argv[arg + i], NULL, 0);
+        data[size++] = (uint8_t)(val & 0xFF);
+        if (width == 2) {
+            data[size++] = (uint8_t)((val >> 8) & 0xFF);
+        }
+    }
+
+    HAL_StatusTypeDef status = HAL_I2C_Mem_Write(
+        hi2c, (dev_addr << 1), reg_addr, I2C_MEMADD_SIZE_8BIT,
+        data, (uint16_t)size, 10
+    );
+
+    cdc_print((status == HAL_OK) ? "OK" ENDL : "ERROR" ENDL);
+}
+
+// i2cget [b|w] <bus> <device> [register] [count]
+static void __cmd_i2cget(int argc, const char *const *argv) {
+    if (argc < 3) {
+        cdc_print("usage: i2cget [b|w] <bus> <device> [register] [count]" ENDL);
+        return;
+    }
+
+    // optional width flag as first arg (default: byte)
+    int arg = 1;
+    int width = 1;
+    if (argv[arg][0] == 'b' && argv[arg][1] == '\0') {
+        arg++;
+    } else if (argv[arg][0] == 'w' && argv[arg][1] == '\0') {
+        width = 2;
+        arg++;
+    }
+
+    if (argc - arg < 2) {
+        cdc_print("usage: i2cget [b|w] <bus> <device> [register] [count]" ENDL);
+        return;
+    }
+
+    I2C_HandleTypeDef *hi2c = __i2c_bus_from_arg(argv[arg]);
+    if (NULL == hi2c) {
+        cdc_print("invalid bus (1-3)" ENDL);
+        return;
+    }
+    arg++;
+
+    uint8_t dev_addr = (uint8_t)strtol(argv[arg++], NULL, 0);
+
+    // no register specified: read one unit directly from device
+    if (arg >= argc) {
+        uint8_t data[2];
+        HAL_StatusTypeDef status = HAL_I2C_Master_Receive(
+            hi2c, (dev_addr << 1), data, (uint16_t)width, 10
+        );
+        if (status == HAL_OK) {
+            char buf[16];
+            if (width == 2) {
+                uint16_t word = (uint16_t)data[0] | ((uint16_t)data[1] << 8);
+                snprintf(buf, sizeof(buf), "0x%04x" ENDL, word);
+            } else {
+                snprintf(buf, sizeof(buf), "0x%02x" ENDL, data[0]);
+            }
+            cdc_print(buf);
+        } else {
+            cdc_print("ERROR" ENDL);
+        }
+        return;
+    }
+
+    uint8_t reg_addr = (uint8_t)strtol(argv[arg++], NULL, 0);
+    int count = 1;
+    if (arg < argc) {
+        count = (int)strtol(argv[arg], NULL, 0);
+        if (count < 1) count = 1;
+        if (count > 16) count = 16;
+    }
+
+    uint8_t data[32];
+    uint16_t size = (uint16_t)(count * width);
+    HAL_StatusTypeDef status = HAL_I2C_Mem_Read(
+        hi2c, (dev_addr << 1), reg_addr, I2C_MEMADD_SIZE_8BIT,
+        data, size, 10
+    );
+
+    if (status == HAL_OK) {
+        for (int i = 0; i < count; i++) {
+            char buf[16];
+            if (width == 2) {
+                uint16_t word = (uint16_t)data[i * 2] | ((uint16_t)data[i * 2 + 1] << 8);
+                snprintf(buf, sizeof(buf), "0x%04x ", word);
+            } else {
+                snprintf(buf, sizeof(buf), "0x%02x ", data[i]);
+            }
+            cdc_print(buf);
+        }
+        cdc_print(ENDL);
+    } else {
+        cdc_print("ERROR" ENDL);
+    }
 }
 
 static void __cmd_restart(int argc, const char *const *argv) {
