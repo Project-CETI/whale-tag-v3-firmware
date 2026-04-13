@@ -5,7 +5,7 @@
  *           storage of said data.
  *   @project   Project CETI
  *   @copyright Harvard University Wood Lab
- *   @authors   Michael Salino-Hugg, [TODO: Add other contributors here]
+ *   @authors   Michael Salino-Hugg
  *****************************************************************************/
 
 #include "acq_ecg.h"
@@ -68,7 +68,6 @@ void acq_ecg_deinit(void) {
 }
 
 void acq_ecg_init(void) {
-    // ToDo: error reporting
     /* turn on ADC */
     HAL_GPIO_WritePin(ECG_NSD_GPIO_Output_GPIO_Port, ECG_NSD_GPIO_Output_Pin, GPIO_PIN_SET);
     HAL_GPIO_WritePin(ECG_ADC_NRSET_GPIO_Output_GPIO_Port, ECG_ADC_NRSET_GPIO_Output_Pin, GPIO_PIN_SET);

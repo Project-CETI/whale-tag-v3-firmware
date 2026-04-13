@@ -6,7 +6,6 @@
  *   @date      06/22/2023
  *   @copyright Harvard University Wood Lab
  *   @authors   Michael Salino-Hugg, Kaveet Grewal,
- *              [TODO: Add other contributors here]
  *****************************************************************************/
 
 #ifndef INC_RECOVERY_INC_GPS_H_

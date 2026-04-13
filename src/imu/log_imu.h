@@ -3,7 +3,7 @@
  *   @brief     code for saving acquired IMU data to disk
  *   @project   Project CETI
  *   @copyright Harvard University Wood Lab
- *   @authors   Michael Salino-Hugg, [TODO: Add other contributors here]
+ *   @authors   Michael Salino-Hugg
  *   @date      3/30/2026
  *****************************************************************************/
 #ifndef CETI_LOG_IMU_H

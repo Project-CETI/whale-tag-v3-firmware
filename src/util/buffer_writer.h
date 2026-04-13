@@ -3,7 +3,7 @@
  *   @brief     wrapper around a file to buffer the output.
  *   @project   Project CETI
  *   @copyright Harvard University Wood Lab
- *   @authors   Michael Salino-Hugg, [TODO: Add other contributors here]
+ *   @authors   Michael Salino-Hugg
  *****************************************************************************/
 #ifndef __CETI_BUFFER_WRITER_H__
 #define __CETI_BUFFER_WRITER_H__

@@ -2,7 +2,7 @@
 // Project:      CETI Tag Electronics
 // Version:      Refer to _versioning.h
 // Copyright:    Harvard University Wood Lab
-// Contributors: Michael Salino-Hugg, [TODO: Add other contributors here]
+// Contributors: Michael Salino-Hugg
 // Description: High-level LED controller
 //-----------------------------------------------------------------------------
 #ifndef __CETI_LED_H__

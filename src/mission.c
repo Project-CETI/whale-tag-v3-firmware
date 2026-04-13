@@ -1,7 +1,7 @@
 //-----------------------------------------------------------------------------
 // Project: CETI Tag Electronics
 // Copyright: Harvard University Wood Lab
-// Contributors: Michael Salino-Hugg, [TODO: Add other contributors here]
+// Contributors: Michael Salino-Hugg
 //-----------------------------------------------------------------------------
 
 #include <ctype.h>
@@ -19,6 +19,7 @@
 #include "ecg/acq_ecg.h"
 #include "error.h"
 #include "gps/acq_gps.h"
+#include "gps/log_gps.h"
 #include "imu/acq_imu.h"
 #include "imu/log_imu.h"
 #include "led/led.h"
@@ -29,11 +30,14 @@
 #include "satellite/satellite.h"
 #include "syslog.h"
 
-
 #include "main.h"
 #include <usart.h>
 
-void SystemClock_Config(void);
+#include "misson/mission_battery.h"
+#include "misson/mission_log.h"
+
+extern void SystemClock_Config(void);
+extern I2C_HandleTypeDef hi2c3;
 
 #define MISSION_DIVE_THRESHOLD_BAR (5.0)
 #define MISSION_SURFACE_THRESHOLD_BAR (1.0)
@@ -43,7 +47,11 @@ void SystemClock_Config(void);
 
 #define ARRAY_LEN(x) (sizeof((x)) / sizeof(*(x)))
 
+typedef void (*MissionTask)(void);
+
 static MissionState s_state = MISSION_STATE_ERROR;
+static volatile uint8_t s_update_periodic_mission_tasks = 0;
+TIM_HandleTypeDef mission_htim;
 
 static struct {
     uint8_t valid;
@@ -62,89 +70,7 @@ static struct {
     .valid = 0,
 };
 
-typedef void (*MissionTask)(void);
-
-const char *const MissionStateNames[] = {
-    [MISSION_STATE_MISSION_START] = "MISSION_START",
-    [MISSION_STATE_RECORD_SURFACE] = "RECORD_SURFACE",
-    [MISSION_STATE_RECORD_FLOATING] = "RECORD_FLOATING",
-    [MISSION_STATE_RECORD_DIVE] = "RECORD_DIVE",
-    [MISSION_STATE_BURN] = "BURN",
-    [MISSION_STATE_LOW_POWER_BURN] = "LOW_POWER_BURN",
-    [MISSION_STATE_RETRIEVE] = "RETRIEVE",
-    [MISSION_STATE_LOW_POWER_RETRIEVE] = "LOW_POWER_RETRIEVE",
-    [MISSION_STATE_ERROR] = "ERROR",
-};
-
-/* BATTERY CHECKS ************************************************************/
-#define LOW_VOLTAGE_THRESHOLD 3.3
-#define BATTERY_NOMINAL_CELL_VOLTAGE 3.8
-#define LOW_VOLTAGE_WINDOW_SIZE 4
-#define BATTERY_ERROR_COUNT_THRESHOLD 3
-
-static double s_battery_v_samples[2][LOW_VOLTAGE_WINDOW_SIZE] = {0};
-static size_t s_batter_v_position = 0;
-
-static double s_battery_v_sum[2] = {0};
-static uint16_t s_battery_consecutive_error_count = 0;
-
-static void __battery_task(void) {
-    if (!tag_config.battery.enabled){
-        return;
-    }
-
-    CetiBatterySample battery_sample = {};
-
-    // get latest sample
-    acq_battery_get(&battery_sample);
-
-    // update error count
-    if (battery_sample.error) {
-        s_battery_consecutive_error_count += 1;
-    } else {
-        s_battery_consecutive_error_count = 0;
-    }
-
-    // update average voltage
-    for (int i = 0; i < 2; i++) {
-        s_battery_v_sum[i] += battery_sample.cell_voltage_v[i] - s_battery_v_samples[i][s_batter_v_position];
-        s_battery_v_samples[i][s_batter_v_position] = battery_sample.cell_voltage_v[i];
-    }
-    s_batter_v_position = (s_batter_v_position + 1) % LOW_VOLTAGE_WINDOW_SIZE;
-    return;
-}
-
-static void __initialize_average_voltage_tracker(void) {
-    for (int cell_index = 0; cell_index < 2; cell_index++) {
-        s_battery_v_sum[cell_index] = LOW_VOLTAGE_WINDOW_SIZE * BATTERY_NOMINAL_CELL_VOLTAGE;
-        for (int sample_index = 0; sample_index < LOW_VOLTAGE_WINDOW_SIZE; sample_index++) {
-            s_battery_v_samples[cell_index][sample_index] = BATTERY_NOMINAL_CELL_VOLTAGE;
-        }
-    }
-}
-
-static int __is_low_voltage(void) {
-    if (!tag_config.battery.enabled){
-        return 0;
-    }
-
-    for (int i = 0; i < 2; i++) {
-        if (s_battery_v_sum[i] < (LOW_VOLTAGE_THRESHOLD * LOW_VOLTAGE_WINDOW_SIZE)) {
-            return 1;
-        }
-    }
-    return 0;
-}
-
-static int __is_battery_in_error(void) {
-    if (!tag_config.battery.enabled){
-        return 0;
-    }
-    return (s_battery_consecutive_error_count + 1 >= BATTERY_ERROR_COUNT_THRESHOLD);
-}
-
 /* PRESSURE CONTROLS *********************************************************/
-
 static int __is_low_pressure(void) {
     if (!tag_config.pressure.enabled){
         return 1;
@@ -242,105 +168,8 @@ static void __satellite_transmit_from_raw_with_log(RecoveryArgoModulation rconf,
 #warning "ToDo: Log ARGOS transmission" // log transmission
 }
 
-/* MISSION LOG ****************************************************************/
-#define MISSION_LOG_CSV_FILENAME "tag_mission.csv"
-#define MISSION_LOG_CSV_HEADER "Timestamp [us],RTC Count,Notes,State To Process,Next State\n"
-#include <app_filex.h>
-
-extern FX_MEDIA sdio_disk;
-static FX_FILE s_mission_log_file = {};
-
-/// @brief ititialize mission logging
-/// @param
-/// @return
-static int __log_mission_init(void) {
-
-    // try to create file
-    UINT fx_create_result = fx_file_create(&sdio_disk, MISSION_LOG_CSV_FILENAME);
-    if ((FX_SUCCESS != fx_create_result) && (FX_ALREADY_CREATED != fx_create_result)) {
-        error_queue_push(CETI_ERROR(ERR_SUBSYS_LOG_MISSION, ERR_TYPE_FILEX, fx_create_result));
-        return -1;
-    }
-
-    UINT fx_open_result = fx_file_open(&sdio_disk, &s_mission_log_file, MISSION_LOG_CSV_FILENAME, FX_OPEN_FOR_WRITE);
-    if (FX_SUCCESS != fx_open_result) {
-        error_queue_push(CETI_ERROR(ERR_SUBSYS_LOG_MISSION, ERR_TYPE_FILEX, fx_open_result));
-        return -1;
-    }
-
-    metadata_log_file_creation(MISSION_LOG_CSV_FILENAME, DATA_TYPE_MISSION, DATA_FORMAT_CSV, 0);
-
-
-    // check that the file has no contents
-    if ((0 == s_mission_log_file.fx_file_current_file_size)) {
-        UINT fx_write_result = fx_file_write(&s_mission_log_file, MISSION_LOG_CSV_HEADER, strlen(MISSION_LOG_CSV_HEADER));
-        if (FX_SUCCESS != fx_write_result) {
-            error_queue_push(CETI_ERROR(ERR_SUBSYS_LOG_MISSION, ERR_TYPE_FILEX, fx_write_result));
-            return -1;
-        }
-    }
-
-    return 0;
-}
-
-/// @brief Saves state transition to mission log `data_log.csv`
-/// @param current_state state at the start of the transistion
-/// @param next_state state at the end of the transistion
-static void __log_mission_state_transition(MissionState current_state, MissionState next_state) {
-    uint64_t transistion_time_us = rtc_get_epoch_us();
-
-    // generate log string
-    char transition_string[256] = {};
-    uint16_t transistion_string_length = snprintf(
-        transition_string, sizeof(transition_string) - 1,
-        "%lld, %lld, , %s, %s\n",
-        transistion_time_us, (transistion_time_us / 1000000), MissionStateNames[current_state], MissionStateNames[next_state]);
-
-    // write to file
-    UINT fx_result = fx_file_write(&s_mission_log_file, transition_string, transistion_string_length);
-    if (FX_SUCCESS != fx_result) {
-        error_queue_push(CETI_ERROR(ERR_SUBSYS_LOG_MISSION, ERR_TYPE_FILEX, fx_result));
-    }
-
-    fx_file_close(&s_mission_log_file);
-}
 
 /* GPS TASKS *****************************************************************/
-static FX_FILE gps_log_file = {};
-
-/// @brief initialize gps logging
-/// @param
-static void __log_gps_init(void) {
-    // try to create file
-    CETI_LOG("Created new gps file \"data_gps.log\"");
-    UINT fx_create_result = fx_file_create(&sdio_disk, "data_gps.log");
-    if ((FX_SUCCESS != fx_create_result) && (FX_ALREADY_CREATED != fx_create_result)) {
-        error_queue_push(CETI_ERROR(ERR_SUBSYS_LOG_GPS, ERR_TYPE_FILEX, fx_create_result));
-    }
-    UINT fx_result = fx_file_open(&sdio_disk, &gps_log_file, "data_gps.log", FX_OPEN_FOR_WRITE);
-    metadata_log_file_creation("data_gps.log", DATA_TYPE_GPS, DATA_FORMAT_TXT, 0);
-}
-
-/// @brief initialize gps logging
-/// @param
-static void __log_gps_deinit(void) {
-    fx_file_close(&gps_log_file);
-}
-
-/// @brief performs the task of logging gps coordinates to a file
-/// @param
-static void __log_gps_task(void) {
-    const uint8_t *gps_bulk_ptr = gps_pop_bulk_transfer();
-    if (NULL == gps_bulk_ptr) {
-        return;
-    }
-
-    UINT fx_result = fx_file_write(&gps_log_file, (char *)gps_bulk_ptr, GPS_BULK_TRANSFER_SIZE);
-    if (FX_SUCCESS != fx_result) { // Catch error
-        error_queue_push(CETI_ERROR(ERR_SUBSYS_LOG_MISSION, ERR_TYPE_FILEX, fx_result));
-    }
-}
-
 /// @brief  Parses RMC NMEA messages extracting relavent fields
 /// @param sentence pointer to RMC NMEA string
 /// @return 0 == invalid RMC NMEA message; 1 == valid nmea message with valid coord
@@ -651,6 +480,8 @@ static void __wdt_task(void) {
 }
 
 /* MISSION STATE MACHINE *****************************************************/
+
+
 static struct {
     uint8_t count;
     MissionTask tasks[64];
@@ -695,7 +526,7 @@ static void __update_state_dependent_task_list(MissionState state) {
     // log_gps/parse_gps
     if ((MISSION_STATE_RECORD_DIVE != state)) {
         if (tag_config.gps.enabled) {
-            __push_task(__log_gps_task);
+            __push_task(log_gps_task);
             __push_audio_task(state);
 
             __push_task(__parse_gps_task);
@@ -733,7 +564,7 @@ static void __update_state_dependent_task_list(MissionState state) {
 
 /// @brief Reconfigures tag for next mission state and updates the current state
 /// @param next_state
-void mission_set_state(MissionState next_state) {
+void mission_set_state(MissionState next_state, MissionTransitionCause cause) {
     /*
                           | RS | RF | RD | B | LPB | R | LPR
         audio             | X  | X  | X  | X |     | X |
@@ -854,8 +685,15 @@ void mission_set_state(MissionState next_state) {
     __update_state_dependent_task_list(next_state);
 
     // Log state transition
-    __log_mission_state_transition(s_state, next_state);
+    mission_log_state_transition(s_state, next_state, cause);
+    if (MISSION_STATE_LOW_POWER_RETRIEVE == next_state) {
+        mission_log_deinit(); // no state transitions after this state
+    }
 
+    // periodic state_machine task timer
+    if (MISSION_STATE_MISSION_START == next_state) {
+    	HAL_TIM_Base_Start_IT(&mission_htim);
+    }
     // update state
     s_state = next_state;
 
@@ -870,9 +708,67 @@ void mission_set_state(MissionState next_state) {
 
 }
 
+void TIM5_IRQHandler(void){
+  HAL_TIM_IRQHandler(&mission_htim);
+}
+
+static void __periodic_timer_msp_deinit(TIM_HandleTypeDef* tim_baseHandle) {
+    __HAL_RCC_MISSION_TIM_CLK_DISABLE();
+    HAL_NVIC_DisableIRQ(MISSION_TIM_IRQn);
+}
+
+static void __periodic_timer_msp_init(TIM_HandleTypeDef* tim_baseHandle) {
+    __HAL_RCC_MISSION_TIM_CLK_ENABLE();
+    HAL_NVIC_SetPriority(MISSION_TIM_IRQn, 0, 0);
+    HAL_NVIC_EnableIRQ(MISSION_TIM_IRQn);
+}
+
+static void __periodic_timer_complete_callback(TIM_HandleTypeDef* tim_baseHandle) {
+    if (s_update_periodic_mission_tasks == 1) {
+        // ToDo: Handle Error
+    }
+    s_update_periodic_mission_tasks = 1;
+}
+
+/// @brief set a 1 second timer for periodic tasks
+/// @param  
+static void __init_periodic_task_timer(void){
+    s_update_periodic_mission_tasks = 0;
+
+
+    TIM_ClockConfigTypeDef sClockSourceConfig = {0};
+    TIM_MasterConfigTypeDef sMasterConfig = {0};
+    
+    HAL_TIM_RegisterCallback(&mission_htim, HAL_TIM_BASE_MSPINIT_CB_ID, __periodic_timer_msp_init);
+    HAL_TIM_RegisterCallback(&mission_htim, HAL_TIM_BASE_MSPDEINIT_CB_ID, __periodic_timer_msp_deinit);
+
+    mission_htim.Instance = TIM5;
+    mission_htim.Init.Prescaler = 15999;
+    mission_htim.Init.CounterMode = TIM_COUNTERMODE_UP;
+    mission_htim.Init.Period = 10000;
+    mission_htim.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+    mission_htim.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+    if (HAL_TIM_Base_Init(&mission_htim) != HAL_OK)
+    {
+        Error_Handler();
+    }
+    sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
+    if (HAL_TIM_ConfigClockSource(&mission_htim, &sClockSourceConfig) != HAL_OK)
+    {
+        Error_Handler();
+    }
+    sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
+    sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+    if (HAL_TIMEx_MasterConfigSynchronization(&mission_htim, &sMasterConfig) != HAL_OK)
+    {
+        Error_Handler();
+    }
+
+    HAL_TIM_RegisterCallback(&mission_htim, HAL_TIM_PERIOD_ELAPSED_CB_ID, __periodic_timer_complete_callback);
+}
+
 /// @brief Initialize mission state machine
 /// @param
-extern I2C_HandleTypeDef hi2c3;
 void mission_init(void) {
     if (tag_config.audio.enabled) {
         CETI_LOG("Initializing Audio Logging");
@@ -915,19 +811,22 @@ void mission_init(void) {
     }
 
     error_queue_init(); // initialize error queue so we can log when issues occur
-    __initialize_average_voltage_tracker();
-#warning ToDo: initialize mission hardware
+
+    mission_battery_init();
+
     uint64_t now_timestamp_s = rtc_get_epoch_us()/1000000;
     // start burn timer
     s_burn_start_timestamp_s = now_timestamp_s + 4 * 60 * 60;
 
     // initialize gps log
-    __log_gps_init();
+    log_gps_init();
+
+    __init_periodic_task_timer();
 
     // force state transition
-    __log_mission_init(); // initialize mission log prior to performing initial state transistion.
+    mission_log_init(); // initialize mission log prior to performing initial state transistion.
     s_state = MISSION_STATE_ERROR;
-    mission_set_state(STARTING_STATE);
+    mission_set_state(STARTING_STATE, MISSION_TRANSITION_START);
 
     // Battery acquisition performed for all states
     acq_battery_start();
@@ -936,33 +835,39 @@ void mission_init(void) {
 /// @brief determines the next state the tag should transition into
 /// @param current_state
 /// @return
-static MissionState __mission_get_next_state(MissionState current_state) {
+static MissionState __mission_get_next_state(MissionState current_state, MissionTransitionCause transition_cause[static 1]) {
     switch (current_state) {
         case MISSION_STATE_MISSION_START: {
+            *transition_cause = MISSION_TRANSITION_START;
             return MISSION_STATE_RECORD_SURFACE;
         }
 
         case MISSION_STATE_RECORD_SURFACE: {
-            if (__is_low_voltage()) {
+            if (mission_battery_is_low_voltage()) {
                 CETI_LOG("Entering burn due to low voltage!!!");
+                *transition_cause = MISSION_TRANSITION_LOW_VOLTAGE;
                 return MISSION_STATE_LOW_POWER_BURN;
             }
 
-            if (__is_battery_in_error()) {
+            if (mission_battery_is_in_error()) {
                 CETI_LOG("Entering burn due to BMS errors!!!");
+                *transition_cause = MISSION_TRANSITION_BATTERY_ERRORS;
                 return MISSION_STATE_LOW_POWER_BURN;
             }
 
             if (__is_time_to_burn()) {
                 CETI_LOG("Entering burn due to timeout!!!");
+                *transition_cause = MISSION_TRANSITION_TIMER ;
                 return MISSION_STATE_BURN;
             }
 
             if (__is_high_pressure()) {
+                *transition_cause = MISSION_TRANSITION_HIGH_PRESSURE;
                 return MISSION_STATE_RECORD_DIVE;
             }
 
             if (__is_floating()) {
+                *transition_cause = MISSION_TRANSITION_FLOAT_DETECTED;
                 return MISSION_STATE_RECORD_FLOATING;
             }
 
@@ -970,11 +875,26 @@ static MissionState __mission_get_next_state(MissionState current_state) {
         } // case MISSION_STATE_RECORD_SURFACE
 
         case MISSION_STATE_RECORD_FLOATING: {
-            if (__is_low_voltage() || __is_battery_in_error() || __is_time_to_burn()) {
+            if (mission_battery_is_low_voltage()) {
+                CETI_LOG("Entering burn due to low voltage!!!");
+                *transition_cause = MISSION_TRANSITION_LOW_VOLTAGE;
                 return MISSION_STATE_LOW_POWER_BURN;
             }
 
+            if (mission_battery_is_in_error()) {
+                CETI_LOG("Entering burn due to BMS errors!!!");
+                *transition_cause = MISSION_TRANSITION_BATTERY_ERRORS;
+                return MISSION_STATE_LOW_POWER_BURN;
+            }
+
+            if (__is_time_to_burn()) {
+                CETI_LOG("Entering burn due to timeout!!!");
+                *transition_cause = MISSION_TRANSITION_TIMER;
+                return MISSION_STATE_BURN;
+            }
+
             if (__is_high_pressure()) {
+                *transition_cause = MISSION_TRANSITION_HIGH_PRESSURE;
                 return MISSION_STATE_RECORD_DIVE;
             }
 
@@ -986,15 +906,26 @@ static MissionState __mission_get_next_state(MissionState current_state) {
         } // case MISSION_STATE_RECORD_SURFACE
 
         case MISSION_STATE_RECORD_DIVE: {
-            if (__is_low_voltage() || __is_battery_in_error()) {
+            if (mission_battery_is_low_voltage()) {
+                CETI_LOG("Entering burn due to low voltage!!!");
+                *transition_cause = MISSION_TRANSITION_LOW_VOLTAGE;
+                return MISSION_STATE_LOW_POWER_BURN;
+            }
+
+            if (mission_battery_is_in_error()) {
+                CETI_LOG("Entering burn due to BMS errors!!!");
+                *transition_cause = MISSION_TRANSITION_BATTERY_ERRORS;
                 return MISSION_STATE_LOW_POWER_BURN;
             }
 
             if (__is_time_to_burn()) {
+                CETI_LOG("Entering burn due to timeout!!!");
+                *transition_cause = MISSION_TRANSITION_TIMER;
                 return MISSION_STATE_BURN;
             }
 
             if (__is_low_pressure()) {
+                *transition_cause = MISSION_TRANSITION_LOW_PRESSURE;
                 return MISSION_STATE_RECORD_SURFACE;
             }
 
@@ -1002,11 +933,20 @@ static MissionState __mission_get_next_state(MissionState current_state) {
         } // case MISSION_STATE_RECORD_DIVE
 
         case MISSION_STATE_BURN: {
-            if (__is_low_voltage() || __is_battery_in_error()) {
+            if (mission_battery_is_low_voltage()) {
+                CETI_LOG("Entering burn due to low voltage!!!");
+                *transition_cause = MISSION_TRANSITION_LOW_VOLTAGE;
+                return MISSION_STATE_LOW_POWER_BURN;
+            }
+
+            if (mission_battery_is_in_error()) {
+                CETI_LOG("Entering burn due to BMS errors!!!");
+                *transition_cause = MISSION_TRANSITION_BATTERY_ERRORS;
                 return MISSION_STATE_LOW_POWER_BURN;
             }
 
             if (__is_burn_complete()) {
+                *transition_cause = MISSION_TRANSITION_TIMER;
                 return MISSION_STATE_RETRIEVE;
             }
             return MISSION_STATE_BURN; // remain in current state
@@ -1014,6 +954,7 @@ static MissionState __mission_get_next_state(MissionState current_state) {
 
         case MISSION_STATE_LOW_POWER_BURN: {
             if (__is_burn_complete()) {
+                *transition_cause = MISSION_TRANSITION_TIMER;
                 return MISSION_STATE_LOW_POWER_RETRIEVE;
             }
 
@@ -1021,7 +962,15 @@ static MissionState __mission_get_next_state(MissionState current_state) {
         } // case MISSION_STATE_LOW_POWER_BURN
 
         case MISSION_STATE_RETRIEVE: {
-            if (__is_low_voltage() || __is_battery_in_error()) {
+            if (mission_battery_is_low_voltage()) {
+                CETI_LOG("Entering burn due to low voltage!!!");
+                *transition_cause = MISSION_TRANSITION_LOW_VOLTAGE;
+                return MISSION_STATE_LOW_POWER_RETRIEVE;
+            }
+
+            if (mission_battery_is_in_error()) {
+                CETI_LOG("Entering burn due to BMS errors!!!");
+                *transition_cause = MISSION_TRANSITION_BATTERY_ERRORS;
                 return MISSION_STATE_LOW_POWER_RETRIEVE;
             }
             return MISSION_STATE_RETRIEVE;
@@ -1053,11 +1002,15 @@ void mission_task(void) {
     // Check if tag is stuck not transmitting GPS via ARGOS
     __wdt_task();
 
-    __battery_task();
+    if(s_update_periodic_mission_tasks) {
+        mission_battery_task();
 
-    // Update the mission state
-    MissionState next_state = __mission_get_next_state(s_state);
-    mission_set_state(next_state);
+        // Update the mission state
+        MissionTransitionCause cause = MISSION_TRANSITION_NONE;
+        MissionState next_state = __mission_get_next_state(s_state, &cause);
+        mission_set_state(next_state, cause);
+        s_update_periodic_mission_tasks = 0;
+    }
 
     // Store any errors to file
     error_queue_flush();

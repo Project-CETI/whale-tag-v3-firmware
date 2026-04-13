@@ -3,7 +3,7 @@
  *   @brief     Battery sample acquisition and buffering code
  *   @project   Project CETI
  *   @copyright Harvard University Wood Lab
- *   @authors   Michael Salino-Hugg, [TODO: Add other contributors here]
+ *   @authors   Michael Salino-Hugg
  *****************************************************************************/
 #include "acq_battery.h"
 #include "bms_ctl.h"
@@ -79,9 +79,9 @@ static void __timer_complete_cb(TIM_HandleTypeDef *htim) {
 /// @param p_sample destination sample
 void acq_battery_get(CetiBatterySample * p_sample) {
     // prevent sample from being overwritten
-    HAL_NVIC_DisableIRQ(TIM2_IRQn);
+    HAL_NVIC_DisableIRQ(BATTERY_TIM_IRQn);
     *p_sample = s_sample;
-    HAL_NVIC_EnableIRQ(TIM2_IRQn);
+    HAL_NVIC_EnableIRQ(BATTERY_TIM_IRQn);
 }
 
 /// @brief Initializes BMS sampling interval timer

@@ -3,7 +3,7 @@
  *   @brief     Header file of AD7768-4 Driver.
  *   @project   Project CETI
  *   @copyright Harvard University Wood Lab
- *   @authors   Michael Salino-Hugg, [TODO: Add other contributors here]
+ *   @authors   Michael Salino-Hugg
  *****************************************************************************/
 #ifndef AD7768_H_
 #define AD7768_H_

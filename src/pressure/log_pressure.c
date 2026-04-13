@@ -3,10 +3,11 @@
  *   @brief     pressure processing and storing code.
  *   @project   Project CETI
  *   @copyright Harvard University Wood Lab
- *   @authors   Michael Salino-Hugg, [TODO: Add other contributors here]
+ *   @authors   Michael Salino-Hugg
  *****************************************************************************/
 #include "log_pressure.h"
 #include "acq_pressure.h"
+#include "error.h"
 #include "metadata.h"
 
 #include "syslog.h"
@@ -48,14 +49,14 @@ static void __create_csv_file(char *filename) {
     /* Create/open pressure file */
     UINT fx_create_result = fx_file_create(&sdio_disk, filename);
     if ((fx_create_result != FX_SUCCESS) && (fx_create_result != FX_ALREADY_CREATED)) {
-        #warning "ToDo: Handle Error creating file"
-        // Error_Handler();
+        error_queue_push(CETI_ERROR(ERR_SUBSYS_LOG_PRESSURE, ERR_TYPE_FILEX, fx_create_result), __create_csv_file);
+        return;
     }
 
     /* open file */
     UINT fx_open_result = buffer_writer_open(&s_bw, filename);
     if (FX_SUCCESS != fx_open_result) {
-        #warning "ToDo: Handle Error opening file"
+        error_queue_push(CETI_ERROR(ERR_SUBSYS_LOG_PRESSURE, ERR_TYPE_FILEX, fx_create_result), __create_csv_file);
         return;
     }
 
@@ -104,6 +105,8 @@ void log_pressure_buffer_sample(const CetiPressureSample *p_sample) {
     nv_write_position = (nv_write_position + 1) % PRESSURE_BUFFER_SIZE;
     if (nv_write_position == s_pressure_sample_buffer_read_position) {
         // ToDo: Handle overflow
+        error_queue_push(CETI_ERROR(ERR_SUBSYS_LOG_PRESSURE, ERR_TYPE_DEFAULT, ERR_BUFFER_OVERFLOW), log_pressure_buffer_sample);
+
     }
     s_pressure_sample_buffer_write_position = nv_write_position;
     if (log_pressure_sample_buffer_is_half_full()) {

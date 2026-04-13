@@ -1,7 +1,7 @@
 //-----------------------------------------------------------------------------
 // Project: CETI Tag Electronics
 // Copyright: Harvard University Wood Lab
-// Contributors: Michael Salino-Hugg, [TODO: Add other contributors here]
+// Contributors: Michael Salino-Hugg
 //----------------------------------------------------------------------------
 #ifndef CETI_ERROR_H
 #define CETI_ERROR_H
@@ -16,6 +16,7 @@ typedef enum {
     ERR_SUBSYS_LOG_MISSION,
     ERR_SUBSYS_SYSLOG,
     ERR_SUBSYS_MISSION,
+    ERR_SUBSYS_METADATA,
     ERR_SUBSYS_AUDIO,
     ERR_SUBSYS_LOG_AUDIO,
     ERR_SUBSYS_GPS,
@@ -41,6 +42,7 @@ typedef enum {
     ERR_NONE,
     ERR_BUFFER_OVERFLOW,
     ERR_OUTDATED_AOP_TABLE,
+    ERR_SLOW_SD_CARD_ACCESS,
 } DefaultErrorCode;
 
 #define CETI_STATUS_OK 0
@@ -50,7 +52,7 @@ typedef enum {
 #define CETI_ERR_CODE(status) ((status) & 0xFFFF)
 
 int error_queue_init(void);
-void error_queue_push(CetiStatus error);
+void error_queue_push(CetiStatus error, void *calling_func);
 void error_queue_flush(void);
 void error_queue_task(void);
 void error_queue_close(void);

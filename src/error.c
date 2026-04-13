@@ -1,7 +1,7 @@
 //-----------------------------------------------------------------------------
 // Project: CETI Tag Electronics
 // Copyright: Harvard University Wood Lab
-// Contributors: Michael Salino-Hugg, [TODO: Add other contributors here]
+// Contributors: Michael Salino-Hugg
 //-----------------------------------------------------------------------------
 #include "error.h"
 #include "metadata.h"
@@ -27,6 +27,7 @@ extern FX_MEDIA sdio_disk;
 typedef struct {
     uint8_t frame_header[4];
     CetiStatus error;
+    void *func;
     uint64_t timestamp;
 } ErrorQueueElement;
 
@@ -58,7 +59,7 @@ int error_queue_init(void) {
 
 /// @brief adds a timestamped error to the error queue to be logged
 /// @param error `CetiStatus` - error code to log
-void error_queue_push(CetiStatus error) {
+void error_queue_push(CetiStatus error, void *calling_func) {
     size_t nv_w = s_error_write_position;
     size_t next_w = (nv_w + 1) % 8;
     if (next_w == s_error_read_position) {
@@ -69,6 +70,7 @@ void error_queue_push(CetiStatus error) {
             .frame_header = ERROR_QUEUE_ELEMENT_HEADER,
             .error = error,
             .timestamp = 1,
+            .func = calling_func
         };
         s_error_write_position = next_w;
     }

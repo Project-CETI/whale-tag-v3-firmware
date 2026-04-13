@@ -1,7 +1,7 @@
 //-----------------------------------------------------------------------------
 // Project: CETI Tag Electronics
 // Copyright: Harvard University Wood Lab
-// Contributors: Michael Salino-Hugg, [TODO: Add other contributors here]
+// Contributors: Michael Salino-Hugg
 //-----------------------------------------------------------------------------
 #ifndef CETI_WHALE_TAG_USB_H
 #define CETI_WHALE_TAG_USB_H

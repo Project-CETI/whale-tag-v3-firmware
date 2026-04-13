@@ -3,13 +3,14 @@
  *   @brief     code for saving acquired battery data to disk
  *   @project   Project CETI
  *   @copyright Harvard University Wood Lab
- *   @authors   Michael Salino-Hugg, [TODO: Add other contributors here]
+ *   @authors   Michael Salino-Hugg
  *****************************************************************************/
 #include "main.h"
 
 #include "acq_battery.h"
 #include "log_battery.h"
 
+#include "error.h"
 #include "metadata.h"
 #include "syslog.h"
 #include "util/buffer_writer.h"
@@ -163,15 +164,13 @@ static void __open_csv_file(char *filename) {
     /* Create/open pressure file */
     UINT fx_create_result = fx_file_create(&sdio_disk, filename);
     if ((fx_create_result != FX_SUCCESS) && (fx_create_result != FX_ALREADY_CREATED)) {
-        #warning "ToDo: Handle Error creating file"
-        // Error_Handler();
+        error_queue_push(CETI_ERROR(ERR_SUBSYS_LOG_BMS, ERR_TYPE_FILEX, fx_create_result), __open_csv_file);
     }
 
     /* open file */
     UINT fx_open_result = buffer_writer_open(&s_bw, filename);
     if (FX_SUCCESS != fx_open_result) {
-        #warning "ToDo: Handle Error opening file"
-        return;
+        error_queue_push(CETI_ERROR(ERR_SUBSYS_LOG_BMS, ERR_TYPE_FILEX, fx_open_result), __open_csv_file);
     }
     
     metadata_log_file_creation(filename, DATA_TYPE_BMS, DATA_FORMAT_CSV, 0);
@@ -258,7 +257,7 @@ void log_battery_task(void) {
         size_t encoded_bytes = __sample_to_csv(p_sample, csv_encode_buffer, sizeof(csv_encode_buffer));
         UINT write_result = buffer_writer_write(&s_bw, csv_encode_buffer, encoded_bytes);
         if (FX_SUCCESS != write_result) {
-            #warning "ToDo: Handle write error"
+            error_queue_push(CETI_ERROR(ERR_SUBSYS_LOG_BMS, ERR_TYPE_FILEX, write_result), __open_csv_file);
         }
         s_sample_buffer_read_cursor = (1 + s_sample_buffer_read_cursor) % LOG_BATTERY_BUFFER_SIZE;
     }

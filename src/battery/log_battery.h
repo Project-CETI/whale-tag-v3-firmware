@@ -3,7 +3,7 @@
  *   @brief     code for saving acquired battery data to disk
  *   @project   Project CETI
  *   @copyright Harvard University Wood Lab
- *   @authors   Michael Salino-Hugg, [TODO: Add other contributors here]
+ *   @authors   Michael Salino-Hugg
  *****************************************************************************/
 #ifndef CETI_LOG_BATTERY_H
 #define CETI_LOG_BATTERY_H

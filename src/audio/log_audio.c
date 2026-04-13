@@ -3,16 +3,16 @@
  *   @brief     Audio sample processing and logging code
  *   @project   Project CETI
  *   @copyright Harvard University Wood Lab
- *   @authors   Michael Salino-Hugg, [TODO: Add other contributors here]
+ *   @authors   Michael Salino-Hugg
  *****************************************************************************/
 // local files
 #include "log_audio.h"
 #include "acq_audio.h"
 
+#include "error.h"
+#include "metadata.h"
 #include "syslog.h"
 #include "timing.h"
-#include "metadata.h"
-
 
 // stm libraries
 #include <app_filex.h>
@@ -92,7 +92,7 @@ int log_audio_raw_write(uint8_t *pData, uint32_t size) {
     // copy data directly to SD card
     UINT fx_result = fx_file_write(&audio_file, pData, size);
     if (FX_SUCCESS != fx_result) {
-#warning ToDo: handle log_audio_raw_write error
+        error_queue_push(CETI_ERROR(ERR_SUBSYS_LOG_AUDIO, ERR_TYPE_FILEX, fx_result), log_audio_raw_write);
     }
     write_count++;
 
@@ -146,7 +146,7 @@ void log_audio_block_complete_callback(uint16_t block_index) {
             s_audio_buffer_write_half = AUDIO_BUFFER_BLOCK_TO_HALF(block_index);
             HAL_PWR_DisableSleepOnExit(); // ensures control transitions to CPU for SD card write
         } else {
-            // ToDo: SD card write too slow
+            error_queue_push(CETI_ERROR(ERR_SUBSYS_LOG_AUDIO, ERR_TYPE_DEFAULT, ERR_BUFFER_OVERFLOW), log_audio_block_complete_callback);
         }
     }
 }

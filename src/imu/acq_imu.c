@@ -3,7 +3,7 @@
  *   @brief     IMU sample acquisition and buffering code
  *   @project   Project CETI
  *   @copyright Harvard University Wood Lab
- *   @authors   Michael Salino-Hugg, [TODO: Add other contributors here]
+ *   @authors   Michael Salino-Hugg
  *   @note      based on example from https://github.com/ceva-dsp/sh2-demo-nucleo
  *****************************************************************************/
 #include "acq_imu.h"

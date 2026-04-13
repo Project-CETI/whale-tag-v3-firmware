@@ -5,7 +5,7 @@
  *   @project   Project CETI
  *   @date      12/10/2025
  *   @copyright Harvard University Wood Lab
- *   @authors   Michael Salino-Hugg, [TODO: Add other contributors here]
+ *   @authors   Michael Salino-Hugg
  *****************************************************************************/
 #include "acq_gps.h"
 
@@ -123,7 +123,7 @@ void gps_rx_callback(UART_HandleTypeDef *huart, uint16_t pos) {
     if ((HAL_UART_RXEVENT_TC == huart->RxEventType) || (HAL_UART_RXEVENT_HT == huart->RxEventType)) {
         uint8_t next_bulk_write_position = gps_bulk_write_position ^ 1;
         if (next_bulk_write_position == gps_bulk_read_position) { // report buffer overflow
-            error_queue_push(CETI_ERROR(ERR_SUBSYS_GPS, ERR_TYPE_DEFAULT, ERR_BUFFER_OVERFLOW));
+            error_queue_push(CETI_ERROR(ERR_SUBSYS_GPS, ERR_TYPE_DEFAULT, ERR_BUFFER_OVERFLOW), gps_rx_callback);
             gps_bulk_read_position ^= 1; // advance read position as well
         }
         gps_bulk_write_position = next_bulk_write_position;

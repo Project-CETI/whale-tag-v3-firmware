@@ -3,7 +3,7 @@
  *   @brief     Audio sample processing and logging code
  *   @project   Project CETI
  *   @copyright Harvard University Wood Lab
- *   @authors   Michael Salino-Hugg, [TODO: Add other contributors here]
+ *   @authors   Michael Salino-Hugg
  *****************************************************************************/
 #ifndef CETI_LOG_AUDIO_H
 #define CETI_LOG_AUDIO_H

@@ -2,7 +2,7 @@
 // Project:      CETI Tag Electronics
 // Version:      Refer to _versioning.h
 // Copyright:    Harvard University Wood Lab
-// Contributors: Michael Salino-Hugg, [TODO: Add other contributors here]
+// Contributors: Michael Salino-Hugg
 // Description: Device driver for ktd2026ewe i2c led driver
 //-----------------------------------------------------------------------------
 #ifndef __KTD2026EWE_H__

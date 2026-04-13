@@ -1,7 +1,7 @@
 //-----------------------------------------------------------------------------
 // Project: CETI Tag Electronics
 // Copyright: Harvard University Wood Lab
-// Contributors: Michael Salino-Hugg, [TODO: Add other contributors here]
+// Contributors: Michael Salino-Hugg
 //-----------------------------------------------------------------------------
 
 /* Global & HAL includes */
@@ -325,7 +325,7 @@ if (!usb_iface_present()) {
         // ToDo: initialize flasher hardware
     }
     if (tag_config.hw_config.water_sensor.available) {
-        // ToDo: initialize flasher hardware
+        // ToDo: initialize water_sensor hardware
     }
     if (tag_config.hw_config.gps.available) {
         gps_init();
@@ -345,7 +345,7 @@ if (!usb_iface_present()) {
         // satellite_init();
     }
     if (tag_config.hw_config.vhf_pinger.available) {
-        // ToDo: initialize flasher hardware
+        // ToDo: initialize vhf_pinger hardware
     }
 
     /* Detect if the external interface is present to enable USB for offload/debug/DFU */

@@ -4,7 +4,7 @@
 // Copyright:    Cummings Electronics Labs, Harvard University Wood Lab,
 //               MIT CSAIL
 // Contributors: Matt Cummings, Peter Malkin, Joseph DelPreto,
-//               Michael Salino-Hugg, [TODO: Add other contributors here]
+//               Michael Salino-Hugg
 // Description: PDevice driver for Keller 4LD pressure transmitter
 //-----------------------------------------------------------------------------
 #ifndef __CETI_WHALE_TAG_HAL_KELLER_4LD__

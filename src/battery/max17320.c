@@ -3,7 +3,7 @@
  *   @brief     MAX17320+ BMS device driver
  *   @project   Project CETI
  *   @copyright Harvard University Wood Lab
- *   @authors   Michael Salino-Hugg, [TODO: Add other contributors here]
+ *   @authors   Michael Salino-Hugg
  *****************************************************************************/
 #include "main.h"
 

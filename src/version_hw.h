@@ -4,7 +4,7 @@
  *              compatibility options
  *   @project   Project CETI
  *   @copyright Harvard University Wood Lab
- *   @authors   Michael Salino-Hugg, [TODO: Add other contributors here]
+ *   @authors   Michael Salino-Hugg
  *****************************************************************************/
 // Version Date Description
 // 3_1.0   03/13/25 Begin work, establish framework

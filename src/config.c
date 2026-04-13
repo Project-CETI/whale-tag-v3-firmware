@@ -4,7 +4,7 @@
  *   @project   Project CETI
  *   @date      1/14/2025
  *   @copyright Harvard University Wood Lab
- *   @authors   Michael Salino-Hugg, [TODO: Add other contributors here]
+ *   @authors   Michael Salino-Hugg
  *****************************************************************************/
 #include "config.h"
 

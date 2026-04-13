@@ -12,13 +12,39 @@
 #include <stdint.h>
 #include <stdio.h>
 
+#include "battery/bms_ctl.h"
 #include "config.h"
+#include "error.h"
 #include "timing.h"
 #include "version.h"
 #include "version_hw.h"
 
 extern FX_MEDIA sdio_disk;
 static FX_FILE s_fp = {};
+
+static const char * data_type_str[] = {
+    [DATA_TYPE_METADATA] = "metadata",
+    [DATA_TYPE_ARGOS] = "argos",
+    [DATA_TYPE_AUDIO] = "audio",
+    [DATA_TYPE_BMS] = "bms",
+    [DATA_TYPE_BENCHMARK] = "benchmark",
+    [DATA_TYPE_ECG] = "ecg",
+    [DATA_TYPE_ERRORS] = "errors",
+    [DATA_TYPE_GPS] = "gps",
+    [DATA_TYPE_IMU_ROTATION] = "rotation",
+    [DATA_TYPE_IMU_ACCEL] = "accelerometer",
+    [DATA_TYPE_IMU_GYRO] = "gryoscope",
+    [DATA_TYPE_IMU_MAG] = "magnetometer",
+    [DATA_TYPE_MISSION] = "mission",
+    [DATA_TYPE_PRESSURE] = "pressure",
+};
+
+static const char * format_str[] = {
+    [DATA_FORMAT_YAML] = "yaml",
+    [DATA_FORMAT_CSV] = "csv",
+    [DATA_FORMAT_BIN] = "bin",
+    [DATA_FORMAT_TXT] = "txt",
+};
 
 static void __write_static_hardware_config(void) {
     uint16_t offset = 0;
@@ -164,6 +190,9 @@ static void __write_static_hardware_config(void) {
     }
 
     UINT fx_write_result = fx_file_write(&s_fp, buffer, offset);
+    if (FX_SUCCESS != fx_write_result) {
+        error_queue_push(CETI_ERROR(ERR_SUBSYS_METADATA, ERR_TYPE_FILEX, fx_write_result), __write_static_hardware_config);
+    }
 }
 
 static void __write_static_software_config(void) {
@@ -320,6 +349,9 @@ static void __write_static_software_config(void) {
     }
 
     UINT fx_write_result = fx_file_write(&s_fp, buffer, offset);
+    if (FX_SUCCESS != fx_write_result) {
+        error_queue_push(CETI_ERROR(ERR_SUBSYS_METADATA, ERR_TYPE_FILEX, fx_write_result), __write_static_software_config);
+    }    
 }
 
 static void __write_static_mission_config(void) {
@@ -393,6 +425,9 @@ static void __write_static_mission_config(void) {
     }
 
     UINT fx_write_result = fx_file_write(&s_fp, buffer, offset);
+    if (FX_SUCCESS != fx_write_result) {
+        error_queue_push(CETI_ERROR(ERR_SUBSYS_METADATA, ERR_TYPE_FILEX, fx_write_result), __write_static_mission_config);
+    }
 }
 
 static void __write_file_name_section(char *mission_directory) {
@@ -405,32 +440,11 @@ static void __write_file_name_section(char *mission_directory) {
         , mission_directory
     );
     UINT fx_write_result = fx_file_write(&s_fp, buffer, offset);
+    if (FX_SUCCESS != fx_write_result) {
+        error_queue_push(CETI_ERROR(ERR_SUBSYS_METADATA, ERR_TYPE_FILEX, fx_write_result), __write_file_name_section);
+    }
     return;
 }
-
-static const char * data_type_str[] = {
-    [DATA_TYPE_METADATA] = "metadata",
-    [DATA_TYPE_ARGOS] = "argos",
-    [DATA_TYPE_AUDIO] = "audio",
-    [DATA_TYPE_BMS] = "bms",
-    [DATA_TYPE_BENCHMARK] = "benchmark",
-    [DATA_TYPE_ECG] = "ecg",
-    [DATA_TYPE_ERRORS] = "errors",
-    [DATA_TYPE_GPS] = "gps",
-    [DATA_TYPE_IMU_ROTATION] = "rotation",
-    [DATA_TYPE_IMU_ACCEL] = "accelerometer",
-    [DATA_TYPE_IMU_GYRO] = "gryoscope",
-    [DATA_TYPE_IMU_MAG] = "magnetometer",
-    [DATA_TYPE_MISSION] = "mission",
-    [DATA_TYPE_PRESSURE] = "pressure",
-};
-
-static const char * format_str[] = {
-    [DATA_FORMAT_YAML] = "yaml",
-    [DATA_FORMAT_CSV] = "csv",
-    [DATA_FORMAT_BIN] = "bin",
-    [DATA_FORMAT_TXT] = "txt",
-};
 
 void metadata_log_file_creation(char * filename, DataType data_type, DataFormat format, uint16_t version) {
     uint16_t offset = 0;
@@ -442,15 +456,25 @@ void metadata_log_file_creation(char * filename, DataType data_type, DataFormat 
         , format_str[format]
         , version
     );
+    
     UINT fx_write_result = fx_file_write(&s_fp, buffer, offset);
+    if (FX_SUCCESS != fx_write_result) {
+        error_queue_push(CETI_ERROR(ERR_SUBSYS_METADATA, ERR_TYPE_FILEX, fx_write_result), metadata_log_file_creation);
+    }
     return;
 }
 
 void metadata_create(char * mission_directory) {
     // create file
     UINT fx_create_result = fx_file_create(&sdio_disk, "tag_info.yaml");
+    if (FX_SUCCESS != fx_create_result) {
+        error_queue_push(CETI_ERROR(ERR_SUBSYS_METADATA, ERR_TYPE_FILEX, fx_create_result), metadata_create);
+    }
 
     UINT fx_open_result = fx_file_open(&sdio_disk, &s_fp, "tag_info.yaml", FX_OPEN_FOR_WRITE);
+    if (FX_SUCCESS != fx_open_result) {
+        error_queue_push(CETI_ERROR(ERR_SUBSYS_METADATA, ERR_TYPE_FILEX, fx_open_result), metadata_create);
+    }
 
     // write basic info    
     uint16_t offset = 0;

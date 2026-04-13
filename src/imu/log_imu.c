@@ -3,13 +3,14 @@
  *   @brief     code for saving acquired IMU data to disk
  *   @project   Project CETI
  *   @copyright Harvard University Wood Lab
- *   @authors   Michael Salino-Hugg, [TODO: Add other contributors here]
+ *   @authors   Michael Salino-Hugg
  *   @date      3/30/2026
  *****************************************************************************/
 #include "log_imu.h"
 
 #include "acq_imu.h"
 
+#include "error.h"
 #include "metadata.h"
 
 #include "syslog.h"
@@ -131,14 +132,14 @@ static void __create_csv_file(ImuSensor sensor_type) {
     /* Create/open imu file */
     UINT fx_create_result = fx_file_create(&sdio_disk, s_filename[sensor_type]);
     if ((fx_create_result != FX_SUCCESS) && (fx_create_result != FX_ALREADY_CREATED)) {
-        #warning "ToDo: Handle Error creating file"
-        // Error_Handler();
+        error_queue_push(CETI_ERROR(ERR_SUBSYS_LOG_IMU, ERR_TYPE_FILEX, fx_create_result), __create_csv_file);
+        return;
     }
 
     /* open file */
     UINT fx_open_result = buffer_writer_open(&s_bw[sensor_type], s_filename[sensor_type]);
     if (FX_SUCCESS != fx_open_result) {
-        #warning "ToDo: Handle Error opening file"
+        error_queue_push(CETI_ERROR(ERR_SUBSYS_LOG_IMU, ERR_TYPE_FILEX, fx_open_result), __create_csv_file);
         return;
     }
 
@@ -256,7 +257,7 @@ void log_imu_accel_sample_callback(const sh2_SensorValue_t *p_sample) {
     s_sample_buffer[IMU_SENSOR_ACCELEROMETER][nv_w] = *p_sample;
     nv_w = (nv_w + 1) % IMU_PACKET_BUFFER_LEN;
     if (nv_w == s_sample_buffer_read_cursor[IMU_SENSOR_ACCELEROMETER]) {
-        // ToDo: Handle overflow
+        error_queue_push(CETI_ERROR(ERR_SUBSYS_LOG_IMU, ERR_TYPE_DEFAULT, ERR_BUFFER_OVERFLOW), log_imu_accel_sample_callback);
     }
     s_sample_buffer_write_cursor[IMU_SENSOR_ACCELEROMETER] = nv_w;
 }
@@ -266,7 +267,7 @@ void log_imu_gyro_sample_callback(const sh2_SensorValue_t *p_sample) {
     s_sample_buffer[IMU_SENSOR_GYROSCOPE][nv_w] = *p_sample;
     nv_w = (nv_w + 1) % IMU_PACKET_BUFFER_LEN;
     if (nv_w == s_sample_buffer_read_cursor[IMU_SENSOR_GYROSCOPE]) {
-        // ToDo: Handle overflow
+        error_queue_push(CETI_ERROR(ERR_SUBSYS_LOG_IMU, ERR_TYPE_DEFAULT, ERR_BUFFER_OVERFLOW), log_imu_gyro_sample_callback);
     }
     s_sample_buffer_write_cursor[IMU_SENSOR_GYROSCOPE] = nv_w;
 }
@@ -276,7 +277,7 @@ void log_imu_mag_sample_callback(const sh2_SensorValue_t *p_sample) {
     s_sample_buffer[IMU_SENSOR_MAGNETOMETER][nv_w] = *p_sample;
     nv_w = (nv_w + 1) % IMU_PACKET_BUFFER_LEN;
     if (nv_w == s_sample_buffer_read_cursor[IMU_SENSOR_MAGNETOMETER]) {
-        // ToDo: Handle overflow
+        error_queue_push(CETI_ERROR(ERR_SUBSYS_LOG_IMU, ERR_TYPE_DEFAULT, ERR_BUFFER_OVERFLOW), log_imu_mag_sample_callback);
     }
     s_sample_buffer_write_cursor[IMU_SENSOR_MAGNETOMETER] = nv_w;
 }
@@ -286,7 +287,7 @@ void log_imu_quat_sample_callback(const sh2_SensorValue_t *p_sample) {
     s_sample_buffer[IMU_SENSOR_ROTATION][nv_w] = *p_sample;
     nv_w = (nv_w + 1) % IMU_PACKET_BUFFER_LEN;
     if (nv_w == s_sample_buffer_read_cursor[IMU_SENSOR_ROTATION]) {
-        // ToDo: Handle overflow
+        error_queue_push(CETI_ERROR(ERR_SUBSYS_LOG_IMU, ERR_TYPE_DEFAULT, ERR_BUFFER_OVERFLOW), log_imu_quat_sample_callback);
     }
     s_sample_buffer_write_cursor[IMU_SENSOR_ROTATION] = nv_w;
 }

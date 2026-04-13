@@ -1,7 +1,7 @@
 /*****************************************************************************
  *   @file   ads1219.h
  *   @brief  Header file of ADS1219 Driver.
- *   @author Michael Salino-Hugg, [TODO: Add other contributors here]
+ *   @author Michael Salino-Hugg
  *****************************************************************************/
 #ifndef ADS1219_H_
 #define ADS1219_H_

@@ -6,7 +6,7 @@
  *   @project   Project CETI
  *   @date      12/10/2025
  *   @copyright Harvard University Wood Lab
- *   @authors   Michael Salino-Hugg, [TODO: Add other contributors here]
+ *   @authors   Michael Salino-Hugg
  *****************************************************************************/
 #include "argos_tx_mgr.h"
 
@@ -292,7 +292,7 @@ void argos_tx_mgr_enable(void) {
     if (aop_timestamp_s + 31536000 < rtc_get_epoch_s()) {
         s_argos_tx_ready = 1;
         __timer_enable();
-        error_queue_push(CETI_ERROR(ERR_SUBSYS_ARGOS, ERR_TYPE_DEFAULT, ERR_OUTDATED_AOP_TABLE));
+        error_queue_push(CETI_ERROR(ERR_SUBSYS_ARGOS, ERR_TYPE_DEFAULT, ERR_OUTDATED_AOP_TABLE), argos_tx_mgr_enable);
         return;
     }
 

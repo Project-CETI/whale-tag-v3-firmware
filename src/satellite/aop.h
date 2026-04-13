@@ -4,7 +4,7 @@
  *              CLS's API
  *   @project   Project CETI
  *   @date      Wed Apr  8 16:22:55 EDT 2026
- *   @authors   Michael Salino-Hugg, [TODO: Add other contributors here]
+ *   @authors   Michael Salino-Hugg
  *****************************************************************************/
 #ifndef CETI_AOP_H
 #define CETI_AOP_H
