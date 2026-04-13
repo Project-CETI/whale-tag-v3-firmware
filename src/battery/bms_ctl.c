@@ -115,6 +115,10 @@ int bms_ctl_program_nonvolatile_memory(void) {
     return 0;
 }
 
+int bms_ctl_get_cycles(uint16_t *p_cycles) {
+    return max17320_read(MAX17320_REG_CYCLES, p_cycles);
+}
+
 int bms_ctl_temporary_overwrite_nv_values(void) {
     int hw_result = max17320_clear_write_protection();
     if (hw_result == CETI_STATUS_OK) {

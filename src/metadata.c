@@ -232,6 +232,14 @@ static void __write_static_software_config(void) {
                 , id_buffer
                 , address_buffer
             );
+
+            uint16_t cycles = 0;
+            int bms_status = bms_ctl_get_cycles(&cycles);
+            if (0 == bms_status) {
+                offset += snprintf((char *)&buffer[offset], sizeof(buffer) - offset, 
+                    "    cycles: %d\n", cycles
+                );
+            }
         }
     }
 
