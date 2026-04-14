@@ -54,6 +54,7 @@
 /* USER CODE BEGIN 0 */
 extern DMA_HandleTypeDef s_audio_dma_channel;
 extern I2C_HandleTypeDef hi2c2;
+extern UART_HandleTypeDef huart1;
 
 /* USER CODE END 0 */
 
@@ -416,6 +417,14 @@ void SPI1_IRQHandler(void)
   /* USER CODE BEGIN SPI1_IRQn 1 */
 
   /* USER CODE END SPI1_IRQn 1 */
+}
+
+/**
+  * @brief This function handles USART1 global interrupt.
+  */
+void USART1_IRQHandler(void)
+{
+  HAL_UART_IRQHandler(&huart1);
 }
 
 /**

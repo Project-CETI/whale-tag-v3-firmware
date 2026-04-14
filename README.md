@@ -95,6 +95,9 @@ The produced .elf file can still be debugged inside stm32CubeIDE by importing th
 ## VSCode
 [Instructions](https://stm32world.com/wiki/STM32_development_and_debugging_using_VSCode) for setting up and debugging with VSCode.
 
+For on-chip debugging with Cortex-Debug + OpenOCD (native Linux, Windows+WSL,
+or Windows-hybrid workflows), see [DEBUGGING.md](DEBUGGING.md).
+
 # Linting
 A lint check is performed by the github CI/CD pipeline. To run a lint check locally on your code prior to pushing to a branch run:
 ```
