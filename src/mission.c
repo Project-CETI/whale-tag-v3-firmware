@@ -33,8 +33,9 @@
 #include "main.h"
 #include <usart.h>
 
-#include "misson/mission_battery.h"
-#include "misson/mission_log.h"
+#include "mission/float_detection.h"
+#include "mission/mission_battery.h"
+#include "mission/mission_log.h"
 
 extern void SystemClock_Config(void);
 extern I2C_HandleTypeDef hi2c3;
@@ -119,13 +120,7 @@ static int __is_burn_complete(void) {
 
 /* BURN CONTROLS *************************************************************/
 
-/// @brief checks whether the tag is floating in the water
-/// @param
-/// @return bool - true tag floating; false tag not floating
-static int __is_floating(void) {
-#warning "ToDo: implement __is_floating()"
-    return 0;
-}
+
 
 /// @brief Transmits an input to satelite, and generates log of message sent
 /// @param message pointer to input array
@@ -867,9 +862,11 @@ static MissionState __mission_get_next_state(MissionState current_state, Mission
                 return MISSION_STATE_RECORD_DIVE;
             }
 
-            if (__is_floating()) {
-                *transition_cause = MISSION_TRANSITION_FLOAT_DETECTED;
-                return MISSION_STATE_RECORD_FLOATING;
+            if (tag_config.mission.float_detection.enabled){
+                if (float_detection_is_floating()) {
+                    *transition_cause = MISSION_TRANSITION_FLOAT_DETECTED;
+                    return MISSION_STATE_RECORD_FLOATING;
+                }
             }
 
             return MISSION_STATE_RECORD_SURFACE; // remain in current state
@@ -899,8 +896,10 @@ static MissionState __mission_get_next_state(MissionState current_state, Mission
                 return MISSION_STATE_RECORD_DIVE;
             }
 
-            if (!__is_floating()) {
-                return MISSION_STATE_RECORD_SURFACE;
+            if (tag_config.mission.float_detection.enabled){
+                if (!float_detection_is_floating()) {
+                    return MISSION_STATE_RECORD_SURFACE;
+                }
             }
 
             return MISSION_STATE_RECORD_FLOATING; // remain in current state
@@ -1005,6 +1004,13 @@ void mission_task(void) {
 
     if(s_update_periodic_mission_tasks) {
         mission_battery_task();
+
+        if (tag_config.mission.float_detection.enabled){
+            // Update float detection
+            sh2_SensorValue_t rotation;
+            acq_imu_get_rotation(&rotation); 
+            float_detection_push_rotation(&rotation.un.rotationVector);
+        }
 
         // Update the mission state
         MissionTransitionCause cause = MISSION_TRANSITION_NONE;

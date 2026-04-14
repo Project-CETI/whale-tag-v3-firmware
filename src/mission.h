@@ -4,8 +4,8 @@
 // Copyright: Harvard University Wood Lab
 // Contributors: Michael Salino-Hugg
 //-----------------------------------------------------------------------------
-#ifndef CETI_WHALE_TAG_MISSON_H
-#define CETI_WHALE_TAG_MISSON_H
+#ifndef CETI_WHALE_TAG_MISSION_H
+#define CETI_WHALE_TAG_MISSION_H
 
 typedef enum {
     MISSION_STATE_MISSION_START,

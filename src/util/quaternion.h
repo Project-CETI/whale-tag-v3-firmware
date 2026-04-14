@@ -7,15 +7,18 @@
 #define quaternion_addition(T) quaternion_addition_##T
 #define quaternion_subtraction(T) quaternion_subtraction_##T
 #define quaternion_magnitude(T) quaternion_magnitude_##T
+#define quaternion_remove_yaw(T) quaternion_remove_yaw_##T
 
-/* Generic Type implementation */
-#define IMPLEMENT_QUATERION_TYPE(T) typedef struct {                                     \
+#define DEFINE_QUATERION_TYPE(T)                                                         \
+typedef struct {                                                                         \
     T real;                                                                              \
     T i;                                                                                 \
     T j;                                                                                 \
     T k;                                                                                 \
-} Quaternion(T);                                                                         \
-                                                                                         \
+} Quaternion(T);                                                                         
+
+/* Generic Type implementation */
+#define IMPLEMENT_QUATERION_TYPE(T)                                                      \
 static inline                                                                            \
 Quaternion(T) quaternion_multiplication(T)(Quaternion(T) q1, Quaternion(T) q2) {         \
     return (Quaternion(T)){                                                              \
@@ -30,9 +33,9 @@ static inline Quaternion(T) quaternion_remove_yaw(T)(Quaternion(T) q_in) {      
     /* calculate sin(yaw) and cos(yaw) */                                                \
     float sinyCosp = 2.0 * (q_in.real * q_in.k + q_in.i * q_in.j);                       \
     float cosyCosp = 1.0 - 2.0 * (q_in.j * q_in.j + q_in.k * q_in.k);                    \
+    float cosp = sqrt(sinyCosp*sinyCosp + cosyCosp*cosyCosp);                            \
     float siny = sinyCosp/cosp;                                                          \
     float cosy = cosyCosp/cosp;                                                          \
-    float cosp = sqrt(sinyCosp*sinyCosp + cosyCosp*cosyCosp);                            \
     /* use half angle identities to get half yaw values */                               \
     if (cosy == 1.0) {                                                                   \
         return q_in;                                                                     \

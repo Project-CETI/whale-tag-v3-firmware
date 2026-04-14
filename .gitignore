@@ -27,7 +27,6 @@ example_output/
 *.launch
 
 #ignore vscode files
-.vscode/
 
 #ignore this to ensure .gitmodules get initiallized
 .gitmodules_updated

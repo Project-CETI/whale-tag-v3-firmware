@@ -1,0 +1,13 @@
+{
+    "files.associations": {
+        "nv_memory": "c",
+        "log_audio.h": "c",
+        "max17320.h": "c",
+        "acq_battery.h": "c",
+        "stm32u5xx_hal.h": "c",
+        "log_syslog.h": "c",
+        "mission.h": "c"
+    },
+    "BOARD": "v3_1_1",
+    "MODE": "release",
+}
