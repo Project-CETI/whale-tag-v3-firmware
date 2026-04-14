@@ -15,6 +15,9 @@ src/satellite/aop.h
 #ignore agros certification key
 src/satellite/arribada_secret.h
 
+#ingore example_output
+example_output/
+
 # MxCube ignore generated files
 
 # ignore eclipse files

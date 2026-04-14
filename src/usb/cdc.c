@@ -21,6 +21,11 @@
 #define CMDLINE_MAX 101
 #define BOOTLOADER_REQUEST_MAGIC 0xB00710ADUL
 
+
+extern I2C_HandleTypeDef hi2c1;
+extern I2C_HandleTypeDef hi2c2;
+extern I2C_HandleTypeDef hi2c3;
+
 typedef struct cdc_cmd_t {
     const char *key;
     const char *description;
@@ -72,6 +77,9 @@ static const CdcCommand cdc_options[] = {
 
 #define NUM_COMMANDS (sizeof(cdc_options) / sizeof(cdc_options[0]))
 
+/// @brief enable/disable audio-+5 voltage
+/// @param argc argument_count
+/// @param argv argument_values
 static void __cmd_audio_negative(int argc, const char *const *argv) {
     if (argc < 2) {
         return;
@@ -91,6 +99,9 @@ static void __cmd_audio_negative(int argc, const char *const *argv) {
     }
 }
 
+/// @brief enable/disable audio +5 voltage
+/// @param argc argument_count
+/// @param argv argument_values
 static void __cmd_audio_positive(int argc, const char *const *argv) {
     if (argc < 2) {
         return;
@@ -110,6 +121,9 @@ static void __cmd_audio_positive(int argc, const char *const *argv) {
     }
 }
 
+/// @brief send a message via argos
+/// @param argc argument_count
+/// @param argv argument_values
 static void __cmd_argos_message(int argc, const char *const *argv) {
     uint16_t msg_length = 0;
     uint16_t max_length = 24; // ToDo:change based on args protocol
@@ -138,10 +152,16 @@ static void __cmd_argos_message(int argc, const char *const *argv) {
 
 }
 
+/// @brief write bms settings to nonvolatile memory
+/// @param argc argument_count
+/// @param argv argument_values
 static void __cmd_bms_program(int argc, const char *const *argv) {
     bms_ctl_program_nonvolatile_memory();
 }
 
+/// @brief disable or enable burnwire
+/// @param argc argument_count
+/// @param argv argument_values
 static void __cmd_burnwire(int argc, const char *const *argv) {
     if ((argc >= 2) && (strcmp(argv[1], "0") == 0)) {
         burnwire_off();
@@ -157,6 +177,9 @@ static void __cmd_burnwire(int argc, const char *const *argv) {
     }
 }
 
+/// @brief get or set rtc date time
+/// @param argc argument_count
+/// @param argv argument_values
 static void __cmd_datetime(int argc, const char *const *argv) {
     if (argc < 2) {
         cdc_print("usage: datetime <epoch> | datetime ?" ENDL);
@@ -182,6 +205,9 @@ static void __cmd_datetime(int argc, const char *const *argv) {
     cdc_print("OK" ENDL);
 }
 
+/// @brief enable of disable antenna flasher
+/// @param argc argument_count
+/// @param argv argument_values
 static void __cmd_flasher(int argc, const char *const *argv) {
     if (argc < 2) {
         return;
@@ -201,6 +227,9 @@ static void __cmd_flasher(int argc, const char *const *argv) {
     }
 }
 
+/// @brief print help message
+/// @param argc argument_count
+/// @param argv argument_values
 static void __cmd_help(int argc, const char *const *argv) {
     for (size_t i = 0; i < NUM_COMMANDS; i++) {
         cdc_print("  ");
@@ -386,11 +415,18 @@ static void __cmd_restart(int argc, const char *const *argv) {
     NVIC_SystemReset();
 }
 
+/// @brief shutdown tag
+/// @param argc argument_count
+/// @param argv argument_values
+/// @note formerly known as "Sleep" in v2.x
 static void __cmd_shutdown(int argc, const char *const *argv) {
     bms_disable_FETs();
     HAL_PWREx_EnterSHUTDOWNMode(); // tag shutdown if powered by
 }
 
+/// @brief restart the tag in STM32 bootloader
+/// @param argc argument_count
+/// @param argv argument_values
 static void __cmd_update(int argc, const char *const *argv) {
     cdc_print("Rebooting into DFU system bootloader..." ENDL);
     tud_cdc_write_flush();
@@ -406,6 +442,9 @@ static void __cmd_update(int argc, const char *const *argv) {
     NVIC_SystemReset();
 }
 
+/// @brief enable/disable vhf pinger
+/// @param argc argument_count
+/// @param argv argument_values
 static void __cmd_vhf_pinger(int argc, const char *const *argv) {
 #ifdef VHF_EN_GPIO_Output_Pin
     if (argc < 2) {
