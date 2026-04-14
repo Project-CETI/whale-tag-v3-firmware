@@ -83,7 +83,7 @@ static uint8_t __dec_to_bcd(uint8_t val) {
 }
 
 void rtc_set_epoch_s(uint64_t epoch) {
-    struct tm *dt = gmtime(&epoch);
+    struct tm *dt = gmtime((time_t*)&epoch);
     if (dt == NULL) {
         return;
     }

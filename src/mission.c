@@ -49,7 +49,7 @@ extern I2C_HandleTypeDef hi2c3;
 
 typedef void (*MissionTask)(void);
 
-static MissionState s_state = MISSION_STATE_ERROR;
+static MissionState s_state = MISSION_STATE_MISSION_START;
 static volatile uint8_t s_update_periodic_mission_tasks = 0;
 TIM_HandleTypeDef mission_htim;
 
@@ -596,11 +596,12 @@ void mission_set_state(MissionState next_state, MissionTransitionCause cause) {
                 [IMU_SENSOR_ROTATION] = log_imu_quat_sample_callback,
             };
             for (int sensor_indx = 0; sensor_indx < IMU_SENSOR_COUNT; sensor_indx++) {
-                if (tag_config.imu.sensor[sensor_indx].enabled) {
+                if (!tag_config.imu.sensor[sensor_indx].enabled) {
                     continue;
                 }
                 acq_imu_register_callback(sensor_indx, cb[sensor_indx]);
-                int ret = acq_imu_start_sensor(sensor_indx, (uint32_t)tag_config.imu.sensor[sensor_indx].samplerate_ms * 1000);
+                [[maybe_unused]]int ret;
+                ret = acq_imu_start_sensor(sensor_indx, (uint32_t)tag_config.imu.sensor[sensor_indx].samplerate_ms * 1000);
             }
         }
     }
@@ -825,7 +826,7 @@ void mission_init(void) {
 
     // force state transition
     mission_log_init(); // initialize mission log prior to performing initial state transistion.
-    s_state = MISSION_STATE_ERROR;
+    s_state = MISSION_STATE_MISSION_START;
     mission_set_state(STARTING_STATE, MISSION_TRANSITION_START);
 
     // Battery acquisition performed for all states
@@ -839,7 +840,7 @@ static MissionState __mission_get_next_state(MissionState current_state, Mission
     switch (current_state) {
         case MISSION_STATE_MISSION_START: {
             *transition_cause = MISSION_TRANSITION_START;
-            return MISSION_STATE_RECORD_SURFACE;
+            return STARTING_STATE;
         }
 
         case MISSION_STATE_RECORD_SURFACE: {

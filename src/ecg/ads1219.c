@@ -1,3 +1,13 @@
+/*****************************************************************************
+ * @file      ecg/ads1219.c
+ * @brief     Device driver for Analog Devices ADS1219
+ * @project   Project CETI
+ * @copyright Cummings Electronics Labs, Harvard University Wood Lab,
+ *            MIT CSAIL
+ * @date      04/13/2026
+ * @authors   Matt Cummings, Peter Malkin, Joseph DelPreto,
+ *            Michael Salino-Hugg
+ *****************************************************************************/
 #include "ads1219.h"
 
 #include "gpio.h"

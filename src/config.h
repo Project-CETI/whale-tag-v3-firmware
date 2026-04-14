@@ -4,9 +4,6 @@
 
 #include <stdint.h>
 
-#include "stm32u5xx_hal.h"
-
-
 /// CONFIG VERSION CHANGE LOG 
 /// !!!IMPORTANT!!! update version if any typedefs in this file change
 #define CONFIG_VERSION_ALPHA (0xdeadbeef) // prerelease config version (subject to frequent changes)
@@ -216,7 +213,7 @@ void aop_update(uint8_t *data, uint16_t data_size);
 
 void config_save(void);
 void config_reload(void);
-HAL_StatusTypeDef config_init(void);
+int config_init(void);
 
 #include <assert.h>
 _Static_assert(sizeof(CetiTagRuntimeConfiguration) < 8*1024, "!!! Configuration structure exceeds size of allocated config flash region !!!");

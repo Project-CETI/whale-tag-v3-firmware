@@ -8,6 +8,8 @@
  *****************************************************************************/
 #include "config.h"
 
+#include "error.h"
+
 #include "stm32u5xx_hal.h"
 
 
@@ -183,11 +185,15 @@ void config_reload(void) {
 /// @brief Initailizes flash memory and reads persistant tag configuration from
 /// from `COFIG_FLASH`
 /// @param
-HAL_StatusTypeDef config_init(void) {
+int config_init(void) {
     HAL_StatusTypeDef result = HAL_OK;
 
     result = HAL_FLASH_Unlock();
     result |= HAL_FLASH_Lock();
+
+    if (HAL_OK != result) {
+        error_queue_push(CETI_ERROR(ERR_SUBSYS_FLASH, ERR_TYPE_DEFAULT, ERR_FAILED_TO_INIT), config_init);
+    }
 
     // copy tag configuration to nonvolatile tag config
     config_reload();

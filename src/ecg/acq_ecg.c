@@ -18,12 +18,8 @@
 extern I2C_HandleTypeDef ECG_hi2c;
 
 EcgSample s_latest_ecg_sample = {};
-static volatile int ecg_sample_write_position = 0;
-static int ecg_sample_read_position = 0;
-
 static volatile uint8_t s_waiting_for_sample = 0;
 static volatile uint32_t s_dropped_sample_count = 0;
-
 static void (*s_sample_complete_callback)(const EcgSample *) = NULL;
 
 static void acq_ecg_sample_ready_callback(void) {

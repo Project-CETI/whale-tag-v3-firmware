@@ -31,11 +31,13 @@ typedef enum {
     ERR_SUBSYS_ECG,
     ERR_SUBSYS_LOG_ECG,
     ERR_SUBSYS_LED,
+    ERR_SUBSYS_FLASH,
 } ErrorSubsystem;
 
 typedef enum {
     ERR_TYPE_DEFAULT,
     ERR_TYPE_FILEX,
+    ERR_TYPE_HAL,
 } ErrorType;
 
 typedef enum {
@@ -43,6 +45,7 @@ typedef enum {
     ERR_BUFFER_OVERFLOW,
     ERR_OUTDATED_AOP_TABLE,
     ERR_SLOW_SD_CARD_ACCESS,
+    ERR_FAILED_TO_INIT,
 } DefaultErrorCode;
 
 #define CETI_STATUS_OK 0

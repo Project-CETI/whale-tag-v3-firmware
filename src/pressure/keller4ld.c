@@ -1,12 +1,13 @@
-//-----------------------------------------------------------------------------
-// Project:      CETI Tag Electronics
-// Version:      Refer to _versioning.h
-// Copyright:    Cummings Electronics Labs, Harvard University Wood Lab,
-//               MIT CSAIL
-// Contributors: Matt Cummings, Peter Malkin, Joseph DelPreto,
-//               Michael Salino-Hugg
-// Description: Device driver for Keller 4LD pressure transmitter
-//-----------------------------------------------------------------------------
+/*****************************************************************************
+ * @file      pressure/keller4ld.c
+ * @brief     Device driver for Keller 4LD pressure transmitter
+ * @project   Project CETI
+ * @copyright Cummings Electronics Labs, Harvard University Wood Lab,
+ *            MIT CSAIL
+ * @date      04/13/2026
+ * @authors   Matt Cummings, Peter Malkin, Joseph DelPreto,
+ *            Michael Salino-Hugg
+ *****************************************************************************/
 #include "keller4ld.h"
 
 #include "i2c.h"

@@ -2,6 +2,7 @@
  *   @file      burnwire.h
  *   @brief
  *   @project   Project CETI
+ *   @date      04/13/2026
  *   @copyright Harvard University Wood Lab
  *   @authors   Michael Salino-Hugg
  *****************************************************************************/

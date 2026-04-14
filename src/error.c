@@ -4,7 +4,10 @@
 // Contributors: Michael Salino-Hugg
 //-----------------------------------------------------------------------------
 #include "error.h"
+
 #include "metadata.h"
+#include "timing.h"
+
 #include <fx_api.h>
 #include <time.h>
 
@@ -50,7 +53,7 @@ int error_queue_init(void) {
 
     UINT fx_open_result = fx_file_open(&sdio_disk, &s_error_queue_file, ERROR_FILE_FILENAME, FX_OPEN_FOR_WRITE);
     if (FX_SUCCESS != fx_open_result) {
-        return;
+        return - 1;
     }
 
     metadata_log_file_creation(ERROR_FILE_FILENAME, DATA_TYPE_ERRORS, DATA_FORMAT_BIN, 0);
@@ -61,7 +64,7 @@ int error_queue_init(void) {
 /// @param error `CetiStatus` - error code to log
 void error_queue_push(CetiStatus error, void *calling_func) {
     size_t nv_w = s_error_write_position;
-    size_t next_w = (nv_w + 1) % 8;
+    size_t next_w = (nv_w + 1) % ERROR_QUEUE_SIZE;
     if (next_w == s_error_read_position) {
         // overflow trying to report error
         s_error_queue_overflow_timestamp = 1;
@@ -69,7 +72,7 @@ void error_queue_push(CetiStatus error, void *calling_func) {
         s_error_queue[nv_w] = (ErrorQueueElement){
             .frame_header = ERROR_QUEUE_ELEMENT_HEADER,
             .error = error,
-            .timestamp = 1,
+            .timestamp = rtc_get_epoch_us(),
             .func = calling_func
         };
         s_error_write_position = next_w;

@@ -48,7 +48,7 @@ static const char * format_str[] = {
 
 static void __write_static_hardware_config(void) {
     uint16_t offset = 0;
-    char buffer[2048];
+    char buffer[4096];
 
     offset += snprintf((char *)&buffer[offset], sizeof(buffer) - offset, 
         "hardware: \n"
@@ -118,6 +118,13 @@ static void __write_static_hardware_config(void) {
             "    configuration: 2S\n"
             "    thermistors: 1\n"
         );
+        uint16_t cycles = 0;
+        int bms_status = bms_ctl_get_cycles(&cycles);
+        if (0 == bms_status) {
+            offset += snprintf((char *)&buffer[offset], sizeof(buffer) - offset, 
+                "    cycles: %d\n", cycles
+            );
+        }
     }
 
     if (tag_config.hw_config.ecg.available) {
@@ -261,14 +268,6 @@ static void __write_static_software_config(void) {
                 , id_buffer
                 , address_buffer
             );
-
-            uint16_t cycles = 0;
-            int bms_status = bms_ctl_get_cycles(&cycles);
-            if (0 == bms_status) {
-                offset += snprintf((char *)&buffer[offset], sizeof(buffer) - offset, 
-                    "    cycles: %d\n", cycles
-                );
-            }
         }
     }
 

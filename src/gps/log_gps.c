@@ -1,4 +1,11 @@
-
+/*****************************************************************************
+ *   @file      log_gps.c
+ *   @brief     GPS Logging
+ *   @project   Project CETI
+ *   @date      04/13/2026
+ *   @copyright Harvard University Wood Lab
+ *   @authors   Michael Salino-Hugg
+ *****************************************************************************/
 #include <app_filex.h>
 
 #include "gps/acq_gps.h"
@@ -16,7 +23,10 @@ void log_gps_init(void) {
     if ((FX_SUCCESS != fx_create_result) && (FX_ALREADY_CREATED != fx_create_result)) {
         error_queue_push(CETI_ERROR(ERR_SUBSYS_LOG_GPS, ERR_TYPE_FILEX, fx_create_result), log_gps_init);
     }
-    UINT fx_result = fx_file_open(&sdio_disk, &gps_log_file, "data_gps.log", FX_OPEN_FOR_WRITE);
+    UINT fx_open_result = fx_file_open(&sdio_disk, &gps_log_file, "data_gps.log", FX_OPEN_FOR_WRITE);
+    if ((FX_SUCCESS != fx_open_result)) {
+        error_queue_push(CETI_ERROR(ERR_SUBSYS_LOG_GPS, ERR_TYPE_FILEX, fx_open_result), log_gps_init);
+    }
     metadata_log_file_creation("data_gps.log", DATA_TYPE_GPS, DATA_FORMAT_TXT, 0);
 }
 

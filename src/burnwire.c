@@ -1,3 +1,11 @@
+/*****************************************************************************
+ *   @file      burnwire.c
+ *   @brief     burnwire control
+ *   @project   Project CETI
+ *   @date      04/13/2026
+ *   @copyright Harvard University Wood Lab
+ *   @authors   Michael Salino-Hugg
+ *****************************************************************************/
 #include <main.h>
 
 void burnwire_init(void) {

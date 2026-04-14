@@ -349,7 +349,8 @@ void acq_audio_start(uint8_t *p_buffer, uint16_t buffer_size_blocks, uint16_t bl
 }
 
 void acq_audio_stop(void) {
-    int ret = ad7768_spi_write(&audio_adc, AD7768_REG_PWR_MODE, 0x80);
+    [[maybe_unused]] int ret;
+    ret = ad7768_spi_write(&audio_adc, AD7768_REG_PWR_MODE, 0x80);
     HAL_SAI_DMAStop(&s_audio_hsai);
     s_audio_running = 0;
 }
@@ -362,7 +363,8 @@ void acq_audio_deinit(void) {
         //         .mclk_div = AD7768_MCLK_DIV_32,
         // };
         // int ret = ad7768_spi_write(&audio_adc, AD7768_REG_PWR_MODE, __reg_powerMode_intoRaw(&sleep_mode));
-        int ret = ad7768_spi_write(&audio_adc, AD7768_REG_PWR_MODE, 0x80);
+        [[maybe_unused]] int ret;
+        ret = ad7768_spi_write(&audio_adc, AD7768_REG_PWR_MODE, 0x80);
 }
 
 
@@ -370,8 +372,5 @@ void acq_audio_deinit(void) {
 void acq_audio_register_block_complete_callback(void (*callback)(uint16_t)) {
         s_block_complete_callback = callback;
 }
-
-
-// (MSH) as there is not instance in which audio is captured, but not logged it is fine to combine them into a single audio API
 
 

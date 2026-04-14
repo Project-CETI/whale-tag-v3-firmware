@@ -372,7 +372,6 @@ if (!usb_iface_present()) {
         /* Enter Mission loop */
         // create new deployment directory
         RTC_DateTypeDef date;
-        RTC_TimeTypeDef time;
         
         HAL_RTC_GetDate(&hrtc, &date, RTC_FORMAT_BIN);
         
@@ -388,7 +387,7 @@ if (!usb_iface_present()) {
         do {
             snprintf(
                 directory, sizeof(directory) - 1, 
-                "%s_%d",
+                "%s_%02d",
                 directory_base, index
             );
             fx_create_dir_result = fx_directory_create(&sdio_disk, directory);

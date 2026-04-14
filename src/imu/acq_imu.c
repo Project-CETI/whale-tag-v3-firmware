@@ -393,7 +393,7 @@ sh2_SensorValue_t s_mag_sample;
 /// @param cookie 
 /// @param pEvent 
 void acq_imu_sensor_callback(void *cookie, sh2_SensorEvent_t *pEvent) {
-    int status;
+    [[maybe_unused]] int status;
 
     // correct timestamp to be epoch time
     pEvent->timestamp_uS += s_epoch_diff_us;
@@ -522,14 +522,13 @@ void acq_imu_stop_all(void) {
             // ToDo: report error
         }
     }
-    #warning ToDo: implement acq_imu_stop()
 }
 
 /// @brief stops imu data acquisition and deinitalizes imu hardware
 /// @param  
 void acq_imu_deinit(void) {
     acq_imu_stop_all();
-    #warning ToDo: implement acq_imu_deinit()
+    //ToDo: Deinitialize hardware
 }
 
 /// @brief imu acquisition task
