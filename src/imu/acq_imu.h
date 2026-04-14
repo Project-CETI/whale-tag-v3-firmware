@@ -23,6 +23,9 @@ int acq_imu_stop_sensor(ImuSensor sensor);
 void acq_imu_register_callback(ImuSensor sensor_kind, ImuCallback callback);
 void acq_imu_stop_all(void);
 void acq_imu_EXTI_Callback(void);
-
+void acq_imu_get_rotation(sh2_SensorValue_t * dst);
+void acq_imu_get_accelerometer(sh2_SensorValue_t * dst);
+void acq_imu_get_gyroscope(sh2_SensorValue_t * dst);
+void acq_imu_get_magnetometer(sh2_SensorValue_t * dst);
 
 #endif // CETI_ACQ_IMU_H

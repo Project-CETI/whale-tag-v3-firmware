@@ -62,14 +62,14 @@ static int __oriented_upright(void) {
 
     
     // Pitch (x-axis rotation)
-    const sinpCosr = 2 * ((q.real * q.i) + (q.j * q.k)); // 2(pitch due to pitch + pitch due to yaw*roll)
-    const cospCosr = 1 - 2 * ((q.i * q.i) + (q.j * q.j));
-    const pitch = atan2(sinpCosr, cospCosr);
+    float sinpCosr = 2 * ((q.real * q.i) + (q.j * q.k)); // 2(pitch due to pitch + pitch due to yaw*roll)
+    float cospCosr = 1 - 2 * ((q.i * q.i) + (q.j * q.j));
+    float pitch = atan2(sinpCosr, cospCosr);
 
     // Roll (y-axis rotation)
-    const sinr = sqrt(1+ 2 * ((q.real * q.j) - (q.k * q.i)));
-    const cosr = sqrt(1 + 2 * ((q.real * q.j) - (q.k * q.i)));
-    const roll =  (2.0 * atan2(sinr, cosr)) - (M_PI / 2.0);
+    float sinr = sqrt(1+ 2 * ((q.real * q.j) - (q.k * q.i)));
+    float cosr = sqrt(1 + 2 * ((q.real * q.j) - (q.k * q.i)));
+    float roll =  (2.0 * atan2(sinr, cosr)) - (M_PI / 2.0);
 
     // pitch erro
     float d_pitch_norm = fabsf(FLOAT_DETECT_TARGET_PITCH_RAD - pitch);

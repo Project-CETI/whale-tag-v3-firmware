@@ -862,7 +862,7 @@ static MissionState __mission_get_next_state(MissionState current_state, Mission
                 return MISSION_STATE_RECORD_DIVE;
             }
 
-            if (tag_config.mission.float_detection.enabled){
+            if (tag_config.mission.float_detection_enabled){
                 if (float_detection_is_floating()) {
                     *transition_cause = MISSION_TRANSITION_FLOAT_DETECTED;
                     return MISSION_STATE_RECORD_FLOATING;
@@ -896,7 +896,7 @@ static MissionState __mission_get_next_state(MissionState current_state, Mission
                 return MISSION_STATE_RECORD_DIVE;
             }
 
-            if (tag_config.mission.float_detection.enabled){
+            if (tag_config.mission.float_detection_enabled){
                 if (!float_detection_is_floating()) {
                     return MISSION_STATE_RECORD_SURFACE;
                 }
@@ -1005,7 +1005,7 @@ void mission_task(void) {
     if(s_update_periodic_mission_tasks) {
         mission_battery_task();
 
-        if (tag_config.mission.float_detection.enabled){
+        if (tag_config.mission.float_detection_enabled){
             // Update float detection
             sh2_SensorValue_t rotation;
             acq_imu_get_rotation(&rotation); 
