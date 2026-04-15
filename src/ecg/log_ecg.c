@@ -124,6 +124,8 @@ void log_ecg_push_sample(const EcgSample* p_sample)
     // check for overflow
     if (nv_w == s_ecg_buffer_read_cursor) {
         error_queue_push(CETI_ERROR(ERR_SUBSYS_LOG_ECG, ERR_TYPE_DEFAULT, ERR_BUFFER_OVERFLOW), log_ecg_push_sample);
+    } else {
+        s_ecg_buffer_write_cursor = nv_w;
     }
 
     // check if ecg buffer needs to be serviced
