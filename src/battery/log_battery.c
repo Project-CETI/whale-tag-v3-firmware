@@ -161,7 +161,7 @@ static const char *__protAlrt_to_str(uint16_t raw) {
 /// @brief opens/creates a new csv file. initializes csv header
 /// @param filename 
 static void __open_csv_file(char *filename) {
-    /* Create/open pressure file */
+    /* Create/open battery csv file */
     UINT fx_create_result = fx_file_create(&sdio_disk, filename);
     if ((fx_create_result != FX_SUCCESS) && (fx_create_result != FX_ALREADY_CREATED)) {
         error_queue_push(CETI_ERROR(ERR_SUBSYS_LOG_BMS, ERR_TYPE_FILEX, fx_create_result), __open_csv_file);
@@ -257,7 +257,7 @@ void log_battery_task(void) {
         size_t encoded_bytes = __sample_to_csv(p_sample, csv_encode_buffer, sizeof(csv_encode_buffer));
         UINT write_result = buffer_writer_write(&s_bw, csv_encode_buffer, encoded_bytes);
         if (FX_SUCCESS != write_result) {
-            error_queue_push(CETI_ERROR(ERR_SUBSYS_LOG_BMS, ERR_TYPE_FILEX, write_result), __open_csv_file);
+            error_queue_push(CETI_ERROR(ERR_SUBSYS_LOG_BMS, ERR_TYPE_FILEX, write_result), log_battery_task);
         }
         s_sample_buffer_read_cursor = (1 + s_sample_buffer_read_cursor) % LOG_BATTERY_BUFFER_SIZE;
     }

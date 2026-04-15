@@ -17,6 +17,7 @@
 #include "battery/log_battery.h"
 #include "burnwire.h"
 #include "ecg/acq_ecg.h"
+#include "ecg/log_ecg.h"
 #include "error.h"
 #include "gps/acq_gps.h"
 #include "gps/log_gps.h"
@@ -38,7 +39,6 @@
 #include "mission/mission_log.h"
 
 extern void SystemClock_Config(void);
-extern I2C_HandleTypeDef hi2c3;
 
 #define MISSION_DIVE_THRESHOLD_BAR (5.0)
 #define MISSION_SURFACE_THRESHOLD_BAR (1.0)
@@ -115,7 +115,7 @@ static int __is_burn_complete(void) {
         return 0;
     }
     uint64_t elapsed_time = rtc_get_epoch_us()/1000000 - s_burn_start_timestamp_s;
-    return (elapsed_time > MISSION_BURNWIRE_BURN_PERIOD_MIN * 60);
+    return (elapsed_time > tag_config.burnwire.duration_s * 60);
 }
 
 /* BURN CONTROLS *************************************************************/
@@ -505,6 +505,16 @@ static void __update_state_dependent_task_list(MissionState state) {
 
     __push_audio_task(state);
 
+    if ((MISSION_STATE_LOW_POWER_BURN != state)
+        && (MISSION_STATE_LOW_POWER_RETRIEVE != state)
+        && (MISSION_STATE_RETRIEVE != state)
+    ) {
+        if (tag_config.ecg.enabled) {
+            __push_task(log_ecg_task);
+            __push_audio_task(state);
+        }
+    }
+
     // log_imu
     if ((MISSION_STATE_LOW_POWER_BURN != state)
         && (MISSION_STATE_LOW_POWER_RETRIEVE != state)
@@ -582,19 +592,11 @@ void mission_set_state(MissionState next_state, MissionTransitionCause cause) {
         ) {
             acq_imu_stop_all();
             log_imu_deinit();
-
         } else {
-            const ImuCallback cb[] = {
-                [IMU_SENSOR_ACCELEROMETER] = log_imu_accel_sample_callback,
-                [IMU_SENSOR_GYROSCOPE] = log_imu_gyro_sample_callback,
-                [IMU_SENSOR_MAGNETOMETER] = log_imu_mag_sample_callback,
-                [IMU_SENSOR_ROTATION] = log_imu_quat_sample_callback,
-            };
             for (int sensor_indx = 0; sensor_indx < IMU_SENSOR_COUNT; sensor_indx++) {
                 if (!tag_config.imu.sensor[sensor_indx].enabled) {
                     continue;
                 }
-                acq_imu_register_callback(sensor_indx, cb[sensor_indx]);
                 [[maybe_unused]]int ret;
                 ret = acq_imu_start_sensor(sensor_indx, (uint32_t)tag_config.imu.sensor[sensor_indx].samplerate_ms * 1000);
             }
@@ -655,12 +657,12 @@ void mission_set_state(MissionState next_state, MissionTransitionCause cause) {
     // ECG
     if (tag_config.ecg.enabled) {
         if ((MISSION_STATE_LOW_POWER_BURN == next_state)
+            || (MISSION_STATE_RETRIEVE == next_state)
             || (MISSION_STATE_LOW_POWER_RETRIEVE == next_state)
         ) {
-        	acq_ecg_deinit();
-            // ToDo: disable ecg acquisiton
+            acq_ecg_deinit();
+            log_ecg_deinit();
         } else {
-            // ToDo: linking ecg longging to acquisition callback
         	acq_ecg_start();
         }
     }
@@ -704,6 +706,7 @@ void mission_set_state(MissionState next_state, MissionTransitionCause cause) {
 
 }
 
+/// @brief Mission 1 second periodic timer IRQ
 void TIM5_IRQHandler(void){
   HAL_TIM_IRQHandler(&mission_htim);
 }
@@ -789,11 +792,24 @@ void mission_init(void) {
     if (tag_config.imu.enabled) {
         CETI_LOG("Initializing IMU Logging");
         log_imu_init();
+        const ImuCallback cb[] = {
+            [IMU_SENSOR_ACCELEROMETER] = log_imu_accel_sample_callback,
+            [IMU_SENSOR_GYROSCOPE] = log_imu_gyro_sample_callback,
+            [IMU_SENSOR_MAGNETOMETER] = log_imu_mag_sample_callback,
+            [IMU_SENSOR_ROTATION] = log_imu_quat_sample_callback,
+        };
+        for (int sensor_indx = 0; sensor_indx < IMU_SENSOR_COUNT; sensor_indx++) {
+            if (!tag_config.imu.sensor[sensor_indx].enabled) {
+                continue;
+            }
+            acq_imu_register_callback(sensor_indx, cb[sensor_indx]);
+        }
     }
 
     if (tag_config.ecg.enabled) {
         CETI_LOG("Initializing ECG Logging");
-        // acq_ecg_start();
+        log_ecg_init();
+        acq_ecg_register_sample_callback(log_ecg_push_sample);
     }
 
     if (tag_config.argos.enabled) {
@@ -1040,6 +1056,7 @@ void mission_sleep(void) {
             __disable_irq();
             if (gps_bulk_queue_is_empty()
                 && !log_battery_sample_buffer_is_half_full()
+                && !log_ecg_sample_buffer_is_half_full()
                 && !log_pressure_sample_buffer_is_half_full()
                 && !log_imu_any_buffer_half_full()
             ) {
@@ -1060,6 +1077,7 @@ void mission_sleep(void) {
                 && gps_queue_is_empty() 
                 && !argos_tx_mgr_ready_to_tx()
                 && !log_battery_sample_buffer_is_half_full()
+                && !log_ecg_sample_buffer_is_half_full()
                 && !log_pressure_sample_buffer_is_half_full()
                 && !log_imu_any_buffer_half_full()
             ) {
@@ -1077,6 +1095,7 @@ void mission_sleep(void) {
         case MISSION_STATE_RECORD_DIVE:
             __disable_irq();
             if ( !log_battery_sample_buffer_is_half_full()
+                && !log_ecg_sample_buffer_is_half_full()
                 && !log_pressure_sample_buffer_is_half_full()
                 && !log_imu_any_buffer_half_full()
             ) {
@@ -1095,6 +1114,7 @@ void mission_sleep(void) {
             if ( gps_bulk_queue_is_empty() 
                  && gps_queue_is_empty() 
                  && !argos_tx_mgr_ready_to_tx()
+                 && !log_ecg_sample_buffer_is_half_full()
                  && !log_battery_sample_buffer_is_half_full()
                  && !log_pressure_sample_buffer_is_half_full()
                  && !log_imu_any_buffer_half_full()

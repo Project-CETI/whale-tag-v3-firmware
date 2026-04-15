@@ -2,6 +2,8 @@
 #define __CETI_QUATERNION_H__
 #include <math.h>
 
+
+
 #define Quaternion(T) Quaternion_##T
 #define quaternion_multiplication(T) quaternion_multiplication_##T
 #define quaternion_addition(T) quaternion_addition_##T
@@ -19,7 +21,7 @@ typedef struct {                                                                
 
 /* Generic Type implementation */
 #define IMPLEMENT_QUATERION_TYPE(T)                                                      \
-static inline                                                                            \
+__attribute__((const)) static inline                                                     \
 Quaternion(T) quaternion_multiplication(T)(Quaternion(T) q1, Quaternion(T) q2) {         \
     return (Quaternion(T)){                                                              \
         .real = q1.real * q2.real - q1.i*q2.i - q1.j*q2.j - q1.k*q2.k,                   \
@@ -29,6 +31,7 @@ Quaternion(T) quaternion_multiplication(T)(Quaternion(T) q1, Quaternion(T) q2) {
     };                                                                                   \
 }                                                                                        \
                                                                                          \
+__attribute__((const))                                                                   \
 static inline Quaternion(T) quaternion_remove_yaw(T)(Quaternion(T) q_in) {               \
     /* calculate sin(yaw) and cos(yaw) */                                                \
     float sinyCosp = 2.0 * (q_in.real * q_in.k + q_in.i * q_in.j);                       \
@@ -52,6 +55,7 @@ static inline Quaternion(T) quaternion_remove_yaw(T)(Quaternion(T) q_in) {      
     return quaternion_multiplication(T)(q_deyaw, q_in);                                  \
 }                                                                                        \
                                                                                          \
+__attribute__((const))                                                                   \
 static inline                                                                            \
 Quaternion(T) quaternion_addition(T)(Quaternion(T) q1, Quaternion(T) q2) {               \
     return (Quaternion(T)){                                                              \
@@ -62,6 +66,7 @@ Quaternion(T) quaternion_addition(T)(Quaternion(T) q1, Quaternion(T) q2) {      
     };                                                                                   \
 }                                                                                        \
                                                                                          \
+__attribute__((const))                                                                   \
 static inline                                                                            \
 Quaternion(T) quaternion_subtraction(T)(Quaternion(T) q1, Quaternion(T) q2) {            \
     return (Quaternion(T)){                                                              \
@@ -73,6 +78,7 @@ Quaternion(T) quaternion_subtraction(T)(Quaternion(T) q1, Quaternion(T) q2) {   
 }                                                                                        \
                                                                                          \
                                                                                          \
+__attribute__((const))                                                                   \
 static inline                                                                            \
 T quaternion_magnitude(T)(Quaternion(T) q) {                                             \
     return sqrt(q.real*q.real + q.i*q.i + q.j*q.j + q.k*q.k);                            \
