@@ -19,7 +19,7 @@ static const uint16_t k_days_before_month[12] = {
 /* Convert a broken-down UTC date/time to a Unix epoch in seconds.
  * year = full year (e.g. 2026), mon = 1..12, mday = 1..31.
  * Replaces newlib timegm(), which is unavailable in newlib-nano. */
-static uint64_t __timegm_utc(int year, int mon, int mday,
+static uint64_t priv__timegm_utc(int year, int mon, int mday,
                            int hour, int min, int sec) {
     int years_since_1970 = year - 1970;
     /* Leap days from 1970 up to (but not including) this year. */
@@ -52,7 +52,7 @@ uint64_t rtc_get_epoch_s(void) {
 
     HAL_RTC_GetTime(&hrtc, &time, RTC_FORMAT_BIN);
     HAL_RTC_GetDate(&hrtc, &date, RTC_FORMAT_BIN);
-    return __timegm_utc(2000 + date.Year, date.Month, date.Date,
+    return priv__timegm_utc(2000 + date.Year, date.Month, date.Date,
                         time.Hours, time.Minutes, time.Seconds);
 }
 
@@ -70,7 +70,7 @@ uint64_t timing_get_time_since_on_us(void) {
     return (uint64_t)uS_htim.Instance->CNT;
 }
 
-void rtc_set_datetime(const RTC_DateTypeDef *p_date, const RTC_TimeTypeDef *p_time) {
+void rtc_set_datetime(const RTC_DateTypeDef p_date[static 1], const RTC_TimeTypeDef p_time[static 1]) {
     RTC_TimeTypeDef mut_time = *p_time;
     RTC_DateTypeDef mut_date = *p_date;
     HAL_RTC_SetTime(&hrtc, &mut_time, RTC_FORMAT_BCD);
@@ -78,7 +78,7 @@ void rtc_set_datetime(const RTC_DateTypeDef *p_date, const RTC_TimeTypeDef *p_ti
     s_timing_has_synced = 1;
 }
 
-static uint8_t __dec_to_bcd(uint8_t val) {
+static uint8_t priv__dec_to_bcd(uint8_t val) {
     return ((val / 10) << 4) | (val % 10);
 }
 
@@ -89,15 +89,15 @@ void rtc_set_epoch_s(uint64_t epoch) {
     }
 
     RTC_TimeTypeDef time = {
-        .Hours = __dec_to_bcd(dt->tm_hour),
-        .Minutes = __dec_to_bcd(dt->tm_min),
-        .Seconds = __dec_to_bcd(dt->tm_sec),
+        .Hours = priv__dec_to_bcd(dt->tm_hour),
+        .Minutes = priv__dec_to_bcd(dt->tm_min),
+        .Seconds = priv__dec_to_bcd(dt->tm_sec),
     };
     RTC_DateTypeDef date = {
-        .Year = __dec_to_bcd(dt->tm_year - 100),
-        .Month = __dec_to_bcd(dt->tm_mon + 1),
-        .Date = __dec_to_bcd(dt->tm_mday),
-        .WeekDay = __dec_to_bcd(dt->tm_wday == 0 ? 7 : dt->tm_wday),
+        .Year = priv__dec_to_bcd(dt->tm_year - 100),
+        .Month = priv__dec_to_bcd(dt->tm_mon + 1),
+        .Date = priv__dec_to_bcd(dt->tm_mday),
+        .WeekDay = priv__dec_to_bcd(dt->tm_wday == 0 ? 7 : dt->tm_wday),
     };
 
     __disable_irq();
@@ -120,7 +120,7 @@ uint32_t rtc_has_been_syncronized(void) {
     return s_timing_has_synced;
 }
 
-static HAL_StatusTypeDef __rtc_hw_init(void) {
+static HAL_StatusTypeDef priv__rtc_hw_init(void) {
 
     /** Initialize RTC Only */
     hrtc.Instance = RTC;
@@ -151,7 +151,7 @@ static HAL_StatusTypeDef __rtc_hw_init(void) {
  * µs timer's count, so that rtc_get_epoch_us() = anchor + CNT yields the
  * correct epoch immediately after this call. Must be invoked AFTER the µs
  * timer is initialized and started. */
-static void __sync_us_anchor_to_rtc(void) {
+static void priv__sync_us_anchor_to_rtc(void) {
     RTC_DateTypeDef date;
     RTC_TimeTypeDef time;
     uint64_t seconds;
@@ -162,7 +162,7 @@ static void __sync_us_anchor_to_rtc(void) {
     HAL_RTC_GetDate(&hrtc, &date, RTC_FORMAT_BIN);
     uS_htim.Instance->CNT = 0;
 
-    seconds = (uint64_t)__timegm_utc(2000 + date.Year, date.Month, date.Date,
+    seconds = (uint64_t)priv__timegm_utc(2000 + date.Year, date.Month, date.Date,
                                      time.Hours, time.Minutes, time.Seconds);
     subseconds_us = ((uint64_t)1000000 * time.SubSeconds) / (time.SecondFraction + 1);
 
@@ -170,7 +170,7 @@ static void __sync_us_anchor_to_rtc(void) {
     __enable_irq();
 }
 
-static HAL_StatusTypeDef __uS_timer_init(void) {
+static HAL_StatusTypeDef priv__uS_timer_init(void) {
     HAL_StatusTypeDef ret = HAL_OK;
 
     uS_htim.Instance = uS_TIM;
@@ -206,14 +206,14 @@ HAL_StatusTypeDef timing_init(void) {
     HAL_StatusTypeDef result;
 
     /* 1. Bring up the RTC hardware (no time read yet). */
-    result = __rtc_hw_init();
+    result = priv__rtc_hw_init();
     if (HAL_OK != result) {
         return result;
     }
 
     /* 2. Bring up and start the µs timer. CNT will be re-zeroed inside the
      *    atomic snapshot below, so its value here doesn't matter. */
-    result = __uS_timer_init();
+    result = priv__uS_timer_init();
     if (HAL_OK != result) {
         return result;
     }
@@ -222,7 +222,7 @@ HAL_StatusTypeDef timing_init(void) {
     /* 3. Atomically snapshot the RTC into s_timer_sync_rtc_epoch_us and
      *    reset CNT to 0 in the same critical section, so no LSE ticks are
      *    lost between the read and the anchor write. */
-    __sync_us_anchor_to_rtc();
+    priv__sync_us_anchor_to_rtc();
 
     return HAL_OK;
 }

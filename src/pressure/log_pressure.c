@@ -16,7 +16,9 @@
 #include <stdint.h>
 #include <stdio.h>
 
+#ifndef UNIT_TEST
 #include <app_filex.h>
+#endif // UNIT_TEST
 
 extern FX_MEDIA sdio_disk;
 
@@ -32,10 +34,15 @@ static BufferWriter s_bw = {
 
 /********* CSV ***************************************************************/
 
+#define CSV_OVERFLOW_FLAG (1 << 0)
 #define PRESSURE_FILENAME "data_pressure.csv"
-#define PRESSURE_CSV_VERSION (0)
+#define PRESSURE_CSV_VERSION 0
+
+#define _STR(x) #x
+#define STR(x) _STR(x)
 
 char *log_pressure_csv_header =
+    "# version: " STR(PRESSURE_CSV_VERSION) "\n"
     "Timestamp [us]"
     ", Notes"
     ", Pressure [bar]"
@@ -45,18 +52,18 @@ char *log_pressure_csv_header =
 /// @brief creates a .csv file and a writes pressure csv header to file if file
 /// was newly created
 /// @param
-static void __create_csv_file(char *filename) {
+static void priv__create_csv_file(char *filename) {
     /* Create/open pressure file */
     UINT fx_create_result = fx_file_create(&sdio_disk, filename);
     if ((fx_create_result != FX_SUCCESS) && (fx_create_result != FX_ALREADY_CREATED)) {
-        error_queue_push(CETI_ERROR(ERR_SUBSYS_LOG_PRESSURE, ERR_TYPE_FILEX, fx_create_result), __create_csv_file);
+        error_queue_push(CETI_ERROR(ERR_SUBSYS_LOG_PRESSURE, ERR_TYPE_FILEX, fx_create_result), priv__create_csv_file);
         return;
     }
 
     /* open file */
     UINT fx_open_result = buffer_writer_open(&s_bw, filename);
     if (FX_SUCCESS != fx_open_result) {
-        error_queue_push(CETI_ERROR(ERR_SUBSYS_LOG_PRESSURE, ERR_TYPE_FILEX, fx_create_result), __create_csv_file);
+        error_queue_push(CETI_ERROR(ERR_SUBSYS_LOG_PRESSURE, ERR_TYPE_FILEX, fx_create_result), priv__create_csv_file);
         return;
     }
 
@@ -75,16 +82,18 @@ static void __create_csv_file(char *filename) {
 /// @param p_buffer pointer to output buffer
 /// @param buffer_len length in bytes of buffer pointed to by `p_buffer`
 /// @return number of bytes written to buffer
-static size_t __pressure_sample_to_csv_line(const CetiPressureSample *p_sample, uint8_t *p_buffer, size_t buffer_len) {
+static size_t priv__pressure_sample_to_csv_line(const CetiPressureSample *p_sample, uint8_t *p_buffer, size_t buffer_len) {
     uint8_t offset = 0;
     offset += snprintf((char *)&p_buffer[offset], buffer_len - offset, "%lld", p_sample->timestamp_us);
 
     /* ToDo: note conversion */
     offset += snprintf((char *)&p_buffer[offset], buffer_len - offset, ", ");
-    // offset += snprintf(&p_buffer[offset], buffer_len - offset, ", %s", p_sample->error);
+    if (p_sample->status & CSV_OVERFLOW_FLAG) {
+        offset += snprintf((char *)&p_buffer[offset], buffer_len - offset, " OVERFLOW");
+    }
 
-    offset += snprintf((char *)&p_buffer[offset], buffer_len - offset, ", %.3f", acq_pressure_raw_to_pressure_bar(p_sample->data.pressure));
-    offset += snprintf((char *)&p_buffer[offset], buffer_len - offset, ", %.3f", acq_pressure_raw_to_temperature_c(p_sample->data.temperature));
+    offset += snprintf((char *)&p_buffer[offset], buffer_len - offset, ", %.3f", acq_pressure_raw_to_pressure_bar(p_sample->pressure));
+    offset += snprintf((char *)&p_buffer[offset], buffer_len - offset, ", %.3f", acq_pressure_raw_to_temperature_c(p_sample->temperature));
     offset += snprintf((char *)&p_buffer[offset], buffer_len - offset, "\n");
     return offset;
 }
@@ -100,15 +109,28 @@ static uint16_t s_pressure_sample_buffer_read_position = 0;
 /// @note
 __attribute__((no_instrument_function))
 void log_pressure_buffer_sample(const CetiPressureSample *p_sample) {
+    static uint8_t overflowed = 0;
     uint16_t nv_write_position = s_pressure_sample_buffer_write_position;
-    memcpy(&pressure_sample_buffer[nv_write_position], p_sample, sizeof(CetiPressureSample));
+    CetiPressureSample *p_buffer = &pressure_sample_buffer[nv_write_position];
+    
+    /* check if overflow occured */
     nv_write_position = (nv_write_position + 1) % PRESSURE_BUFFER_SIZE;
     if (nv_write_position == s_pressure_sample_buffer_read_position) {
-        // ToDo: Handle overflow
+        overflowed = 1;
         error_queue_push(CETI_ERROR(ERR_SUBSYS_LOG_PRESSURE, ERR_TYPE_DEFAULT, ERR_BUFFER_OVERFLOW), log_pressure_buffer_sample);
-
     }
+    memcpy(p_buffer, p_sample, sizeof(CetiPressureSample));
+    
+    /* log if overflow resolved */
+    if(overflowed) {
+        p_buffer->status |= CSV_OVERFLOW_FLAG;
+        overflowed = 0;
+    }
+    
+    /* update buffer */
     s_pressure_sample_buffer_write_position = nv_write_position;
+    
+    /* buffer filling up, tag needs to wake to service */
     if (log_pressure_sample_buffer_is_half_full()) {
         HAL_PWR_DisableSleepOnExit();
     }
@@ -118,7 +140,7 @@ void log_pressure_buffer_sample(const CetiPressureSample *p_sample) {
 /// @param
 void log_pressure_init(void) {
     // create pressure file
-    __create_csv_file(PRESSURE_FILENAME);
+    priv__create_csv_file(PRESSURE_FILENAME);
 }
 
 /// @brief preiodically call this function to ensure pressure data logging
@@ -130,7 +152,7 @@ void log_pressure_task(void) {
         const CetiPressureSample *p_sample = &pressure_sample_buffer[s_pressure_sample_buffer_read_position];
         uint8_t buffer[256];
         size_t len;
-        len = __pressure_sample_to_csv_line(p_sample, buffer, sizeof(buffer));
+        len = priv__pressure_sample_to_csv_line(p_sample, buffer, sizeof(buffer));
         buffer_writer_write(&s_bw, buffer, len);
         s_pressure_sample_buffer_read_position = (s_pressure_sample_buffer_read_position + 1) % PRESSURE_BUFFER_SIZE;
     }

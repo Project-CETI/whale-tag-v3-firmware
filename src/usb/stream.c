@@ -19,6 +19,8 @@
 
 #include <string.h>
 
+#include "main.h"
+
 // Ring buffer size — 64 KB to handle audio bursts
 #define STREAM_RINGBUF_SIZE (64 * 1024)
 
@@ -37,39 +39,39 @@ static volatile uint32_t s_subscriptions; // bitmask of subscribed sensors
 #define AUDIO_STREAM_BLOCK_SIZE ((AUDIO_STREAM_BLOCK_SIZE_MAX) - ((AUDIO_STREAM_BLOCK_SIZE_MAX) % AUDIO_SAMPLE_SIZE_LSM))
 extern uint8_t g_audio_buffer;
 
-static void __stream_audio_block_complete_callback(uint16_t block) {
+static void priv__stream_audio_block_complete_callback(uint16_t block) {
     stream_push_packet(STREAM_SENSOR_AUDIO, &g_audio_buffer + (block * AUDIO_STREAM_BLOCK_SIZE), AUDIO_STREAM_BLOCK_SIZE);
 }
 
-static void __stream_pressure_push_sample(const CetiPressureSample *p_sample) {
+static void priv__stream_pressure_push_sample(const CetiPressureSample *p_sample) {
     stream_push_packet(STREAM_SENSOR_PRESSURE, p_sample, sizeof(CetiPressureSample));
 }
 
-static void __stream_battery_push_sample(const CetiBatterySample *p_sample) {
+static void priv__stream_battery_push_sample(const CetiBatterySample *p_sample) {
     stream_push_packet(STREAM_SENSOR_BATTERY, p_sample, sizeof(CetiBatterySample));
 }
 
-static void __stream_ecg_push_sample(const EcgSample* p_sample) {
+static void priv__stream_ecg_push_sample(const EcgSample* p_sample) {
     stream_push_packet(STREAM_SENSOR_ECG, p_sample, sizeof(EcgSample));
 }
 
-static void __stream_gps_push_sample(const uint8_t *p_msg, uint16_t len) {
-    stream_push_packet(STREAM_SENSOR_GPS, p_msg, len);
+static void priv__stream_gps_push_sample(const GpsSentence *p_sentence) {
+    stream_push_packet(STREAM_SENSOR_GPS, p_sentence, sizeof(GpsSentence));
 }
 
-static void __stream_accel_push_sample(const sh2_SensorValue_t *p_val) {
+static void priv__stream_accel_push_sample(const sh2_SensorValue_t *p_val) {
     stream_push_packet(STREAM_SENSOR_IMU_ACCEL, &p_val->un.accelerometer, sizeof(sh2_Accelerometer_t));
 }
 
-static void __stream_gyro_push_sample(const sh2_SensorValue_t *p_val) {
+static void priv__stream_gyro_push_sample(const sh2_SensorValue_t *p_val) {
     stream_push_packet(STREAM_SENSOR_IMU_GYRO, &p_val->un.gyroscope, sizeof(sh2_Gyroscope_t));
 }
 
-static void __stream_mag_push_sample(const sh2_SensorValue_t *p_val) {
+static void priv__stream_mag_push_sample(const sh2_SensorValue_t *p_val) {
     stream_push_packet(STREAM_SENSOR_IMU_MAG, &p_val->un.magneticField, sizeof(sh2_MagneticField_t));
 }
 
-static void __stream_quat_push_sample(const sh2_SensorValue_t *p_val) {
+static void priv__stream_quat_push_sample(const sh2_SensorValue_t *p_val) {
     stream_push_packet(STREAM_SENSOR_IMU_QUAT, &p_val->un.rotationVector, sizeof(sh2_RotationVectorWAcc_t));
 }
 
@@ -133,48 +135,48 @@ void stream_subscribe(StreamSensorId sensor) {
     s_subscriptions |= (1 << sensor);
     switch(sensor) {
         case STREAM_SENSOR_AUDIO:
-            acq_audio_register_block_complete_callback(__stream_audio_block_complete_callback);
+            acq_audio_register_block_complete_callback(priv__stream_audio_block_complete_callback);
             acq_audio_start(&g_audio_buffer, AUDIO_STREAM_BUFFER_SIZE_BLOCKS, AUDIO_STREAM_BLOCK_SIZE);
             break;
 
         case STREAM_SENSOR_PRESSURE:
-            acq_pressure_register_sample_callback(__stream_pressure_push_sample);
+            acq_pressure_register_sample_callback(priv__stream_pressure_push_sample);
             acq_pressure_start();
             break;
 
         case STREAM_SENSOR_BATTERY:
-            acq_battery_register_callback(__stream_battery_push_sample);
+            acq_battery_register_callback(priv__stream_battery_push_sample);
             acq_battery_start();
             break;
 
         case STREAM_SENSOR_GPS:
-            gps_register_bytes_received_callback(__stream_gps_push_sample);
+            gps_register_msg_complete_callback(priv__stream_gps_push_sample);
             gps_wake();
             gps_high_data_rate();
             break;
             
         case STREAM_SENSOR_IMU_ACCEL:
-            acq_imu_register_callback(IMU_SENSOR_ACCELEROMETER, __stream_accel_push_sample);
+            acq_imu_register_callback(IMU_SENSOR_ACCELEROMETER, priv__stream_accel_push_sample);
             acq_imu_start_sensor(IMU_SENSOR_ACCELEROMETER, 1000 * (uint32_t)tag_config.imu.sensor[IMU_SENSOR_ACCELEROMETER].samplerate_ms);
             break;
 
         case STREAM_SENSOR_IMU_MAG:
-            acq_imu_register_callback(IMU_SENSOR_MAGNETOMETER, __stream_mag_push_sample);
+            acq_imu_register_callback(IMU_SENSOR_MAGNETOMETER, priv__stream_mag_push_sample);
             acq_imu_start_sensor(IMU_SENSOR_MAGNETOMETER, 1000 * (uint32_t)tag_config.imu.sensor[IMU_SENSOR_MAGNETOMETER].samplerate_ms);
             break;
         
         case STREAM_SENSOR_IMU_GYRO:
-            acq_imu_register_callback(IMU_SENSOR_GYROSCOPE, __stream_gyro_push_sample);
+            acq_imu_register_callback(IMU_SENSOR_GYROSCOPE, priv__stream_gyro_push_sample);
             acq_imu_start_sensor(IMU_SENSOR_GYROSCOPE, 1000 * (uint32_t)tag_config.imu.sensor[IMU_SENSOR_GYROSCOPE].samplerate_ms);
             break;
 
         case STREAM_SENSOR_IMU_QUAT:
-            acq_imu_register_callback(IMU_SENSOR_ROTATION, __stream_quat_push_sample);
+            acq_imu_register_callback(IMU_SENSOR_ROTATION, priv__stream_quat_push_sample);
             acq_imu_start_sensor(IMU_SENSOR_ROTATION, 1000 * (uint32_t)tag_config.imu.sensor[IMU_SENSOR_ROTATION].samplerate_ms);
             break;
 
         case STREAM_SENSOR_ECG:
-            acq_ecg_register_sample_callback(__stream_ecg_push_sample);
+            acq_ecg_register_sample_callback(priv__stream_ecg_push_sample);
             acq_ecg_start();
             break;
             
@@ -217,7 +219,7 @@ void stream_unsubscribe(StreamSensorId sensor) {
 
         case STREAM_SENSOR_GPS:
             gps_standby();
-            gps_register_bytes_received_callback(NULL);
+            gps_register_msg_complete_callback(NULL);
             break;
 
         case STREAM_SENSOR_IMU_ACCEL:

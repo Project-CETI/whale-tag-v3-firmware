@@ -340,9 +340,10 @@ if (!usb_iface_present()) {
     if (tag_config.hw_config.imu.available) {
         acq_imu_init(); /// @note IMU must be initialized after audio due to shared SPI bus
     }
+
     if (tag_config.hw_config.argos.available) {
-        // MX_USART2_UART_Init();
-        // satellite_init();
+        MX_USART2_UART_Init();
+        satellite_init();
     }
     if (tag_config.hw_config.vhf_pinger.available) {
         // ToDo: initialize vhf_pinger hardware

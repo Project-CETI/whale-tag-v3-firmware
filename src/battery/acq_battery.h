@@ -8,7 +8,6 @@
 #ifndef CETI_ACQ_BATTERY_H
 #define CETI_ACQ_BATTERY_H
 
-#include "timing.h"
 #include <stdint.h>
 
 

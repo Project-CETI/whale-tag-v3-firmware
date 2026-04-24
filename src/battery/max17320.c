@@ -24,32 +24,32 @@ static Max17320Description self = {
     .hi2c = &BMS_hi2c,
 };
 
-static inline double __current_mA_from_raw(uint16_t raw, double r_sense_mOhm) {
+static inline double priv__current_mA_from_raw(uint16_t raw, double r_sense_mOhm) {
     double current_uv = ((double)((int16_t)raw)) * CURRENT_LSB_uV;
     return current_uv / r_sense_mOhm;
 }
 
-static inline double __raw_to_capacity_mAh(uint16_t raw, double r_sense_mOhm) {
+static inline double priv__raw_to_capacity_mAh(uint16_t raw, double r_sense_mOhm) {
     return ((double)raw) * 0.005 / r_sense_mOhm;
 }
 
-static inline double __raw_to_percentage(uint16_t raw) {
+static inline double priv__raw_to_percentage(uint16_t raw) {
     return ((double)raw) / 256.0;
 }
 
-static inline double __raw_to_voltage_v(uint16_t raw) {
+static inline double priv__raw_to_voltage_v(uint16_t raw) {
     return ((double)raw) * 0.000078125;
 }
 
-static inline double __raw_to_current_mA(uint16_t raw, double r_sense_mOhm) {
+static inline double priv__raw_to_current_mA(uint16_t raw, double r_sense_mOhm) {
     return ((double)((int16_t)raw)) * 0.15625 / r_sense_mOhm;
 }
 
-static inline float __raw_to_temperature_c(uint16_t raw) {
+static inline float priv__raw_to_temperature_c(uint16_t raw) {
     return ((float)((int16_t)raw)) / 256.0;
 }
 
-static inline double __raw_to_time_s(uint16_t raw) {
+static inline double priv__raw_to_time_s(uint16_t raw) {
     return ((double)raw) * 5.625;
 }
 
@@ -164,7 +164,7 @@ int max17320_get_cell_temperature_c(int cell_index, double *tCells_c) {
     }
 
     if (tCells_c != NULL) {
-        *tCells_c = __raw_to_temperature_c(raw);
+        *tCells_c = priv__raw_to_temperature_c(raw);
     }
     return 0;
 }
@@ -184,7 +184,7 @@ int max17320_get_cell_voltage_v(int cell_index, double *vCells_v) {
         return status;
     }
     if (vCells_v != NULL) {
-        *vCells_v = __raw_to_voltage_v(raw);
+        *vCells_v = priv__raw_to_voltage_v(raw);
     }
     return 0;
 }
@@ -200,7 +200,7 @@ int max17320_get_current_mA(double *pCurrent_mA) {
         return status;
     }
     if (pCurrent_mA != NULL) {
-        *pCurrent_mA = __current_mA_from_raw(raw, (R_SENSE_VAL * 1000.0));
+        *pCurrent_mA = priv__current_mA_from_raw(raw, (R_SENSE_VAL * 1000.0));
     }
     return 0;
 }
@@ -209,7 +209,7 @@ int max17320_get_average_current_mA(double *pAvgI_mA) {
     uint16_t read = 0;
     WT_TRY(max17320_read(MAX17320_REG_AVG_BATT_CURRENT, &read));
     if (pAvgI_mA != NULL) {
-        *pAvgI_mA = __current_mA_from_raw(read, (R_SENSE_VAL * 1000.0));
+        *pAvgI_mA = priv__current_mA_from_raw(read, (R_SENSE_VAL * 1000.0));
     }
     return 0;
 }
@@ -232,7 +232,7 @@ int max17320_get_state_of_charge(double *pSoc) {
     uint16_t raw = 0;
     WT_TRY(max17320_get_state_of_charge_raw(&raw));
     if (pSoc != NULL) {
-        *pSoc = __raw_to_percentage(raw);
+        *pSoc = priv__raw_to_percentage(raw);
     }
     return CETI_STATUS_OK;
 }

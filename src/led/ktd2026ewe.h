@@ -5,8 +5,8 @@
 // Contributors: Michael Salino-Hugg
 // Description: Device driver for ktd2026ewe i2c led driver
 //-----------------------------------------------------------------------------
-#ifndef __KTD2026EWE_H__
-#define __KTD2026EWE_H__
+#ifndef KTD2026EWE_H__
+#define KTD2026EWE_H__
 
 #include <stdint.h>
 
@@ -29,4 +29,4 @@ HAL_StatusTypeDef ktd2026ewe_set_period_s(float period_s);
 HAL_StatusTypeDef ktd2026ewe_set_pwm1_duty(float duty);
 HAL_StatusTypeDef ktd2026ewe_set_pwm2_duty(float duty);
 
-#endif // __KTD2026EWE_H__
+#endif // KTD2026EWE_H__

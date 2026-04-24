@@ -32,6 +32,8 @@ typedef enum {
     ERR_SUBSYS_LOG_ECG,
     ERR_SUBSYS_LED,
     ERR_SUBSYS_FLASH,
+    ERR_SUBSYS_WATER_SENSOR,
+    ERR_SUBSYS_LOG_ARGOS,
 } ErrorSubsystem;
 
 typedef enum {

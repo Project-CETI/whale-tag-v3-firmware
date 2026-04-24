@@ -6,11 +6,16 @@
  *   @copyright Harvard University Wood Lab
  *   @authors   Michael Salino-Hugg
  *****************************************************************************/
-#ifndef __CETI_LOG_GPS_H__
-#define __CETI_LOG_GPS_H__
+#ifndef CETI_LOG_GPS_H__
+#define CETI_LOG_GPS_H__
+
+#include "gps/acq_gps.h"
 
 void log_gps_init(void);
 void log_gps_deinit(void);
 void log_gps_task(void);
+int log_gps_buffer_is_half_full(void);
+void log_gps_push_sentence(const GpsSentence *p_sentence);
 
-#endif // __CETI_LOG_GPS_H__
+
+#endif // CETI_LOG_GPS_H__

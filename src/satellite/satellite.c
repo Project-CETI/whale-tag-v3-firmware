@@ -40,7 +40,7 @@ static volatile uint8_t satellite_response_end_position = 0;
 static volatile uint8_t satellite_response_ok = 0;
 static volatile uint8_t satellite_response_complete = 0;
 
-static inline void __power_en(GPIO_PinState state) {
+static inline void priv__power_en(GPIO_PinState state) {
 #ifdef SAT_PWR_EN_GPIO_Output_Pin
     HAL_GPIO_WritePin(SAT_PWR_EN_GPIO_Output_GPIO_Port, SAT_PWR_EN_GPIO_Output_Pin, state);
 #endif
@@ -73,7 +73,7 @@ void satellite_rx_callback(UART_HandleTypeDef *huart, uint16_t position) {
 /// @brief initializes a read DMA to capture the ARGOS module's response
 /// @param
 /// @return
-static int __satellite_read_dma(void) {
+static int priv__satellite_read_dma(void) {
     satellite_response_overflowed = 0;
     satellite_response_ok = 0;
     satellite_response_complete = 0;
@@ -85,14 +85,14 @@ static int __satellite_read_dma(void) {
 /// @param pCommand pointer to input AT command
 /// @param command_len AT command length
 /// @return
-static int __satellite_write(char *pCommand, uint16_t command_len) {
+static int priv__satellite_write(char *pCommand, uint16_t command_len) {
     return HAL_UART_Transmit(&SAT_huart, (uint8_t *)pCommand, command_len, 1000);
 }
 
 /// @brief Waits up to `timeout_ms` for satellite module to respond
 /// @param timeout_ms timeout time in millisecond. No timeout if set to 0
 /// @return 0 on response received sucessfully, 1 on timeout
-static int __satellite_wait_for_response(uint32_t timeout_ms) {
+static int priv__satellite_wait_for_response(uint32_t timeout_ms) {
     uint32_t start_ms = HAL_GetTick();
     while ((0 != timeout_ms) && ((HAL_GetTick() - start_ms) < timeout_ms)) {
         if (satellite_response_complete) {
@@ -110,19 +110,19 @@ static int __satellite_wait_for_response(uint32_t timeout_ms) {
 /// @param pCommand pointer to AT command
 /// @param command_len AT command length
 /// @return 0 on sucess, 1 on timeout
-static int __satellite_write_with_response(char *pCommand, uint16_t command_len) {
-    __satellite_read_dma();
-    __satellite_write(pCommand, command_len);
-    return __satellite_wait_for_response(1000);
+static int priv__satellite_write_with_response(char *pCommand, uint16_t command_len) {
+    priv__satellite_read_dma();
+    priv__satellite_write(pCommand, command_len);
+    return priv__satellite_wait_for_response(1000);
 }
 
 /// @brief Continually writes an AT command to the ARGOS module every second
 /// until an OK response is received
 /// @param pCommand pointer to AT command
 /// @param command_len  AT command length
-static int __satellite_write_until_ok(char *pCommand, uint16_t command_len) {
+static int priv__satellite_write_until_ok(char *pCommand, uint16_t command_len) {
     do {
-        if (0 != __satellite_write_with_response(pCommand, command_len)) {
+        if (0 != priv__satellite_write_with_response(pCommand, command_len)) {
             return 1; // error
         }
     } while (!satellite_response_ok);
@@ -136,7 +136,7 @@ void satellite_wait_for_programming(void) {
     GPIO_InitTypeDef GPIO_InitStruct = {0};
 
     // Enable power to module
-    __power_en(GPIO_PIN_SET);
+    priv__power_en(GPIO_PIN_SET);
 
     // set NRST as input so that stlink can take control
     GPIO_InitStruct.Pin = SAT_NRST_GPIO_Output_Pin;
@@ -153,7 +153,7 @@ void satellite_wait_for_programming(void) {
 /// @param
 /// @return 1 on success, 0 otherwise
 int satellite_ping(void) {
-    return (0 == __satellite_write_with_response(SMD_CMD_PING, strlen(SMD_CMD_PING))) && satellite_response_ok;
+    return (0 == priv__satellite_write_with_response(SMD_CMD_PING, strlen(SMD_CMD_PING))) && satellite_response_ok;
 }
 
 /// @brief waits up to `timeout_ms` for an "OK" response
@@ -181,15 +181,15 @@ int waitForOK(uint32_t timeout_ms, char *val) {
 /// @param
 void resetKMACProfile(void) {
     // Need to set KMAC = 0, wait, and then set KMAC to 1 after a radio config change or reboot of the Arribada module
-    __satellite_read_dma();
-    __satellite_write(SMD_CMD_INIT_MAC_CONFIG, strlen(SMD_CMD_INIT_MAC_CONFIG));
-    if ((0 != __satellite_wait_for_response(5000)) || !satellite_response_ok) {
+    priv__satellite_read_dma();
+    priv__satellite_write(SMD_CMD_INIT_MAC_CONFIG, strlen(SMD_CMD_INIT_MAC_CONFIG));
+    if ((0 != priv__satellite_wait_for_response(5000)) || !satellite_response_ok) {
         return;
     }
 
-    __satellite_read_dma();
-    __satellite_write(SMD_CMD_SAVE_MAC_CONFIG, strlen(SMD_CMD_SAVE_MAC_CONFIG));
-    if ((0 != __satellite_wait_for_response(5000)) || !satellite_response_ok) {
+    priv__satellite_read_dma();
+    priv__satellite_write(SMD_CMD_SAVE_MAC_CONFIG, strlen(SMD_CMD_SAVE_MAC_CONFIG));
+    if ((0 != priv__satellite_wait_for_response(5000)) || !satellite_response_ok) {
         return;
     }
 }
@@ -198,28 +198,28 @@ void resetKMACProfile(void) {
 /// @param protocol `SMD_CMD_RCONF_LDA2`, `SMD_CMD_RCONF_VLDA4`, or `SMD_CMD_RCONF_LDK`
 void satellite_configure_radio(RecoveryArgoModulation protocol) {
     do {
-        __satellite_read_dma();
+        priv__satellite_read_dma();
         switch (protocol) {
             case ARGOS_MOD_LDA2:
-                __satellite_write(SMD_CMD_RCONF_LDA2, strlen(SMD_CMD_RCONF_LDA2));
+                priv__satellite_write(SMD_CMD_RCONF_LDA2, strlen(SMD_CMD_RCONF_LDA2));
                 break;
 
             case ARGOS_MOD_VLDA4:
-                __satellite_write(SMD_CMD_RCONF_VLDA4, strlen(SMD_CMD_RCONF_VLDA4));
+                priv__satellite_write(SMD_CMD_RCONF_VLDA4, strlen(SMD_CMD_RCONF_VLDA4));
                 break;
 
             case ARGOS_MOD_LDK:
-                __satellite_write(SMD_CMD_RCONF_LDK, strlen(SMD_CMD_RCONF_LDK));
+                priv__satellite_write(SMD_CMD_RCONF_LDK, strlen(SMD_CMD_RCONF_LDK));
                 break;
 
             case ARGOS_MOD_LDA2L:
-                __satellite_write(SMD_CMD_RCONF_LDA2L, strlen(SMD_CMD_RCONF_LDA2L));
+                priv__satellite_write(SMD_CMD_RCONF_LDA2L, strlen(SMD_CMD_RCONF_LDA2L));
                 break;
         }
-    } while ((0 != __satellite_wait_for_response(1000)) || !satellite_response_ok);
+    } while ((0 != priv__satellite_wait_for_response(1000)) || !satellite_response_ok);
     do {
-        __satellite_write(SMD_CMD_SAVE_RCONF, strlen(SMD_CMD_SAVE_RCONF));
-    } while ((0 != __satellite_wait_for_response(1000)) || !satellite_response_ok);
+        priv__satellite_write(SMD_CMD_SAVE_RCONF, strlen(SMD_CMD_SAVE_RCONF));
+    } while ((0 != priv__satellite_wait_for_response(1000)) || !satellite_response_ok);
     resetKMACProfile();
 }
 
@@ -234,7 +234,7 @@ void satellite_transmit(const char *message, size_t message_len) {
     len += message_len;
     tx_buffer[len++] = '\r';
     tx_buffer[len++] = '\n';
-    __satellite_write(tx_buffer, len);
+    priv__satellite_write(tx_buffer, len);
 }
 
 /// @brief macro to define a generic get AT command function
@@ -243,12 +243,12 @@ void satellite_transmit(const char *message, size_t message_len) {
 /// @param length `uint16_t *` pointer to response length value
 /// @param capacity 'uint16_t' capacity of destination buffer
 /// @note  it sucks that metaprogramming isn't a thing in C (MSH)
-#define __SATELLITE_GET_COMMAND(cmd, dst, length, capacity)                              \
+#define priv__SATELLITE_GET_COMMAND(cmd, dst, length, capacity)                              \
     do {                                                                                 \
         if (length == NULL || dst == NULL) {                                             \
             return 1;                                                                    \
         }                                                                                \
-        __satellite_write_with_response("AT+" cmd "=?\r\n", strlen("AT+" cmd "=?\r\n")); \
+        priv__satellite_write_with_response("AT+" cmd "=?\r\n", strlen("AT+" cmd "=?\r\n")); \
         if (!satellite_response_ok) {                                                    \
             return 2;                                                                    \
         }                                                                                \
@@ -277,7 +277,7 @@ void satellite_transmit(const char *message, size_t message_len) {
 /// @param capacity output array capacity
 /// @return
 int satellite_get_id(char dst[ARGOS_ID_LENGTH + 1], uint16_t *length, uint16_t capacity) {
-    __SATELLITE_GET_COMMAND("ID", dst, length, capacity);
+    priv__SATELLITE_GET_COMMAND("ID", dst, length, capacity);
     return 0;
 }
 
@@ -287,7 +287,7 @@ int satellite_get_id(char dst[ARGOS_ID_LENGTH + 1], uint16_t *length, uint16_t c
 /// @param capacity output array capacity
 /// @return
 int satellite_get_mac_address(char dst[ARGOS_MAC_ADDRESS_LENGTH + 1], uint16_t *length, uint16_t capacity) {
-    __SATELLITE_GET_COMMAND("ADDR", dst, length, capacity);
+    priv__SATELLITE_GET_COMMAND("ADDR", dst, length, capacity);
     return 0;
 }
 
@@ -297,7 +297,7 @@ int satellite_get_mac_address(char dst[ARGOS_MAC_ADDRESS_LENGTH + 1], uint16_t *
 int satellite_get_rconf(RecoveryArgoModulation *rconf) {
     char rconf_string[33] = {0};
     uint16_t response_length = 0;
-    __SATELLITE_GET_COMMAND("RCONF", rconf_string, &response_length, sizeof(rconf_string));
+    priv__SATELLITE_GET_COMMAND("RCONF", rconf_string, &response_length, sizeof(rconf_string));
     if (0 == memcmp(&rconf_string[response_length - 4], "LDA2", 4)) {
         *rconf = ARGOS_MOD_LDA2;
     } else if (0 == memcmp(&rconf_string[response_length - 5], "VLDA4", 5)) {
@@ -322,7 +322,7 @@ int satellite_get_secret_key(char dst[ARGOS_SECRET_KEY_LENGTH + 1], uint16_t *le
     if (length == NULL || dst == NULL) {
         return 1;
     }
-    __satellite_write_with_response("AT+SECKEY=?\r\n", strlen("AT+SECKEY=?\r\n"));
+    priv__satellite_write_with_response("AT+SECKEY=?\r\n", strlen("AT+SECKEY=?\r\n"));
     if (memcmp("+SECKEY=", satellite_response_buffer, strlen("+SECKEY="))) {
         return 3;
     }
@@ -348,7 +348,7 @@ int satellite_get_secret_key(char dst[ARGOS_SECRET_KEY_LENGTH + 1], uint16_t *le
 /// @param value_array `const char *` pointer to cmd value
 /// @param length `uint16_t` value length
 /// @note  it sucks that metaprogramming isn't a thing in C (MSH)
-#define __SATELLITE_SET_COMMAND(cmd, value_array, length) \
+#define priv__SATELLITE_SET_COMMAND(cmd, value_array, length) \
     do {                                                  \
         char tx_buffer[128] = "AT+" cmd "=";              \
         uint16_t len = strlen("AT+" cmd "=");             \
@@ -356,7 +356,7 @@ int satellite_get_secret_key(char dst[ARGOS_SECRET_KEY_LENGTH + 1], uint16_t *le
         len += length;                                    \
         tx_buffer[len++] = '\r';                          \
         tx_buffer[len++] = '\n';                          \
-        __satellite_write_until_ok(tx_buffer, len);       \
+        priv__satellite_write_until_ok(tx_buffer, len);       \
     } while (0)
 
 /// @brief sets ARGOS ID on module
@@ -367,7 +367,7 @@ int satellite_set_id(const char *id, size_t id_len) {
     if (id_len != ARGOS_ID_LENGTH) {
         return 1;
     }
-    __SATELLITE_SET_COMMAND("ID", id, ARGOS_ID_LENGTH);
+    priv__SATELLITE_SET_COMMAND("ID", id, ARGOS_ID_LENGTH);
     return 0;
 }
 
@@ -376,7 +376,7 @@ int satellite_set_id(const char *id, size_t id_len) {
 /// @param address_len ADDR value length
 /// @return 0 on success
 int satellite_set_mac_address(const char address[static ARGOS_MAC_ADDRESS_LENGTH]) {
-    __SATELLITE_SET_COMMAND("ADDR", address, ARGOS_MAC_ADDRESS_LENGTH);
+    priv__SATELLITE_SET_COMMAND("ADDR", address, ARGOS_MAC_ADDRESS_LENGTH);
     return 0;
 }
 
@@ -385,7 +385,7 @@ int satellite_set_mac_address(const char address[static ARGOS_MAC_ADDRESS_LENGTH
 /// @param address_len SECKEY value length
 /// @return 0 on success
 int satellite_set_secret_key(const char secret_key[static ARGOS_SECRET_KEY_LENGTH]) {
-    __SATELLITE_SET_COMMAND("SECKEY", secret_key, ARGOS_SECRET_KEY_LENGTH);
+    priv__SATELLITE_SET_COMMAND("SECKEY", secret_key, ARGOS_SECRET_KEY_LENGTH);
     return 0;
 }
 
@@ -393,7 +393,7 @@ int satellite_set_secret_key(const char secret_key[static ARGOS_SECRET_KEY_LENGT
 /// @param
 void satellite_hw_init(void) {
     // Enable power to module
-    __power_en(GPIO_PIN_RESET);
+    priv__power_en(GPIO_PIN_RESET);
     resetKMACProfile();
 }
 
@@ -401,20 +401,24 @@ void satellite_hw_init(void) {
 /// @param
 void satellite_init(void) {
     // read version
-    //	__satellite_read_dma();
-    //	while((0 != __satellite_wait_for_response(10000)) || !satellite_response_ok){
+    //	priv__satellite_read_dma();
+    //	while((0 != priv__satellite_wait_for_response(10000)) || !satellite_response_ok){
     //		;
     //	}
 
     // Reset AArribada module
-    __power_en(GPIO_PIN_RESET);
+    priv__power_en(GPIO_PIN_RESET);
     HAL_GPIO_WritePin(SAT_NRST_GPIO_Output_GPIO_Port, SAT_NRST_GPIO_Output_Pin, GPIO_PIN_RESET);
     HAL_Delay(100);
-    __satellite_read_dma();
-    __power_en(GPIO_PIN_SET);
+    priv__satellite_read_dma();
+    priv__power_en(GPIO_PIN_SET);
     HAL_GPIO_WritePin(SAT_NRST_GPIO_Output_GPIO_Port, SAT_NRST_GPIO_Output_Pin, GPIO_PIN_SET);
-    HAL_Delay(2000);
-    while ((0 != __satellite_wait_for_response(10000)) || !satellite_response_ok) {
+}
+
+/// @brief start satellite communication
+/// @param scheme 
+void satellite_start(ArgosConfig config[static 1]) {
+    while ((0 != priv__satellite_wait_for_response(10000)) || !satellite_response_ok) {
         satellite_ping();
     }
 
@@ -423,12 +427,10 @@ void satellite_init(void) {
         __NOP();
     } while (!satellite_ping());
 
-#ifdef STATIC_CREDENTIALS
-    satellite_set_id(ARGOS_CRED_ID, strlen(ARGOS_CRED_ID));
-    satellite_set_mac_address(ARGOS_CRED_ADDRESS);
-    satellite_set_secret_key(ARGOS_CRED_SECRET);
-#endif // STATIC_CREDENTIALS
+    satellite_set_id(config->id, 6);
+    satellite_set_mac_address(config->address);
+    satellite_set_secret_key(config->secret_key);
 
     // set radio protocol
-    satellite_configure_radio(ARGOS_MOD_LDA2);
+    satellite_configure_radio(config->modulation_protocol);
 }

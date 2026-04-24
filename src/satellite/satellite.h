@@ -13,6 +13,7 @@
 /* Public Dependencies */
 #include "main.h"
 #include <unistd.h>
+#include "config.h"
 
 /* Public Macros */
 #define ARGOS_ID_LENGTH 6
@@ -20,12 +21,6 @@
 #define ARGOS_SECRET_KEY_LENGTH 32
 
 /* Public Types */
-typedef enum {
-    ARGOS_MOD_LDA2,
-    ARGOS_MOD_VLDA4,
-    ARGOS_MOD_LDK,
-    ARGOS_MOD_LDA2L,
-} RecoveryArgoModulation;
 
 /* Public Variables */
 
@@ -46,4 +41,6 @@ int satellite_set_mac_address(const char address[static ARGOS_MAC_ADDRESS_LENGTH
 int satellite_set_secret_key(const char secret_key[static ARGOS_SECRET_KEY_LENGTH]);
 
 void satellite_configure_radio(RecoveryArgoModulation modulation);
+void satellite_start(ArgosConfig config[static 1]);
+
 #endif // CETI_SATELLITE_H

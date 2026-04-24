@@ -11,6 +11,7 @@
 #include <app_filex.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <string.h>
 
 #include "battery/bms_ctl.h"
 #include "config.h"
@@ -46,7 +47,7 @@ static const char * format_str[] = {
     [DATA_FORMAT_TXT] = "txt",
 };
 
-static void __write_static_hardware_config(void) {
+static void priv__write_static_hardware_config(void) {
     uint16_t offset = 0;
     char buffer[4096];
 
@@ -198,11 +199,11 @@ static void __write_static_hardware_config(void) {
 
     UINT fx_write_result = fx_file_write(&s_fp, buffer, offset);
     if (FX_SUCCESS != fx_write_result) {
-        error_queue_push(CETI_ERROR(ERR_SUBSYS_METADATA, ERR_TYPE_FILEX, fx_write_result), __write_static_hardware_config);
+        error_queue_push(CETI_ERROR(ERR_SUBSYS_METADATA, ERR_TYPE_FILEX, fx_write_result), priv__write_static_hardware_config);
     }
 }
 
-static void __write_static_software_config(void) {
+static void priv__write_static_software_config(void) {
     uint16_t offset = 0;
     char buffer[2048];
 
@@ -349,11 +350,11 @@ static void __write_static_software_config(void) {
 
     UINT fx_write_result = fx_file_write(&s_fp, buffer, offset);
     if (FX_SUCCESS != fx_write_result) {
-        error_queue_push(CETI_ERROR(ERR_SUBSYS_METADATA, ERR_TYPE_FILEX, fx_write_result), __write_static_software_config);
+        error_queue_push(CETI_ERROR(ERR_SUBSYS_METADATA, ERR_TYPE_FILEX, fx_write_result), priv__write_static_software_config);
     }    
 }
 
-static void __write_static_mission_config(void) {
+static void priv__write_static_mission_config(void) {
     uint16_t offset = 0;
     char buffer[2048];
 
@@ -425,11 +426,11 @@ static void __write_static_mission_config(void) {
 
     UINT fx_write_result = fx_file_write(&s_fp, buffer, offset);
     if (FX_SUCCESS != fx_write_result) {
-        error_queue_push(CETI_ERROR(ERR_SUBSYS_METADATA, ERR_TYPE_FILEX, fx_write_result), __write_static_mission_config);
+        error_queue_push(CETI_ERROR(ERR_SUBSYS_METADATA, ERR_TYPE_FILEX, fx_write_result), priv__write_static_mission_config);
     }
 }
 
-static void __write_file_name_section(char *mission_directory) {
+static void priv__write_file_name_section(char *mission_directory) {
     uint16_t offset = 0;
     char buffer[2048];
     offset += snprintf((char *)&buffer[offset], sizeof(buffer) - offset, 
@@ -440,7 +441,7 @@ static void __write_file_name_section(char *mission_directory) {
     );
     UINT fx_write_result = fx_file_write(&s_fp, buffer, offset);
     if (FX_SUCCESS != fx_write_result) {
-        error_queue_push(CETI_ERROR(ERR_SUBSYS_METADATA, ERR_TYPE_FILEX, fx_write_result), __write_file_name_section);
+        error_queue_push(CETI_ERROR(ERR_SUBSYS_METADATA, ERR_TYPE_FILEX, fx_write_result), priv__write_file_name_section);
     }
     return;
 }
@@ -487,14 +488,14 @@ void metadata_create(char * mission_directory) {
         , rtc_get_epoch_s()
     );
 
-    __write_static_hardware_config();
+    priv__write_static_hardware_config();
 
-    __write_static_software_config();
+    priv__write_static_software_config();
     
-    __write_static_mission_config();
+    priv__write_static_mission_config();
 
     // log files as they get created
-    __write_file_name_section(mission_directory);
+    priv__write_file_name_section(mission_directory);
     metadata_log_file_creation("tag_info.yaml", DATA_TYPE_METADATA, DATA_FORMAT_YAML, 0);
 }
 

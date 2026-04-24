@@ -49,7 +49,7 @@ void syslog_flush(void) {
 }
 
 // call this function to write to the system log
-UINT __syslog_write(const str *identifier, const char *fmt, ...) {
+UINT priv__syslog_write(const str identifier[static 1], const char fmt[static 1], ...) {
     uint8_t scratch_buffer[1024] = {};
     uint8_t *position = &scratch_buffer[0];
 

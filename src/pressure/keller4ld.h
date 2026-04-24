@@ -7,8 +7,8 @@
 //               Michael Salino-Hugg
 // Description: PDevice driver for Keller 4LD pressure transmitter
 //-----------------------------------------------------------------------------
-#ifndef __CETI_WHALE_TAG_HAL_KELLER_4LD__
-#define __CETI_WHALE_TAG_HAL_KELLER_4LD__
+#ifndef CETI_WHALE_TAG_HAL_KELLER_4LD__
+#define CETI_WHALE_TAG_HAL_KELLER_4LD__
 
 #include "stm32u5xx_hal.h"
 
@@ -37,4 +37,4 @@ void keller4ld_raw_to_measurement(const uint8_t p_raw[static 5], Keller4LD_Measu
 void keller4ld_eoc_callback(void);
 void keller4ld_register_measurement_complete_callback(void (*p_callback)(uint8_t raw_packet[static 5]));
 
-#endif // __CETI_WHALE_TAG_HAL_KELLER_4LD__
+#endif // CETI_WHALE_TAG_HAL_KELLER_4LD__

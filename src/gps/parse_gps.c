@@ -1,15 +1,28 @@
-#ifdef asfdlkasdfljkasdjklfd
+#include "parse_gps.h"
+
+#include "acq_gps.h"
+
 #include <ctype.h>
 #include <stddef.h>
 #include <stdint.h>
+#include <stdlib.h>
+#include <string.h>
 
+static int s_parsed_rmc_outdated = 1;
+static GpsCoord s_latest_coord;
+static GpsSentence s_latest_valid_rmc_sentence = {};
 
-static inline int __is_field(uint8_t c) {
+[[gnu::pure]]
+static inline int priv__is_field(uint8_t c) {
     return (isprint((unsigned char)(c)) && (c) != ',' && (c) != '*');
 }
 
-static inline const uint8_t * __next_field(const uint8_t *field) {
-    while (__is_field(*field)) {
+[[gnu::pure]]
+static inline const uint8_t * priv__next_field(const uint8_t *field) {
+    if (NULL == field) { 
+        return NULL;
+    } 
+    while (priv__is_field(*field)) {
         field++;
     }
     if (',' != *field) {
@@ -17,6 +30,7 @@ static inline const uint8_t * __next_field(const uint8_t *field) {
     } else {
         field++;
     }
+    return field;
 }
 
 /// @brief  Parses RMC NMEA messages extracting relavent fields
@@ -24,120 +38,104 @@ static inline const uint8_t * __next_field(const uint8_t *field) {
 /// @return 0 == invalid RMC NMEA message; 1 == valid nmea message with valid coord
 /// @note this was modified from minmea (https://github.com/kosma/minmea) to be
 /// degeneralized and reduce the amount of work
-static int __parse_rmc(const uint8_t *sentence) {
+[[gnu::pure]]
+static GpsCoord priv__parse_rmc(const uint8_t *sentence) {
+    GpsCoord coordinates = {.valid = 0};
     const uint8_t *field = sentence;
-    uint8_t year;
-    uint8_t month;
-    uint8_t day;     // (1..31]
-    uint8_t hours;   // (0..24]
-    uint8_t minutes; // (0..60]
-    uint8_t seconds; // (0..60] // used for RTC sync not logging
-    uint8_t latitude_sign;
-    uint8_t longitude_sign;
-    // uint8_t unused[3];
-    float latitude;
-    float longitude;
 
+    if (NULL == sentence) {
+        return coordinates;
+    }
+    
     // t - type
-    if ('$' != field[0]) {
-        return 0;
+    if ('$' != sentence[0]) {
+        return coordinates;
     }
     for (int i = 0; i < 5; i++) {
-        if (!__is_field(field[1 + i])) {
-            return 0;
+        if (!priv__is_field(sentence[1 + i])) {
+            return coordinates;
         }
     }
-    if (0 != memcmp("RMC", &field[3], 3)) {
-        return 0;
+    if (0 != memcmp("RMC", &sentence[3], 3)) {
+        return coordinates;
     }
-    field += 5;
+    field = sentence + 5;
 
     // check validity
-    const char *time_str = field = __next_field(field);
-    if (NULL == field) {
-        return 0;
-    }
+    const uint8_t *time_field = priv__next_field(field);
     // skip time field for now
-
-    field = __next_field(field);
-    if (NULL == field) {
-        return 0;
+    
+    const uint8_t *valid_field = priv__next_field(time_field);
+    
+    if (NULL == valid_field) { return coordinates; }
+    { 
+        if ('A' != *valid_field) { return coordinates; }
     }
-    {
-
-    if ('A' != *field) {
-        return 0;
-    }
-    }
-    field = __next_field(field);
-    if (NULL == field) {
-        return 0;
-    }
-
     // frame is valid RMC. parse!!!
-
+        
     // parse meaningful values;
     // Minimum required: integer time.
+    if (NULL == time_field) { return coordinates; }
     { // hour and minute
         for (int f = 0; f < 6; f++) {
-            if (!isdigit((unsigned char)time_str[f]))
-                return 0;
+            if (!isdigit((unsigned char)time_field[f]))
+                return coordinates;
         }
 
-        char hArr[] = {time_str[0], time_str[1], '\0'};
-        char mArr[] = {time_str[2], time_str[3], '\0'};
-        char sArr[] = {time_str[4], time_str[5], '\0'};
+        char hArr[] = {time_field[0], time_field[1], '\0'};
+        char mArr[] = {time_field[2], time_field[3], '\0'};
+        char sArr[] = {time_field[4], time_field[5], '\0'};
 
-        hours = strtol(hArr, NULL, 10);
-        minutes = strtol(mArr, NULL, 10);
-        seconds = strtol(sArr, NULL, 10);
+        coordinates.hours = strtol(hArr, NULL, 10);
+        coordinates.minutes = strtol(mArr, NULL, 10);
+        coordinates.seconds = strtol(sArr, NULL, 10);
     }
 
+    const uint8_t *latitude_field = priv__next_field(valid_field);
+    if (NULL == latitude_field) { return coordinates; }
     { // latitude
         for (int f = 0; f < 4; f++) {
-            if (!isdigit((unsigned char)field[f]))
-                return 0;
+            if (!isdigit((unsigned char)latitude_field[f]))
+                return coordinates;
         }
-        char dArr[] = {field[0], field[1], 0};
-        char mArr[] = {field[2], field[3], 0};
+        char dArr[] = {latitude_field[0], latitude_field[1], 0};
+        char mArr[] = {latitude_field[2], latitude_field[3], 0};
         uint8_t degrees = strtol(dArr, NULL, 10);
         uint8_t minutes = strtol(mArr, NULL, 10);
         float minutes_f = (float)minutes;
 
         uint32_t subminutes = 0;
         uint32_t scale = 1;
-        if ('.' == field[4]) {
-            for (int i = 5; isdigit((unsigned char)field[i]); i++) {
-                subminutes = (subminutes * 10) + (field[i] - '0');
+        if ('.' == latitude_field[4]) {
+            for (int i = 5; isdigit((unsigned char)latitude_field[i]); i++) {
+                subminutes = (subminutes * 10) + (latitude_field[i] - '0');
                 scale *= 10;
             }
         }
         minutes_f += ((float)subminutes) / (float)scale;
-        latitude = (float)degrees + (minutes_f / 60.0f);
+        coordinates.latitude = (float)degrees + (minutes_f / 60.0f);
     }
 
-    field = __next_field(field);
-    if (NULL == field) {
-        return 0;
-    }
+    const uint8_t *latitude_sign_field = priv__next_field(latitude_field);
+    if (NULL == latitude_sign_field) { return coordinates; }
     { // latitude sign
-        if ('S' == *field) {
-            latitude_sign = 1;
-        } else if ('N' == *field) {
-            latitude_sign = 0;
+        if ('S' == *latitude_sign_field) {
+            coordinates.latitude_sign = 1;
+        } else if ('N' == *latitude_sign_field) {
+            coordinates.latitude_sign = 0;
         } else {
-            return 0;
+            return coordinates;
         }
     }
 
-    field = __next_field(field);
+    field = priv__next_field(latitude_sign_field);
     if (NULL == field) {
-        return 0;
+        return coordinates;
     }
     { // longitude
         for (int f = 0; f < 5; f++) {
             if (!isdigit((unsigned char)field[f])) {
-                return 0;
+                return coordinates;
             }
         }
         char dArr[] = {field[0], field[1], field[2], 0};
@@ -155,116 +153,117 @@ static int __parse_rmc(const uint8_t *sentence) {
             }
         }
         minutes_f += ((float)subminutes) / (float)scale;
-        longitude = (float)degrees + (minutes_f / 60.0f);
+        coordinates.longitude = (float)degrees + (minutes_f / 60.0f);
     }
 
-    field = __next_field(field);
+    field = priv__next_field(field);
     if (NULL == field) {
-        return 0;
+        return coordinates;
     }
     { // longitude_sign
         if ('W' == *field) {
-            longitude_sign = 1;
+            coordinates.longitude_sign = 1;
         } else if ('E' == *field) {
-            longitude_sign = 0;
+            coordinates.longitude_sign = 0;
         } else {
-            return 0;
+            return coordinates;
         }
     }
 
-    field = __next_field(field);
+    field = priv__next_field(field);
     if (NULL == field) {
-        return 0;
+        return coordinates;
     }
     { // speed
     }
 
-    field = __next_field(field);
+    field = priv__next_field(field);
     if (NULL == field) {
-        return 0;
+        return coordinates;
     }
     { // course
     }
 
-    field = __next_field(field);
+    field = priv__next_field(field);
     if (NULL == field) {
-        return 0;
+        return coordinates;
     }
     { // Date
         for (int f = 0; f < 6; f++) {
             if (!isdigit((unsigned char)field[f]))
-                return 0;
+                return coordinates;
         }
         char dArr[] = {field[0], field[1], 0};
         char mArr[] = {field[2], field[3], 0};
         char yArr[] = {field[4], field[5], 0};
-        day = strtol(dArr, NULL, 10);
-        month = strtol(mArr, NULL, 10);
-        year = strtol(yArr, NULL, 10);
+        coordinates.day = strtol(dArr, NULL, 10);
+        coordinates.month = strtol(mArr, NULL, 10);
+        coordinates.year = strtol(yArr, NULL, 10);
     }
 
     // everything parsed OK
-    latest_gps_coord.valid = 1;
-    latest_gps_coord.year = year;
-    latest_gps_coord.month = month;
-    latest_gps_coord.day = day;         // (0..31]
-    latest_gps_coord.hours = hours;     // (0..24]
-    latest_gps_coord.minutes = minutes; // (0..60]
-    latest_gps_coord.seconds = seconds; // (0..60] // used for RTC sync not logging
-    latest_gps_coord.latitude_sign = latitude_sign;
-    latest_gps_coord.longitude_sign = longitude_sign;
-    latest_gps_coord.latitude = latitude;
-    latest_gps_coord.longitude = longitude;
-    return 1;
+    coordinates.valid = 1;
+    return coordinates;
 }
 
-int __validate_rmc_sentence(const uint8_t *sentence) {
+[[gnu::pure]]
+static int priv__validate_rmc_sentence(const uint8_t *sentence) {
+    const uint8_t *field = sentence;
 
+    // t - type
+    if ('$' != field[0]) {
+        return 0;
+    }
+    for (int i = 0; i < 5; i++) {
+        if (!priv__is_field(field[1 + i])) {
+            return 0;
+        }
+    }
+    if (0 != memcmp("RMC", &field[3], 3)) {
+        return 0;
+    }
+    field += 5;
+
+    // check validity
+    field = priv__next_field(field);
+    if (NULL == field) {
+        return 0;
+    }
+    // skip time field for now
+
+    field = priv__next_field(field);
+    if (NULL == field) {
+        return 0;
+    }
+    {
+
+    if ('A' != *field) {
+        return 0;
+    }
+    }
+    field = priv__next_field(field);
+    if (NULL == field) {
+        return 0;
+    }
+    return 1;
 } 
 
-/// @brief  Task that updates latest valid GPS coordinates, forwards all gps
-/// to a file, and resyncronizes the RTC if it hasn't been yet;
-/// @param
-void __parse_gps_task(void) {
-    const uint8_t *gps_sentence = gps_pop_sentence();
-    while (NULL != gps_sentence) {
-        // validate position
-        int new_valid_rmc = __parse_rmc(gps_sentence);
-
-        // synchronize RTC
-        if (!rtc_has_been_syncronized() && latest_gps_coord.valid) {
-            RTC_TimeTypeDef sTime = {
-                .Hours = latest_gps_coord.hours,
-                .Minutes = latest_gps_coord.minutes,
-                .Seconds = latest_gps_coord.seconds,
-            };
-            RTC_DateTypeDef sDate = {
-                .Year = latest_gps_coord.year,
-                .Date = latest_gps_coord.day,
-                .Month = latest_gps_coord.month,
-            };
-            rtc_set_datetime(&sDate, &sTime);
-        }
-
-        // update argos_tx_mgr's position
-        if (new_valid_rmc) {
-            float lat = latest_gps_coord.latitude;
-            if (latest_gps_coord.latitude_sign) {
-                lat = -lat;
-            }
-            float lon = latest_gps_coord.longitude;
-            if (latest_gps_coord.longitude_sign) {
-                lon = 360.0f - lon;
-            }
-            argos_tx_mgr_set_coordinates(lat, lon);
-        }
-
-        // forward to host
-        // #warning "ToDo: Log GPS Sentences"
-
-        // next
-        gps_sentence = gps_pop_sentence();
+void parse_gps_push_sentence(const GpsSentence *p_sentence) {
+    if (priv__validate_rmc_sentence(p_sentence->msg)){
+        s_latest_valid_rmc_sentence = *p_sentence;
+        s_parsed_rmc_outdated = 1;
     }
 }
 
-#endif
+GpsCoord parse_gps_get_latest_coordinates(void) {  
+    // update coord if newer coord available
+    if (s_parsed_rmc_outdated) {
+        GpsCoord new_coord = priv__parse_rmc(s_latest_valid_rmc_sentence.msg);
+        if (new_coord.valid) {
+            s_latest_coord = new_coord;
+            s_parsed_rmc_outdated = 0;
+        }
+    }
+
+    return s_latest_coord;    
+}

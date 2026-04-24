@@ -8,16 +8,21 @@
 #ifndef CETI_ACQ_PRESSURE_H
 #define CETI_ACQ_PRESSURE_H
 
-#include "keller4ld.h"
-#include "timing.h"
+#include <stdint.h>
+
+#define PRESSURE_MIN 0   // bar
+#define PRESSURE_MAX 200 // bar
+#define acq_pressure_raw_to_pressure_bar(raw) (((double)(raw) - 16384.0) * ((PRESSURE_MAX - PRESSURE_MIN) / 32768.0))
+#define acq_pressure_raw_to_temperature_c(raw) ((double)(((raw) >> 4) - 24) * 0.05 - 50.0)
+
+#define acq_pressure_bar_to_pressure_raw(pressure_bar) ((uint16_t)(((pressure_bar) * 32768.0 / (PRESSURE_MAX - PRESSURE_MIN)) + 16384.0))
 
 typedef struct {
     uint64_t timestamp_us;
-    Keller4LD_Measurement data;
+    uint8_t status;
+    uint16_t pressure;
+    uint16_t temperature;
 } CetiPressureSample;
-
-#define acq_pressure_raw_to_pressure_bar(raw) KELLER4LD_RAW_TO_PRESSURE_BAR(raw)
-#define acq_pressure_raw_to_temperature_c(raw) KELLER4LD_RAW_TO_TEMPERATURE_C(raw)
 
 void acq_pressure_init(uint16_t samplerate_hz);
 void acq_pressure_deinit(void);

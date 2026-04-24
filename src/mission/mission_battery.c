@@ -11,6 +11,8 @@
 #include "config.h" // { tag_config }
 #include "battery/acq_battery.h" // {CetiBatterySample, acq_battery_get}
 
+#include <stddef.h>
+
 #define BATTERY_NOMINAL_CELL_VOLTAGE 3.8
 #define LOW_VOLTAGE_WINDOW_SIZE 4
 #define BATTERY_ERROR_COUNT_THRESHOLD 3
@@ -21,7 +23,7 @@ static size_t s_batter_v_position = 0;
 static double s_battery_v_sum[2] = {0};
 static uint16_t s_battery_consecutive_error_count = 0;
 
-static inline int __mission_battery_is_tracking_enabled(void) {
+static inline int priv__mission_battery_is_tracking_enabled(void) {
     return ( tag_config.hw_config.bms.available 
         && tag_config.battery.enabled
     );
@@ -31,7 +33,7 @@ static inline int __mission_battery_is_tracking_enabled(void) {
 /// @param  
 void mission_battery_task(void) {
     // nothing to be done
-    if ( !__mission_battery_is_tracking_enabled()) {
+    if ( !priv__mission_battery_is_tracking_enabled()) {
         return;
     }
 
@@ -63,7 +65,7 @@ void mission_battery_task(void) {
 /// @brief initialize battery tracking for mission statem achine
 /// @param  
 void mission_battery_init(void) {
-    if (!__mission_battery_is_tracking_enabled()
+    if (!priv__mission_battery_is_tracking_enabled()
         || !tag_config.mission.low_power_release.enabled
     ){
         return;
@@ -82,7 +84,7 @@ void mission_battery_init(void) {
 /// @brief check if average battery voltage is below expected threshold
 /// @param  
 int  mission_battery_is_low_voltage(void) {
-    if (!__mission_battery_is_tracking_enabled()
+    if (!priv__mission_battery_is_tracking_enabled()
         || !tag_config.mission.low_power_release.enabled
     ){
         return 0;
@@ -100,7 +102,7 @@ int  mission_battery_is_low_voltage(void) {
 /// @brief check if bms is continually returning error values
 /// @param  
 int mission_battery_is_in_error(void) {
-    return ( __mission_battery_is_tracking_enabled() 
+    return ( priv__mission_battery_is_tracking_enabled() 
         && (s_battery_consecutive_error_count + 1 >= BATTERY_ERROR_COUNT_THRESHOLD)
     );
 }

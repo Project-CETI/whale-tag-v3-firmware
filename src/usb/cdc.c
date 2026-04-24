@@ -33,45 +33,47 @@ typedef struct cdc_cmd_t {
 } CdcCommand;
 
 static void cdc_print(const char *str);
-static void __not_implemented(int argc, const char *const *argv);
-static void __cmd_audio_negative(int argc, const char *const *argv);
-static void __cmd_audio_positive(int argc, const char *const *argv);
-static void __cmd_argos_message(int argc, const char *const *argv);
-static void __cmd_bms_program(int argc, const char *const *argv);
-static void __cmd_burnwire(int argc, const char *const *argv);
-static void __cmd_datetime(int argc, const char *const *argv);
-static void __cmd_flasher(int argc, const char *const *argv);
-static void __cmd_help(int argc, const char *const *argv);
-static void __cmd_shutdown(int argc, const char *const *argv);
-static void __cmd_restart(int argc, const char *const *argv);
-static void __cmd_update(int argc, const char *const *argv);
-static void __cmd_vhf_pinger(int argc, const char *const *argv);
+static void priv__not_implemented(int argc, const char *const *argv);
+static void priv__cmd_audio_negative(int argc, const char *const *argv);
+static void priv__cmd_audio_positive(int argc, const char *const *argv);
+static void priv__cmd_argos_message(int argc, const char *const *argv);
+static void priv__cmd_bms_program(int argc, const char *const *argv);
+static void priv__cmd_burnwire(int argc, const char *const *argv);
+static void priv__cmd_datetime(int argc, const char *const *argv);
+static void priv__cmd_flasher(int argc, const char *const *argv);
+static void priv__cmd_help(int argc, const char *const *argv);
+static void priv__cmd_shutdown(int argc, const char *const *argv);
+static void priv__cmd_program_argos(int argc, const char *const *argv);
+static void priv__cmd_restart(int argc, const char *const *argv);
+static void priv__cmd_update(int argc, const char *const *argv);
+static void priv__cmd_vhf_pinger(int argc, const char *const *argv);
 
-static void __cmd_i2cdetect(int argc, const char *const *argv);
-static void __cmd_i2cset(int argc, const char *const *argv);
-static void __cmd_i2cget(int argc, const char *const *argv);
+static void priv__cmd_i2cdetect(int argc, const char *const *argv);
+static void priv__cmd_i2cset(int argc, const char *const *argv);
+static void priv__cmd_i2cget(int argc, const char *const *argv);
 
 static char s_cmdline[CMDLINE_MAX];
 static int s_cmdlen;
 
 static const CdcCommand cdc_options[] = {
-    {.key = "audio_negative", .description = "enable/disable audio -5V input", .action = __cmd_audio_negative},
-    {.key = "audio_positive", .description = "enable/disable audio 5V input", .action = __cmd_audio_positive},
-    {.key = "argos_message", .description = "transmit argos message", .action = __cmd_argos_message},
-    {.key = "burnwire", .description = "turn burnwire on/off", .action = __cmd_burnwire},
-    {.key = "bms_program", .description = "set BMS NV memory", .action = __cmd_bms_program},
-    {.key = "datetime", .description = "get/set RTC epoch", .action = __cmd_datetime},
-    {.key = "flasher", .description = "enable/disanble antenna LED flasher", .action = __cmd_flasher},
-    {.key = "help", .description = "list available commands", .action = __cmd_help},
-    {.key = "restart", .description = "restart tag", .action = __cmd_restart},
-    {.key = "shutdown", .description = "powerdown tag", .action = __cmd_shutdown},
-    {.key = "update", .description = "reboot into DFU system bootloader", .action = __cmd_update},
-    {.key = "vhf_pinger", .description = "enable/disabled VHF pinger", .action = __cmd_vhf_pinger},
+    {.key = "audio_negative", .description = "enable/disable audio -5V input", .action = priv__cmd_audio_negative},
+    {.key = "audio_positive", .description = "enable/disable audio 5V input", .action = priv__cmd_audio_positive},
+    {.key = "argos_message", .description = "transmit argos message", .action = priv__cmd_argos_message},
+    {.key = "burnwire", .description = "turn burnwire on/off", .action = priv__cmd_burnwire},
+    {.key = "bms_program", .description = "set BMS NV memory", .action = priv__cmd_bms_program},
+    {.key = "datetime", .description = "get/set RTC epoch", .action = priv__cmd_datetime},
+    {.key = "flasher", .description = "enable/disanble antenna LED flasher", .action = priv__cmd_flasher},
+    {.key = "help", .description = "list available commands", .action = priv__cmd_help},
+    {.key = "program_argos", .description = "Set argos module into a programming state", .action = priv__cmd_program_argos},
+    {.key = "restart", .description = "restart tag", .action = priv__cmd_restart},
+    {.key = "shutdown", .description = "powerdown tag", .action = priv__cmd_shutdown},
+    {.key = "update", .description = "reboot into DFU system bootloader", .action = priv__cmd_update},
+    {.key = "vhf_pinger", .description = "enable/disabled VHF pinger", .action = priv__cmd_vhf_pinger},
     
     // i2c passthrough
-    {.key = "i2cdetect", .description = "list devices on specified i2c bus", .action = __cmd_i2cdetect},
-    {.key = "i2cget", .description = "i2cget [b|w] <bus> <device> [register] [count]", .action = __cmd_i2cget},
-    {.key = "i2cset", .description = "i2cset [b|w] <bus> <device> <register> <value> [value...]", .action = __cmd_i2cset},
+    {.key = "i2cdetect", .description = "list devices on specified i2c bus", .action = priv__cmd_i2cdetect},
+    {.key = "i2cget", .description = "i2cget [b|w] <bus> <device> [register] [count]", .action = priv__cmd_i2cget},
+    {.key = "i2cset", .description = "i2cset [b|w] <bus> <device> <register> <value> [value...]", .action = priv__cmd_i2cset},
     // 
 };
 
@@ -80,7 +82,7 @@ static const CdcCommand cdc_options[] = {
 /// @brief enable/disable audio-+5 voltage
 /// @param argc argument_count
 /// @param argv argument_values
-static void __cmd_audio_negative(int argc, const char *const *argv) {
+static void priv__cmd_audio_negative(int argc, const char *const *argv) {
     if (argc < 2) {
         return;
     }    
@@ -102,7 +104,7 @@ static void __cmd_audio_negative(int argc, const char *const *argv) {
 /// @brief enable/disable audio +5 voltage
 /// @param argc argument_count
 /// @param argv argument_values
-static void __cmd_audio_positive(int argc, const char *const *argv) {
+static void priv__cmd_audio_positive(int argc, const char *const *argv) {
     if (argc < 2) {
         return;
     }    
@@ -124,10 +126,33 @@ static void __cmd_audio_positive(int argc, const char *const *argv) {
 /// @brief send a message via argos
 /// @param argc argument_count
 /// @param argv argument_values
-static void __cmd_argos_message(int argc, const char *const *argv) {
+static void priv__cmd_argos_message(int argc, const char *const *argv) {
+    static uint8_t argos_started = 0;
     uint16_t msg_length = 0;
     uint16_t max_length = 24; // ToDo:change based on args protocol
+    switch (tag_config.argos.modulation_protocol) {
+        case ARGOS_MOD_LDA2:
+            max_length = 24;
+            break;
+
+        case ARGOS_MOD_VLDA4:
+            max_length = 3;
+            break;
+
+        case ARGOS_MOD_LDK:
+            max_length = 16;
+            break;
+
+        case ARGOS_MOD_LDA2L:
+            max_length = 24;
+            break;
+    }
     char tx_message_ascii[(2 * 24) + 1];    
+
+    if (!argos_started) {
+        satellite_start(&tag_config.argos);
+        argos_started = 1;
+    }
 
     // copy message over to output as long as valid 
     if (argc >= 2) {
@@ -155,14 +180,14 @@ static void __cmd_argos_message(int argc, const char *const *argv) {
 /// @brief write bms settings to nonvolatile memory
 /// @param argc argument_count
 /// @param argv argument_values
-static void __cmd_bms_program(int argc, const char *const *argv) {
+static void priv__cmd_bms_program(int argc, const char *const *argv) {
     bms_ctl_program_nonvolatile_memory();
 }
 
 /// @brief disable or enable burnwire
 /// @param argc argument_count
 /// @param argv argument_values
-static void __cmd_burnwire(int argc, const char *const *argv) {
+static void priv__cmd_burnwire(int argc, const char *const *argv) {
     if ((argc >= 2) && (strcmp(argv[1], "0") == 0)) {
         burnwire_off();
         led_usb();
@@ -180,7 +205,7 @@ static void __cmd_burnwire(int argc, const char *const *argv) {
 /// @brief get or set rtc date time
 /// @param argc argument_count
 /// @param argv argument_values
-static void __cmd_datetime(int argc, const char *const *argv) {
+static void priv__cmd_datetime(int argc, const char *const *argv) {
     if (argc < 2) {
         cdc_print("usage: datetime <epoch> | datetime ?" ENDL);
         return;
@@ -208,7 +233,7 @@ static void __cmd_datetime(int argc, const char *const *argv) {
 /// @brief enable of disable antenna flasher
 /// @param argc argument_count
 /// @param argv argument_values
-static void __cmd_flasher(int argc, const char *const *argv) {
+static void priv__cmd_flasher(int argc, const char *const *argv) {
     if (argc < 2) {
         return;
     }    
@@ -230,7 +255,7 @@ static void __cmd_flasher(int argc, const char *const *argv) {
 /// @brief print help message
 /// @param argc argument_count
 /// @param argv argument_values
-static void __cmd_help(int argc, const char *const *argv) {
+static void priv__cmd_help(int argc, const char *const *argv) {
     for (size_t i = 0; i < NUM_COMMANDS; i++) {
         cdc_print("  ");
         cdc_print(cdc_options[i].key);
@@ -245,7 +270,7 @@ extern I2C_HandleTypeDef hi2c1;
 extern I2C_HandleTypeDef hi2c2;
 extern I2C_HandleTypeDef hi2c3;
 
-static I2C_HandleTypeDef *__i2c_bus_from_arg(const char *arg) {
+static I2C_HandleTypeDef *priv__i2c_bus_from_arg(const char *arg) {
     switch (arg[0]) {
         case '1': return &hi2c1;
         case '2': return &hi2c2;
@@ -254,13 +279,13 @@ static I2C_HandleTypeDef *__i2c_bus_from_arg(const char *arg) {
     }
 }
 
-static void __cmd_i2cdetect(int argc, const char *const *argv) {
+static void priv__cmd_i2cdetect(int argc, const char *const *argv) {
     if (argc < 2) {
         cdc_print("usage: i2cdetect <bus>" ENDL);
         return;
     }
 
-    I2C_HandleTypeDef *hi2c = __i2c_bus_from_arg(argv[1]);
+    I2C_HandleTypeDef *hi2c = priv__i2c_bus_from_arg(argv[1]);
     if (NULL == hi2c) {
         cdc_print("invalid bus (1-3)" ENDL);
         return;
@@ -277,7 +302,7 @@ static void __cmd_i2cdetect(int argc, const char *const *argv) {
 }
 
 // i2cset [b|w] <bus> <device> <register> <value> [value...]
-static void __cmd_i2cset(int argc, const char *const *argv) {
+static void priv__cmd_i2cset(int argc, const char *const *argv) {
     if (argc < 5) {
         cdc_print("usage: i2cset [b|w] <bus> <device> <register> <value> [value...]" ENDL);
         return;
@@ -298,7 +323,7 @@ static void __cmd_i2cset(int argc, const char *const *argv) {
         return;
     }
 
-    I2C_HandleTypeDef *hi2c = __i2c_bus_from_arg(argv[arg]);
+    I2C_HandleTypeDef *hi2c = priv__i2c_bus_from_arg(argv[arg]);
     if (NULL == hi2c) {
         cdc_print("invalid bus (1-3)" ENDL);
         return;
@@ -328,7 +353,7 @@ static void __cmd_i2cset(int argc, const char *const *argv) {
 }
 
 // i2cget [b|w] <bus> <device> [register] [count]
-static void __cmd_i2cget(int argc, const char *const *argv) {
+static void priv__cmd_i2cget(int argc, const char *const *argv) {
     if (argc < 3) {
         cdc_print("usage: i2cget [b|w] <bus> <device> [register] [count]" ENDL);
         return;
@@ -349,7 +374,7 @@ static void __cmd_i2cget(int argc, const char *const *argv) {
         return;
     }
 
-    I2C_HandleTypeDef *hi2c = __i2c_bus_from_arg(argv[arg]);
+    I2C_HandleTypeDef *hi2c = priv__i2c_bus_from_arg(argv[arg]);
     if (NULL == hi2c) {
         cdc_print("invalid bus (1-3)" ENDL);
         return;
@@ -411,7 +436,20 @@ static void __cmd_i2cget(int argc, const char *const *argv) {
     }
 }
 
-static void __cmd_restart(int argc, const char *const *argv) {
+/// @brief relinquish control of arribada module's nrest line so stlink can program it.
+/// @param argc 
+/// @param argv 
+static void priv__cmd_program_argos(int argc, const char *const *argv) {
+    GPIO_InitTypeDef GPIO_InitStruct = {
+        .Pin = SAT_NRST_GPIO_Output_Pin,
+        .Mode = GPIO_MODE_ANALOG,
+        .Pull = GPIO_PULLUP,
+    };
+    HAL_GPIO_Init(SAT_NRST_GPIO_Output_GPIO_Port, &GPIO_InitStruct);
+}
+
+
+static void priv__cmd_restart(int argc, const char *const *argv) {
     NVIC_SystemReset();
 }
 
@@ -419,7 +457,7 @@ static void __cmd_restart(int argc, const char *const *argv) {
 /// @param argc argument_count
 /// @param argv argument_values
 /// @note formerly known as "Sleep" in v2.x
-static void __cmd_shutdown(int argc, const char *const *argv) {
+static void priv__cmd_shutdown(int argc, const char *const *argv) {
     bms_disable_FETs();
     HAL_PWREx_EnterSHUTDOWNMode(); // tag shutdown if powered by
 }
@@ -427,7 +465,7 @@ static void __cmd_shutdown(int argc, const char *const *argv) {
 /// @brief restart the tag in STM32 bootloader
 /// @param argc argument_count
 /// @param argv argument_values
-static void __cmd_update(int argc, const char *const *argv) {
+static void priv__cmd_update(int argc, const char *const *argv) {
     cdc_print("Rebooting into DFU system bootloader..." ENDL);
     tud_cdc_write_flush();
     HAL_Delay(100); // allow USB to flush
@@ -445,8 +483,7 @@ static void __cmd_update(int argc, const char *const *argv) {
 /// @brief enable/disable vhf pinger
 /// @param argc argument_count
 /// @param argv argument_values
-static void __cmd_vhf_pinger(int argc, const char *const *argv) {
-#ifdef VHF_EN_GPIO_Output_Pin
+static void priv__cmd_vhf_pinger(int argc, const char *const *argv) {
     if (argc < 2) {
         return;
     }    
@@ -463,13 +500,11 @@ static void __cmd_vhf_pinger(int argc, const char *const *argv) {
         default:
             break;
     }
-#endif 
-
 }
 
 
 [[maybe_unused]] 
-static void __not_implemented(int argc, const char *const *argv) {
+static void priv__not_implemented(int argc, const char *const *argv) {
     cdc_print(argv[0]);
     cdc_print(" is not implemented yet" ENDL);
 }
@@ -515,6 +550,8 @@ static void cdc_execute(void) {
 
 void usb_cdc_init(void) {
     s_cmdlen = 0;
+    
+    // needed for cdc command
 }
 
 void usb_cdc_task(void) {

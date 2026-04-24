@@ -25,7 +25,7 @@
 // -------------------------------------------------------------------------- //
 
 static const uint32_t
-    __ek_quanti[12][2] = {
+    priv__ek_quanti[12][2] = {
 
         {0, 0},
         {31, 31},
@@ -125,7 +125,7 @@ void PREVIPASS_UTIL_date_calendar_stu90(
     uint8_t isLeapYear = MIN(dateTime->year % 4, 1);
 
     // Number of days since 1990
-    uint32_t numberOfDays = (uint32_t)numberOfYears * 365 + numberOfLeapYears + __ek_quanti[dateTime->month - 1][isLeapYear] + dateTime->day - 1;
+    uint32_t numberOfDays = (uint32_t)numberOfYears * 365 + numberOfLeapYears + priv__ek_quanti[dateTime->month - 1][isLeapYear] + dateTime->day - 1;
 
     // Conversion in seconds
     *sec90 = (uint32_t)numberOfDays * 86400 + (uint32_t)dateTime->hour * 3600 + (uint32_t)dateTime->minute * 60 + (uint32_t)dateTime->second;
@@ -166,12 +166,12 @@ void PREVIPASS_UTIL_date_stu90_calendar(
 
     // Month number in year
     dateTime->month = 1;
-    while ((numberOfDays > __ek_quanti[dateTime->month - 1][isLeapYear]) && (dateTime->month <= 12))
+    while ((numberOfDays > priv__ek_quanti[dateTime->month - 1][isLeapYear]) && (dateTime->month <= 12))
         ++(dateTime->month);
     --(dateTime->month);
 
     // Day number in month
-    dateTime->day = (uint32_t)numberOfDays - __ek_quanti[dateTime->month - 1][isLeapYear];
+    dateTime->day = (uint32_t)numberOfDays - priv__ek_quanti[dateTime->month - 1][isLeapYear];
 }
 
 // -------------------------------------------------------------------------- //

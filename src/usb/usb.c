@@ -11,7 +11,7 @@
 #include "vendor.h"
 
 // Configure only USB-specific clocks on top of existing SystemClock_Config.
-static void __usb_clock_config(void) {
+static void priv__usb_clock_config(void) {
     __HAL_RCC_SYSCFG_CLK_ENABLE();
 
     // Route USB PHY clock from HSE
@@ -27,7 +27,7 @@ static void __usb_clock_config(void) {
 
 void usb_system_init(void) {
     // USB PHY clock (adds to existing SystemClock_Config)
-    __usb_clock_config();
+    priv__usb_clock_config();
 
     /* Configure DM DP Pins (PA11, PA12) */
     GPIO_InitTypeDef GPIO_InitStruct;

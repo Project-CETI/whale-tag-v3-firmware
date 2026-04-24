@@ -29,7 +29,7 @@ static void acq_imu_spi_close(sh2_Hal_t *self);
 static int acq_imu_spi_open(sh2_Hal_t *self);
 static int acq_imu_spi_hal_read(sh2_Hal_t *self, uint8_t *pBuffer, unsigned len, uint32_t *t);
 static int acq_imu_spi_hal_write(sh2_Hal_t *self, uint8_t *pBuffer, unsigned len);
-static void __acq_imu_init_spi(void);
+static void priv__acq_imu_init_spi(void);
 
 typedef enum {
     SPI_INIT,
@@ -77,7 +77,7 @@ static void rstn(GPIO_PinState state) {
  * SPI Interrupt Callback Methods
  */
 
- __attribute__((no_instrument_function))
+[[gnu::no_instrument_function]]
 static void acq_imu_start_spi_transfer(void) {
     if ((s_spi_state != SPI_IDLE) || (s_rx_buf_len != 0)) {
         return; // spi is busy
@@ -235,7 +235,7 @@ static int acq_imu_spi_open(sh2_Hal_t *self) {
     csn(GPIO_PIN_SET);
 
     // initialize spi hardware
-    __acq_imu_init_spi();
+    priv__acq_imu_init_spi();
 
     s_rx_buf_len = 0;
     s_tx_buf_len = 0;
@@ -434,7 +434,7 @@ void acq_imu_sensor_callback(void *cookie, sh2_SensorEvent_t *pEvent) {
 
 /// @brief initializes spi hardware associated with imu
 /// @param  
-static void __acq_imu_init_spi(void){
+static void priv__acq_imu_init_spi(void){
     SPI_AutonomousModeConfTypeDef HAL_SPI_AutonomousMode_Cfg_Struct = {0};
 
     hspi1.Instance = SPI1;

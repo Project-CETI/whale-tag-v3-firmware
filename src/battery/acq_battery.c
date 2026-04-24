@@ -8,6 +8,7 @@
 #include "acq_battery.h"
 #include "bms_ctl.h"
 #include "max17320.h"
+#include "timing.h"
 
 #include "syslog.h"
 
@@ -22,7 +23,7 @@ static void (* s_sample_complete_callback)(const CetiBatterySample *p_sample) = 
 /// @brief Perfroms the action of reading the desired values from the 
 //// underlying bms device
 /// @param  
-static void __get_sample(void) {
+static void priv__get_sample(void) {
     // create sample
     s_sample.time_us = rtc_get_epoch_us();
     s_sample.error = 0;
@@ -67,8 +68,8 @@ static void __get_sample(void) {
 
 /// @brief Callback performed at every sampling interval 
 /// @param htim 
-static void __timer_complete_cb(TIM_HandleTypeDef *htim) {
-    __get_sample();
+static void priv__timer_complete_cb(TIM_HandleTypeDef *htim) {
+    priv__get_sample();
 
     if (NULL != s_sample_complete_callback) {
         s_sample_complete_callback(&s_sample);
@@ -91,7 +92,7 @@ void acq_battery_init(void) {
     HAL_TIM_RegisterCallback(&battery_htim, HAL_TIM_BASE_MSPINIT_CB_ID, HAL_TIM_Base_MspInit);
     HAL_TIM_RegisterCallback(&battery_htim, HAL_TIM_BASE_MSPDEINIT_CB_ID, HAL_TIM_Base_MspDeInit);
     MX_TIM2_Init();
-    HAL_TIM_RegisterCallback(&battery_htim, HAL_TIM_PERIOD_ELAPSED_CB_ID, __timer_complete_cb);
+    HAL_TIM_RegisterCallback(&battery_htim, HAL_TIM_PERIOD_ELAPSED_CB_ID, priv__timer_complete_cb);
 }
 
 /// @brief Registers callback to be performed after every sample acquisition

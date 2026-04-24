@@ -5,10 +5,14 @@
  *   @copyright Harvard University Wood Lab
  *   @authors   Michael Salino-Hugg
  *****************************************************************************/
+#include "keller4ld.h"
+
 #include "acq_pressure.h"
+#include "timing.h"
 
 #include "main.h"
 #include "tim.h"
+
 
 #include <string.h>
 
@@ -29,10 +33,15 @@ static void (*s_measurement_complete_callback)(const CetiPressureSample *p_sampl
 
 /// @brief
 /// @param p_raw
-static void __sample_complete_callback(uint8_t p_raw[static 5]) {
+static void priv__sample_complete_callback(uint8_t p_raw[static 5]) {
     // timestamp sample
+    Keller4LD_Measurement measurement;
+
     s_latest_sample.timestamp_us = rtc_get_epoch_us();
-    keller4ld_raw_to_measurement(p_raw, &s_latest_sample.data);
+    keller4ld_raw_to_measurement(p_raw, &measurement);
+    s_latest_sample.status = measurement.status;
+    s_latest_sample.pressure = measurement.pressure;
+    s_latest_sample.temperature = measurement.temperature;
 
     // store value in buffer
     if (NULL != s_measurement_complete_callback) {
@@ -42,7 +51,7 @@ static void __sample_complete_callback(uint8_t p_raw[static 5]) {
 
 /// @brief pressure sensor sampling interval timer callback. Initalizes sensor sample measurement
 /// @param htim
-static void __acq_pressure_timer_complete_cb(TIM_HandleTypeDef *htim) {
+static void priv__acq_pressure_timer_complete_cb(TIM_HandleTypeDef *htim) {
     [[maybe_unused]] int result = keller4ld_request_measurement();
 }
 
@@ -77,7 +86,7 @@ void acq_pressure_init(uint16_t samplerate_ms) {
     HAL_TIM_RegisterCallback(&pressure_htim, HAL_TIM_BASE_MSPINIT_CB_ID, HAL_TIM_Base_MspInit);
     HAL_TIM_RegisterCallback(&pressure_htim, HAL_TIM_BASE_MSPDEINIT_CB_ID, HAL_TIM_Base_MspDeInit);
     ret |= HAL_TIM_Base_Init(&pressure_htim);
-    HAL_TIM_RegisterCallback(&pressure_htim, HAL_TIM_PERIOD_ELAPSED_CB_ID, __acq_pressure_timer_complete_cb);
+    HAL_TIM_RegisterCallback(&pressure_htim, HAL_TIM_PERIOD_ELAPSED_CB_ID, priv__acq_pressure_timer_complete_cb);
 
     TIM_ClockConfigTypeDef sClockSourceConfig = {
         .ClockSource = TIM_CLOCKSOURCE_INTERNAL,
@@ -93,7 +102,7 @@ void acq_pressure_init(uint16_t samplerate_ms) {
         // ToDo: handle errors
     }
 
-    keller4ld_register_measurement_complete_callback(__sample_complete_callback);
+    keller4ld_register_measurement_complete_callback(priv__sample_complete_callback);
     s_initialized = 1;
     return;
 }

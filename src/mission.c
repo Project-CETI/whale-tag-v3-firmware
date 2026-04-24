@@ -3,14 +3,15 @@
 // Copyright: Harvard University Wood Lab
 // Contributors: Michael Salino-Hugg
 //-----------------------------------------------------------------------------
+// #define UNIT_TEST
+#include "mission.h"
 
-#include <ctype.h>
 #include <stdio.h>
 #include <string.h>
 
 #include "config.h"
-#include "mission.h"
 
+#ifndef UNIT_TEST
 #include "audio/acq_audio.h"
 #include "audio/log_audio.h"
 #include "battery/acq_battery.h"
@@ -21,84 +22,218 @@
 #include "error.h"
 #include "gps/acq_gps.h"
 #include "gps/log_gps.h"
+#include "gps/parse_gps.h"
 #include "imu/acq_imu.h"
 #include "imu/log_imu.h"
 #include "led/led.h"
 #include "metadata.h"
+#endif // UNIT_TEST
 #include "pressure/acq_pressure.h"
+#ifndef UNIT_TEST
 #include "pressure/log_pressure.h"
 #include "satellite/argos_tx_mgr.h"
 #include "satellite/satellite.h"
+#include "satellite/log_argos.h"
 #include "syslog.h"
+#endif // UNIT_TEST
+#include "timing.h"
 
+#ifndef UNIT_TEST
 #include "main.h"
 #include <usart.h>
+#endif // UNIT_TEST
 
 #include "mission/float_detection.h"
 #include "mission/mission_battery.h"
 #include "mission/mission_log.h"
 
-extern void SystemClock_Config(void);
+typedef int (*MissionTransistionConditionFn)(void);
 
-#define MISSION_DIVE_THRESHOLD_BAR (5.0)
-#define MISSION_SURFACE_THRESHOLD_BAR (1.0)
-#define MISSION_BURN_THRESHOLD_CELL_V (3.3)
-#define MISSION_CRITICAL_THRESHOLD_CELL_V (3.2)
-#define MISSION_BURNWIRE_BURN_PERIOD_MIN (20)
+typedef struct {
+    MissionState from;
+    MissionTransistionConditionFn condition;
+    MissionState to;
+    MissionTransitionCause cause;
+} MissionTransitionRule;
+
+static int priv__is_time_to_burn(void);
+static int priv__is_burn_complete(void);
+static int priv__is_low_pressure(void);
+static int priv__is_high_pressure(void);
+static int priv__is_floating(void);
+static int priv__is_not_floating(void);
+
+/* STATE MACHINE AS DESCRIBED BY TABLE BELOW
+          ┌─────────┐
+          │ MISSION │
+          │ START   │
+          └───┬─────┘
+              │ START
+              v
+          ┌─────────┐   LOW_PRESSURE             ┌─────────┐
+          │ RECORD  │<───────────────────────────┤  RECORD │
+          │ SURFACE ├────────────┬──────────────>│  DIVE   │
+          │         │<───────┐   │ HIGH_PRESSURE │         │
+          └─┬──┬──┬─┘ !FLOAT │   │               └──┬───┬──┘
+  LOW POWER │  │  │          │   │                  │   │
+  (to LPB)<─┘  │  │ FLOAT  ┌─┴───┴─────┐ LOW POWER  │   │
+               │  └───────>│  RECORD   ├──>(to LPB) │   │LOW POWER
+               ├───────────│  FLOATING │            │   │
+               │           └───────────┘            │   │
+               ├────────────────────────────────────┘   │
+               │ TIMER                                  │
+               V                                        V
+           ┌────────┐                           ┌───────────┐                      
+           │  BURN  │    LOW POWER / FLOAT      │ LOW POWER │<─(from RF)
+           │        ├──────────────────────────>│ BURN      │<─(from RS)
+           └────┬───┘                           └─────┬─────┘
+                │ TIMER                               │ TIMER
+                V                                     V
+           ┌──────────┐                         ┌───────────┐                      
+           │ RETRIEVE │   LOW POWER / FLOAT     │ LOW POWER │
+           │          │────────────────────────>│ RETRIEVE  │
+           └──────────┘                         └───────────┘
+*/
+static const MissionTransitionRule s_transition_table[] = {
+    /* MISSION_START */
+    {.from = MISSION_STATE_MISSION_START, .condition = NULL, .to = STARTING_STATE, .cause = MISSION_TRANSITION_START},
+    
+    /* RECORD_SURFACE -- ordered by priority */
+    {.from = MISSION_STATE_RECORD_SURFACE, .condition = mission_battery_is_low_voltage, .to = MISSION_STATE_LOW_POWER_BURN,  .cause = MISSION_TRANSITION_LOW_VOLTAGE    },
+    {.from = MISSION_STATE_RECORD_SURFACE, .condition = mission_battery_is_in_error,    .to = MISSION_STATE_LOW_POWER_BURN,  .cause = MISSION_TRANSITION_BATTERY_ERRORS },
+    {.from = MISSION_STATE_RECORD_SURFACE, .condition = priv__is_time_to_burn,              .to = MISSION_STATE_BURN,            .cause = MISSION_TRANSITION_TIMER          },
+    {.from = MISSION_STATE_RECORD_SURFACE, .condition = priv__is_high_pressure,             .to = MISSION_STATE_RECORD_DIVE,     .cause = MISSION_TRANSITION_HIGH_PRESSURE  },
+    {.from = MISSION_STATE_RECORD_SURFACE, .condition = priv__is_floating,                  .to = MISSION_STATE_RECORD_FLOATING, .cause = MISSION_TRANSITION_FLOAT_DETECTED },
+
+    /* RECORD_FLOATING -- ordered by priority */
+    {.from = MISSION_STATE_RECORD_FLOATING, .condition = mission_battery_is_low_voltage, .to = MISSION_STATE_LOW_POWER_BURN, .cause = MISSION_TRANSITION_LOW_VOLTAGE    },
+    {.from = MISSION_STATE_RECORD_FLOATING, .condition = mission_battery_is_in_error,    .to = MISSION_STATE_LOW_POWER_BURN, .cause = MISSION_TRANSITION_BATTERY_ERRORS },
+    {.from = MISSION_STATE_RECORD_FLOATING, .condition = priv__is_time_to_burn,              .to = MISSION_STATE_BURN,           .cause = MISSION_TRANSITION_TIMER          },
+    {.from = MISSION_STATE_RECORD_FLOATING, .condition = priv__is_high_pressure,             .to = MISSION_STATE_RECORD_DIVE,    .cause = MISSION_TRANSITION_HIGH_PRESSURE  },
+    {.from = MISSION_STATE_RECORD_FLOATING, .condition = priv__is_not_floating,              .to = MISSION_STATE_RECORD_SURFACE, .cause = MISSION_TRANSITION_FLOAT_ENDED    },
+
+    /* RECORD_DIVING -- ordered by priority */
+    {.from = MISSION_STATE_RECORD_DIVE, .condition = mission_battery_is_low_voltage, .to = MISSION_STATE_LOW_POWER_BURN, .cause = MISSION_TRANSITION_LOW_VOLTAGE    },
+    {.from = MISSION_STATE_RECORD_DIVE, .condition = mission_battery_is_in_error,    .to = MISSION_STATE_LOW_POWER_BURN, .cause = MISSION_TRANSITION_BATTERY_ERRORS },
+    {.from = MISSION_STATE_RECORD_DIVE, .condition = priv__is_time_to_burn,              .to = MISSION_STATE_BURN,           .cause = MISSION_TRANSITION_TIMER          },
+    {.from = MISSION_STATE_RECORD_DIVE, .condition = priv__is_low_pressure,              .to = MISSION_STATE_RECORD_SURFACE, .cause = MISSION_TRANSITION_LOW_PRESSURE   },
+
+    /* BURN -- ordered by priority */
+    {.from = MISSION_STATE_BURN, .condition = mission_battery_is_low_voltage, .to = MISSION_STATE_LOW_POWER_BURN, .cause = MISSION_TRANSITION_LOW_VOLTAGE    },
+    {.from = MISSION_STATE_BURN, .condition = mission_battery_is_in_error,    .to = MISSION_STATE_LOW_POWER_BURN, .cause = MISSION_TRANSITION_BATTERY_ERRORS },
+    {.from = MISSION_STATE_BURN, .condition = priv__is_burn_complete,             .to = MISSION_STATE_RETRIEVE,       .cause = MISSION_TRANSITION_TIMER          },
+    {.from = MISSION_STATE_BURN, .condition = priv__is_floating,                  .to = MISSION_STATE_LOW_POWER_BURN, .cause = MISSION_TRANSITION_FLOAT_DETECTED },
+
+    /* LOW_POWER_BURN -- ordered by priority */
+    {.from = MISSION_STATE_LOW_POWER_BURN, .condition = priv__is_burn_complete, .to = MISSION_STATE_LOW_POWER_RETRIEVE, .cause = MISSION_TRANSITION_TIMER },
+    
+    /* RETRIEVE -- ordered by priority */
+    {.from = MISSION_STATE_RETRIEVE, .condition = mission_battery_is_low_voltage, .to = MISSION_STATE_LOW_POWER_RETRIEVE, .cause = MISSION_TRANSITION_LOW_VOLTAGE    },
+    {.from = MISSION_STATE_RETRIEVE, .condition = mission_battery_is_in_error,    .to = MISSION_STATE_LOW_POWER_RETRIEVE, .cause = MISSION_TRANSITION_BATTERY_ERRORS },
+    {.from = MISSION_STATE_RETRIEVE, .condition = priv__is_floating,                  .to = MISSION_STATE_LOW_POWER_RETRIEVE, .cause = MISSION_TRANSITION_FLOAT_DETECTED },
+    
+    /* LOW_POWER_RETRIEVE -- ordered by priority */
+    {.from = MISSION_STATE_LOW_POWER_RETRIEVE, .condition = mission_battery_is_low_voltage, .to = MISSION_STATE_LOW_POWER_RETRIEVE, .cause = MISSION_TRANSITION_LOW_VOLTAGE    },
+    {.from = MISSION_STATE_LOW_POWER_RETRIEVE, .condition = mission_battery_is_in_error,    .to = MISSION_STATE_LOW_POWER_RETRIEVE, .cause = MISSION_TRANSITION_BATTERY_ERRORS },
+};
+
+typedef enum {
+    EN_AUDIO = (1 << 0),
+    EN_BMS = (1 << 1),
+    EN_IMU = (1 << 2),
+    EN_ECG = (1 << 3),
+    EN_PRESSURE = (1 << 4),
+    EN_GPS = (1 << 5),
+    EN_ARGOS = (1 << 6),
+    EN_BURN = (1 << 7),
+    EN_FLOAT = (1 << 8),
+    EN_FLASH = (1 << 9),
+    EN_VHF = (1 << 10),
+    EN_WATER_SENSE = (1 << 11),
+} SystemComponent;
+
+static uint32_t s_enabled_subsystems = 0xffffffff;
+static uint32_t s_active_subsystems = 0;
+static const uint32_t s_state_active_subsystems_rule[] = {
+    [MISSION_STATE_MISSION_START]       = 0,
+    [MISSION_STATE_PREDEPLOYMENT]       =        0 |      0 |      0 |      0 |           0 | EN_GPS |       0 | 0        |        0 |       0 |      0 | EN_WATER_SENSE,
+    [MISSION_STATE_RECORD_SURFACE]      = EN_AUDIO | EN_BMS | EN_IMU | EN_ECG | EN_PRESSURE | EN_GPS |       0 | EN_FLOAT |        0 |       0 |      0 |              0,
+    [MISSION_STATE_RECORD_FLOATING]     = EN_AUDIO | EN_BMS | EN_IMU | EN_ECG | EN_PRESSURE | EN_GPS |       0 | EN_FLOAT | EN_ARGOS |EN_FLASH | EN_VHF |              0,
+    [MISSION_STATE_RECORD_DIVE]         = EN_AUDIO | EN_BMS | EN_IMU | EN_ECG | EN_PRESSURE |      0 |       0 |        0 |        0 |       0 |      0 |              0,
+    [MISSION_STATE_BURN]                = EN_AUDIO | EN_BMS | EN_IMU | EN_ECG | EN_PRESSURE | EN_GPS | EN_BURN | EN_FLOAT | EN_ARGOS |EN_FLASH | EN_VHF |              0,
+    [MISSION_STATE_RETRIEVE]            = EN_AUDIO | EN_BMS | EN_IMU |      0 | EN_PRESSURE | EN_GPS |       0 | EN_FLOAT | EN_ARGOS |EN_FLASH | EN_VHF |              0,
+    [MISSION_STATE_LOW_POWER_BURN]      =        0 | EN_BMS |      0 |      0 |           0 | EN_GPS | EN_BURN |        0 | EN_ARGOS |EN_FLASH | EN_VHF |              0,
+    [MISSION_STATE_LOW_POWER_RETRIEVE]  =        0 | EN_BMS |      0 |      0 |           0 | EN_GPS |       0 |        0 | EN_ARGOS |EN_FLASH | EN_VHF |              0,
+    [MISSION_STATE_ERROR]               = 0
+};
+
+typedef enum {
+    MISSION_SLEEP_NONE,
+    MISSION_SLEEP_SLEEP,
+    MISSION_SLEEP_STOP1,
+    MISSION_SLEEP_STOP2,
+} MissionSleepDepth;
+
+static const MissionSleepDepth s_state_sleep_depth[] = {
+    [MISSION_STATE_MISSION_START]       = MISSION_SLEEP_NONE,
+    [MISSION_STATE_PREDEPLOYMENT]       = MISSION_SLEEP_STOP1,
+    [MISSION_STATE_RECORD_SURFACE]      = MISSION_SLEEP_SLEEP,
+    [MISSION_STATE_RECORD_FLOATING]     = MISSION_SLEEP_SLEEP,
+    [MISSION_STATE_RECORD_DIVE]         = MISSION_SLEEP_SLEEP,
+    [MISSION_STATE_BURN]                = MISSION_SLEEP_SLEEP,
+    [MISSION_STATE_RETRIEVE]            = MISSION_SLEEP_SLEEP,
+    [MISSION_STATE_LOW_POWER_BURN]      = MISSION_SLEEP_STOP1,
+    [MISSION_STATE_LOW_POWER_RETRIEVE]  = MISSION_SLEEP_STOP1,
+    [MISSION_STATE_ERROR]               = MISSION_SLEEP_NONE,
+};
+
+
+#ifndef UNIT_TEST
+extern void SystemClock_Config(void);
+#endif // UNIT_TEST
+
+static uint16_t s_dive_threshold_raw = acq_pressure_bar_to_pressure_raw(PRESSURE_DIVE_THRESHOLD_BAR);
+static uint16_t s_surface_threshold_raw = acq_pressure_bar_to_pressure_raw(PRESSURE_SURFACE_THRESHOLD_BAR);
 
 #define ARRAY_LEN(x) (sizeof((x)) / sizeof(*(x)))
 
+#ifndef UNIT_TEST
 typedef void (*MissionTask)(void);
 
 static MissionState s_state = MISSION_STATE_MISSION_START;
 static volatile uint8_t s_update_periodic_mission_tasks = 0;
 TIM_HandleTypeDef mission_htim;
 
-static struct {
-    uint8_t valid;
-    uint8_t year;
-    uint8_t month;
-    uint8_t day;     // (0..31]
-    uint8_t hours;   // (0..24]
-    uint8_t minutes; // (0..60]
-    uint8_t seconds; // (0..60] // used for RTC sync not logging
-    uint8_t latitude_sign;
-    uint8_t longitude_sign;
-    // uint8_t unused[3];
-    float latitude;
-    float longitude;
-} latest_gps_coord = {
-    .valid = 0,
-};
+#endif
 
 /* PRESSURE CONTROLS *********************************************************/
-static int __is_low_pressure(void) {
-    if (!tag_config.pressure.enabled){
+
+static int priv__is_low_pressure(void) {
+    if (!(EN_PRESSURE & s_active_subsystems)){
         return 1;
     }
     CetiPressureSample pressure_sample;
     acq_pressure_get_latest(&pressure_sample);
-    return (pressure_sample.data.pressure < KELLER4LD_PRESSURE_BAR_TO_RAW(MISSION_SURFACE_THRESHOLD_BAR));
+    return (pressure_sample.pressure < s_surface_threshold_raw);
 }
 
-static int __is_high_pressure(void) {
-    if (!tag_config.pressure.enabled){
+static int priv__is_high_pressure(void) {
+    if (!(EN_PRESSURE & s_active_subsystems)){
         return 0;
     }
     CetiPressureSample pressure_sample;
     acq_pressure_get_latest(&pressure_sample);
-    return (pressure_sample.data.pressure >= KELLER4LD_PRESSURE_BAR_TO_RAW(MISSION_DIVE_THRESHOLD_BAR));
+    return (pressure_sample.pressure >= s_dive_threshold_raw);
 }
 
 /* BURN CONTROLS *************************************************************/
 
 static uint8_t s_burn_started = 0;
 static uint64_t s_burn_start_timestamp_s = 0;
-
 /// @brief check if burn should be activated based on timeout
 /// @param
 /// @return bool
-static int __is_time_to_burn(void) {
+static int priv__is_time_to_burn(void) {
     uint64_t now_timestamp_s;
     now_timestamp_s = rtc_get_epoch_us()/1000000;
     return (now_timestamp_s >= s_burn_start_timestamp_s);
@@ -110,7 +245,7 @@ static int __is_time_to_burn(void) {
 /// @note the current implementation is time based, but implementing a hardware
 ///       change to detect when the burnwire has broken would allow for less
 ///       power wasted on burn
-static int __is_burn_complete(void) {
+static int priv__is_burn_complete(void) {
     if (!s_burn_started) {
         return 0;
     }
@@ -118,14 +253,28 @@ static int __is_burn_complete(void) {
     return (elapsed_time > tag_config.burnwire.duration_s * 60);
 }
 
-/* BURN CONTROLS *************************************************************/
+/* FLOAT CONTROLS *************************************************************/
+static int priv__is_floating(void) {
+    if (!(EN_FLOAT & s_active_subsystems)) {
+        return 0;
+    }
+    return float_detection_is_floating();
+}
 
+static int priv__is_not_floating(void) {
+    if (!(EN_FLOAT & s_active_subsystems)) {
+        return 1;
+    }
+    return !float_detection_is_floating();
+}
 
+#ifndef UNIT_TEST
+/* ARGOS TRANSMISSION CONTROLS *************************************************************/
 
 /// @brief Transmits an input to satelite, and generates log of message sent
 /// @param message pointer to input array
 /// @param message_len length of input array
-static void __satellite_transmit_from_raw_with_log(RecoveryArgoModulation rconf, const uint8_t *message, uint8_t message_len) {
+static void priv__satellite_transmit_from_raw_with_log(RecoveryArgoModulation rconf, const uint8_t *message, uint8_t message_len) {
     uint16_t max_len = 24;
     switch (rconf) {
         case ARGOS_MOD_LDA2:
@@ -145,283 +294,117 @@ static void __satellite_transmit_from_raw_with_log(RecoveryArgoModulation rconf,
             break;
     }
 
-    // buffer for ascii representaion of input
-    char tx_message_ascii[(2 * 24) + 1];
+    ArgosTxEvent tx_event = {
+        .timestamp_us = rtc_get_epoch_us(),
+        .tx_type = rconf,
+        .message = {0}, // zero message
+    };
 
     // add trailing zeros to message if message less than max message length
     uint8_t sized_message_buffer[24] = {0};
+    message_len = (message_len < max_len) ? message_len : max_len;
     memcpy(sized_message_buffer, message, message_len);
 
     // convert hex to ascii representation of hex
     for (int i = 0; i < max_len; i++) {
-        snprintf(&tx_message_ascii[2 * i], 3, "%02X", sized_message_buffer[i]);
+        snprintf((char *)&tx_event.message[2 * i], 3, "%02X", sized_message_buffer[i]);
     }
 
     // perform transmission
-    satellite_transmit(tx_message_ascii, 2 * max_len); // transmit via argos
-    CETI_LOG("Tx Argos: %s", tx_message_ascii);
-#warning "ToDo: Log ARGOS transmission" // log transmission
+    satellite_transmit((char *)tx_event.message, 2 * max_len); // transmit via argos
+    
+    // log transmission activity
+    log_argos_event(tx_event);
 }
 
 
 /* GPS TASKS *****************************************************************/
-/// @brief  Parses RMC NMEA messages extracting relavent fields
-/// @param sentence pointer to RMC NMEA string
-/// @return 0 == invalid RMC NMEA message; 1 == valid nmea message with valid coord
-/// @note this was modified from minmea (https://github.com/kosma/minmea) to be
-/// degeneralized and reduce the amount of work
-static int __parse_rmc(const uint8_t *sentence) {
-    const uint8_t *field = sentence;
-    uint8_t year;
-    uint8_t month;
-    uint8_t day;     // (1..31]
-    uint8_t hours;   // (0..24]
-    uint8_t minutes; // (0..60]
-    uint8_t seconds; // (0..60] // used for RTC sync not logging
-    uint8_t latitude_sign;
-    uint8_t longitude_sign;
-    // uint8_t unused[3];
-    float latitude;
-    float longitude;
 
-#define isfield(c) (isprint((unsigned char)(c)) && (c) != ',' && (c) != '*')
-
-#define next_field()              \
-    do {                          \
-        while (isfield(*field)) { \
-            field++;              \
-        }                         \
-        if (',' != *field) {      \
-            return 0;             \
-        } else {                  \
-            field++;              \
-        }                         \
-    } while (0)
-
-    // t - type
-    if ('$' != field[0]) {
-        return 0;
-    }
-    for (int i = 0; i < 5; i++) {
-        if (!isfield(field[1 + i])) {
-            return 0;
-        }
-    }
-    if (0 != memcmp("RMC", &field[3], 3)) {
-        return 0;
-    }
-    field += 5;
-
-    // check validity
-    next_field();
-    const char *time_str = (char *)field; // skip time field for now
-
-    next_field();
-    if ('A' != *field) {
-        return 0;
-    }
-    next_field();
-
-    // frame is valid RMC. parse!!!
-
-    // parse meaningful values;
-    // Minimum required: integer time.
-    { // hour and minute
-        for (int f = 0; f < 6; f++) {
-            if (!isdigit((unsigned char)time_str[f]))
-                return 0;
-        }
-
-        char hArr[] = {time_str[0], time_str[1], '\0'};
-        char mArr[] = {time_str[2], time_str[3], '\0'};
-        char sArr[] = {time_str[4], time_str[5], '\0'};
-
-        hours = strtol(hArr, NULL, 10);
-        minutes = strtol(mArr, NULL, 10);
-        seconds = strtol(sArr, NULL, 10);
+/// @brief periodic task to resynchronize the RTC to GPS.
+/// @param  
+static void priv__resyncronize_rtc_task(void) {
+    if (rtc_has_been_syncronized()) {
+        return;
     }
 
-    { // latitude
-        for (int f = 0; f < 4; f++) {
-            if (!isdigit((unsigned char)field[f]))
-                return 0;
-        }
-        char dArr[] = {field[0], field[1], 0};
-        char mArr[] = {field[2], field[3], 0};
-        uint8_t degrees = strtol(dArr, NULL, 10);
-        uint8_t minutes = strtol(mArr, NULL, 10);
-        float minutes_f = (float)minutes;
-
-        uint32_t subminutes = 0;
-        uint32_t scale = 1;
-        if ('.' == field[4]) {
-            for (int i = 5; isdigit((unsigned char)field[i]); i++) {
-                subminutes = (subminutes * 10) + (field[i] - '0');
-                scale *= 10;
-            }
-        }
-        minutes_f += ((float)subminutes) / (float)scale;
-        latitude = (float)degrees + (minutes_f / 60.0f);
+    // get latest RMC message
+    GpsCoord coord = parse_gps_get_latest_coordinates();
+    if (!coord.valid) {
+        return;
     }
 
-    next_field();
-    { // latitude sign
-        if ('S' == *field) {
-            latitude_sign = 1;
-        } else if ('N' == *field) {
-            latitude_sign = 0;
-        } else {
-            return 0;
-        }
-    }
-
-    next_field();
-    { // longitude
-        for (int f = 0; f < 5; f++) {
-            if (!isdigit((unsigned char)field[f])) {
-                return 0;
-            }
-        }
-        char dArr[] = {field[0], field[1], field[2], 0};
-        char mArr[] = {field[3], field[4], 0};
-        uint8_t degrees = strtol(dArr, NULL, 10);
-        uint8_t minutes = strtol(mArr, NULL, 10);
-        float minutes_f = (float)minutes;
-
-        uint32_t subminutes = 0;
-        uint32_t scale = 1;
-        if ('.' == field[5]) {
-            for (int i = 6; isdigit((unsigned)field[i]); i++) {
-                subminutes = (subminutes * 10) + (field[i] - '0');
-                scale *= 10;
-            }
-        }
-        minutes_f += ((float)subminutes) / (float)scale;
-        longitude = (float)degrees + (minutes_f / 60.0f);
-    }
-
-    next_field();
-    { // longitude_sign
-        if ('W' == *field) {
-            longitude_sign = 1;
-        } else if ('E' == *field) {
-            longitude_sign = 0;
-        } else {
-            return 0;
-        }
-    }
-
-    next_field();
-    { // speed
-    }
-
-    next_field();
-    { // course
-    }
-
-    next_field();
-    { // Date
-        for (int f = 0; f < 6; f++) {
-            if (!isdigit((unsigned char)field[f]))
-                return 0;
-        }
-        char dArr[] = {field[0], field[1], 0};
-        char mArr[] = {field[2], field[3], 0};
-        char yArr[] = {field[4], field[5], 0};
-        day = strtol(dArr, NULL, 10);
-        month = strtol(mArr, NULL, 10);
-        year = strtol(yArr, NULL, 10);
-    }
-
-    // everything parsed OK
-    latest_gps_coord.valid = 1;
-    latest_gps_coord.year = year;
-    latest_gps_coord.month = month;
-    latest_gps_coord.day = day;         // (0..31]
-    latest_gps_coord.hours = hours;     // (0..24]
-    latest_gps_coord.minutes = minutes; // (0..60]
-    latest_gps_coord.seconds = seconds; // (0..60] // used for RTC sync not logging
-    latest_gps_coord.latitude_sign = latitude_sign;
-    latest_gps_coord.longitude_sign = longitude_sign;
-    latest_gps_coord.latitude = latitude;
-    latest_gps_coord.longitude = longitude;
-    return 1;
+    // update rtc
+    RTC_TimeTypeDef sTime = {
+        .Hours = coord.hours,
+        .Minutes = coord.minutes,
+        .Seconds = coord.seconds,
+    };
+    RTC_DateTypeDef sDate = {
+        .Year = coord.year,
+        .Date = coord.day,
+        .Month = coord.month,
+    };
+    rtc_set_datetime(&sDate, &sTime);
 }
 
-/// @brief  Task that updates latest valid GPS coordinates, forwards all gps
-/// to a file, and resyncronizes the RTC if it hasn't been yet;
-/// @param
-static void __parse_gps_task(void) {
-    const uint8_t *gps_sentence = gps_pop_sentence();
-    while (NULL != gps_sentence) {
-        // validate position
-        int new_valid_rmc = __parse_rmc(gps_sentence);
-
-        // synchronize RTC
-        if (!rtc_has_been_syncronized() && latest_gps_coord.valid) {
-            RTC_TimeTypeDef sTime = {
-                .Hours = latest_gps_coord.hours,
-                .Minutes = latest_gps_coord.minutes,
-                .Seconds = latest_gps_coord.seconds,
-            };
-            RTC_DateTypeDef sDate = {
-                .Year = latest_gps_coord.year,
-                .Date = latest_gps_coord.day,
-                .Month = latest_gps_coord.month,
-            };
-            rtc_set_datetime(&sDate, &sTime);
-        }
-
-        // update argos_tx_mgr's position
-        if (new_valid_rmc) {
-            float lat = latest_gps_coord.latitude;
-            if (latest_gps_coord.latitude_sign) {
-                lat = -lat;
-            }
-            float lon = latest_gps_coord.longitude;
-            if (latest_gps_coord.longitude_sign) {
-                lon = 360.0f - lon;
-            }
-            argos_tx_mgr_set_coordinates(lat, lon);
-        }
-
-        // forward to host
-        // #warning "ToDo: Log GPS Sentences"
-
-        // next
-        gps_sentence = gps_pop_sentence();
+/// @brief update known coordinates for argos tx manager
+/// @param  
+void priv__update_argos_coordinates(void) {
+    // get latest RMC message
+    GpsCoord coord = parse_gps_get_latest_coordinates();
+    if (!coord.valid) {
+        return;
     }
+
+    float lat = coord.latitude;
+    if (coord.latitude_sign) {
+        lat = -lat;
+    }
+    float lon = coord.longitude;
+    if (coord.longitude_sign) {
+        lon = 360.0f - lon;
+    }
+    argos_tx_mgr_set_coordinates(lat, lon);
 }
 
 /// @brief Task that performs transmission of GPS coordinates via argos satellite and forwarding
 ///        transmission to host system as a nmea packet for logging purposes
 /// @param
-static void __transmit_gps_task(void) {
+static void priv__transmit_gps_task(void) {
     static uint32_t tx_count = 0;
     if (!argos_tx_mgr_ready_to_tx()) {
         return;
     }
 
+    GpsCoord coords = parse_gps_get_latest_coordinates();
+
     // construct tx_message
     uint32_t lat_abs = 0xffffffff;
     uint32_t lon_abs = 0xffffffff;
-    if (!latest_gps_coord.valid) {
+    if (!coords.valid) {
         RTC_DateTypeDef rtc_date;
         RTC_TimeTypeDef rtc_time;
         rtc_get_datetime(&rtc_date, &rtc_time);
-        latest_gps_coord.day = rtc_date.Date;
-        latest_gps_coord.hours = rtc_time.Hours;
-        latest_gps_coord.minutes = rtc_time.Minutes;
-        latest_gps_coord.latitude_sign = 1;
-        latest_gps_coord.longitude_sign = 1;
+        coords.day = rtc_date.Date;
+        coords.hours = rtc_time.Hours;
+        coords.minutes = rtc_time.Minutes;
+        coords.latitude_sign = 1;
+        coords.longitude_sign = 1;
     } else {
-        lat_abs = (uint32_t)(latest_gps_coord.latitude * 10000.0f);
-        lon_abs = (uint32_t)(latest_gps_coord.longitude * 10000.0f);
+        lat_abs = (uint32_t)(coords.latitude * 10000.0f);
+        lon_abs = (uint32_t)(coords.longitude * 10000.0f);
     }
 
     // generate gps packet
     uint64_t gps_packet = 0;
-    gps_packet = (((uint64_t)(latest_gps_coord.day & ((1 << 5) - 1))) << (64 - 5)) | (((uint64_t)(latest_gps_coord.hours & ((1 << 5) - 1))) << (64 - 10)) | (((uint64_t)(latest_gps_coord.minutes & ((1 << 6) - 1))) << (64 - 16)) | (((uint64_t)(latest_gps_coord.latitude_sign & ((1 << 1) - 1))) << (64 - 17)) | (((uint64_t)(lat_abs & ((1 << 20) - 1))) << (64 - 37)) | (((uint64_t)(latest_gps_coord.longitude_sign & ((1 << 1) - 1))) << (64 - 38)) | (((uint64_t)(lon_abs & ((1 << 21) - 1))) << (64 - 59));
+    gps_packet = (((uint64_t)(coords.day & ((1 << 5) - 1))) << (64 - 5)) 
+        | (((uint64_t)(coords.hours & ((1 << 5) - 1))) << (64 - 10)) 
+        | (((uint64_t)(coords.minutes & ((1 << 6) - 1))) << (64 - 16)) 
+        | (((uint64_t)(coords.latitude_sign & ((1 << 1) - 1))) << (64 - 17)) 
+        | (((uint64_t)(lat_abs & ((1 << 20) - 1))) << (64 - 37)) 
+        | (((uint64_t)(coords.longitude_sign & ((1 << 1) - 1))) << (64 - 38)) 
+        | (((uint64_t)(lon_abs & ((1 << 21) - 1))) << (64 - 59))
+        ;
 
     // move gps packet into tx_message_buffer
     uint8_t tx_message[24] = {};
@@ -458,10 +441,10 @@ static void __transmit_gps_task(void) {
         tx_message[max_len - 2] = (uint8_t)((tx_count >> 8) & ((1 << 8) - 1));
         tx_message[max_len - 1] = (uint8_t)((tx_count >> 0) & ((1 << 8) - 1));
 
-        __satellite_transmit_from_raw_with_log(rconf, tx_message, max_len);
+        priv__satellite_transmit_from_raw_with_log(rconf, tx_message, max_len);
     } else {
         // VLDA4 only consists of 3 bytes, so skip the data info to only transmit GPS coord
-        __satellite_transmit_from_raw_with_log(rconf, &tx_message[1], 3);
+        priv__satellite_transmit_from_raw_with_log(rconf, &tx_message[1], 3);
     }
     argos_tx_mgr_inval_ready_to_tx(); // reset transmission timer
     tx_count++;                       // update transmission count
@@ -470,10 +453,15 @@ static void __transmit_gps_task(void) {
 /// @brief this task reverts the recovery board to its "active state" if it is
 /// likely the state_machine is stuck in an "unsafe" state with no host
 /// communication
-static void __wdt_task(void) {
-#warning "ToDo: implement __wdt_task"
+static void priv__wdt_task(void) {
+#warning "ToDo: implement priv__wdt_task"
 }
 
+
+static void priv__gps_msg_callback(const GpsSentence *p_sentence) {
+    log_gps_push_sentence(p_sentence);
+    parse_gps_push_sentence(p_sentence);
+}
 /* MISSION STATE MACHINE *****************************************************/
 
 
@@ -485,33 +473,26 @@ static struct {
     .tasks = {NULL},
 };
 
-static inline void __push_task(MissionTask task) {
+static inline void priv__push_task(MissionTask task) {
     s_state_dependent_tasks.tasks[s_state_dependent_tasks.count] = task; // always check if audio needs to be logged
     s_state_dependent_tasks.count++;
 }
 
-static inline void __push_audio_task(MissionState state) {
-    if(tag_config.audio.enabled) {
-        if ((MISSION_STATE_LOW_POWER_BURN != state)
-            && (MISSION_STATE_LOW_POWER_RETRIEVE != state)
-        ) {
-            __push_task(log_audio_task); // always check if audio needs to be logged
-        }
+static inline void priv__push_audio_task(MissionState state) {
+    if (EN_AUDIO & s_state_active_subsystems_rule[state] & s_enabled_subsystems) {
+        priv__push_task(log_audio_task); // always check if audio needs to be logged
     }
 }
 
-static void __update_state_dependent_task_list(MissionState state) {
+static void priv__update_state_dependent_task_list(MissionState state) {
     s_state_dependent_tasks.count = 0;
 
-    __push_audio_task(state);
+    priv__push_audio_task(state);
 
-    if ((MISSION_STATE_LOW_POWER_BURN != state)
-        && (MISSION_STATE_LOW_POWER_RETRIEVE != state)
-        && (MISSION_STATE_RETRIEVE != state)
-    ) {
+    if (s_state_active_subsystems_rule[state] & EN_ECG) {
         if (tag_config.ecg.enabled) {
-            __push_task(log_ecg_task);
-            __push_audio_task(state);
+            priv__push_task(log_ecg_task);
+            priv__push_audio_task(state);
         }
     }
 
@@ -520,38 +501,35 @@ static void __update_state_dependent_task_list(MissionState state) {
         && (MISSION_STATE_LOW_POWER_RETRIEVE != state)
     ) {
         if (tag_config.imu.enabled) {
-            __push_task(acq_imu_task);
-            __push_audio_task(state);
+            priv__push_task(acq_imu_task);
+            priv__push_audio_task(state);
 
-            __push_task(log_imu_task);
-            __push_audio_task(state);
+            priv__push_task(log_imu_task);
+            priv__push_audio_task(state);
         }
     }
 
     // log_gps/parse_gps
     if ((MISSION_STATE_RECORD_DIVE != state)) {
         if (tag_config.gps.enabled) {
-            __push_task(log_gps_task);
-            __push_audio_task(state);
-
-            __push_task(__parse_gps_task);
-            __push_audio_task(state);
+            priv__push_task(log_gps_task);
+            priv__push_audio_task(state);
         }
     }
 
     // log_battery
     if (MISSION_STATE_LOW_POWER_RETRIEVE != state) {
         if (tag_config.battery.enabled) {
-            __push_task(log_battery_task);
-            __push_audio_task(state);
+            priv__push_task(log_battery_task);
+            priv__push_audio_task(state);
         }
     }
 
     // log_pressure
     if (MISSION_STATE_LOW_POWER_RETRIEVE != state) {
         if (tag_config.pressure.enabled) {
-            __push_task(log_pressure_task);
-            __push_audio_task(state);
+            priv__push_task(log_pressure_task);
+            priv__push_audio_task(state);
         }
     }
 
@@ -560,8 +538,8 @@ static void __update_state_dependent_task_list(MissionState state) {
         && (MISSION_STATE_RECORD_DIVE != state)
     ) {
         if (tag_config.argos.enabled) {
-            __push_task(__transmit_gps_task);
-            __push_audio_task(state);
+            priv__push_task(priv__transmit_gps_task);
+            priv__push_audio_task(state);
         }
     }
 
@@ -570,58 +548,47 @@ static void __update_state_dependent_task_list(MissionState state) {
 /// @brief Reconfigures tag for next mission state and updates the current state
 /// @param next_state
 void mission_set_state(MissionState next_state, MissionTransitionCause cause) {
-    /*
-                          | RS | RF | RD | B | LPB | R | LPR
-        audio             | X  | X  | X  | X |     | X |
-        imu               | X  | X  | X  | X |     | X |
-        burn              |    |    |    | X |  X  |   |
-        gps               | X  | X  |    | X |  X  | X | X
-        led               | X  | X  |    | X |     | X |
-        recovery_tx       |    | X  |    | X |  X  | X | X
-        bms               | x  | x  | x  | x |  x  | x |
-        pressure          | x  | x  | x  | x |  x  | x |
-    */
     if (s_state == next_state) {
         return; // nothing to do
     }
-
+    
+    uint32_t sys_to_enable = (s_enabled_subsystems & s_state_active_subsystems_rule[next_state]) & ~(s_active_subsystems);
+    uint32_t sys_to_disable = s_active_subsystems & ~(s_enabled_subsystems & s_state_active_subsystems_rule[next_state]);
+    
     // Imu
-    if (tag_config.imu.enabled) {
-        if ((MISSION_STATE_LOW_POWER_BURN == next_state) 
-            || (MISSION_STATE_LOW_POWER_RETRIEVE == next_state)
-        ) {
-            acq_imu_stop_all();
-            log_imu_deinit();
-        } else {
-            for (int sensor_indx = 0; sensor_indx < IMU_SENSOR_COUNT; sensor_indx++) {
-                if (!tag_config.imu.sensor[sensor_indx].enabled) {
-                    continue;
-                }
-                [[maybe_unused]]int ret;
-                ret = acq_imu_start_sensor(sensor_indx, (uint32_t)tag_config.imu.sensor[sensor_indx].samplerate_ms * 1000);
+    if (EN_IMU & sys_to_disable) {
+        acq_imu_stop_all();
+        log_imu_deinit();
+        s_active_subsystems &= ~EN_IMU;
+    } else if (EN_IMU & sys_to_enable) {
+        for (int sensor_indx = 0; sensor_indx < IMU_SENSOR_COUNT; sensor_indx++) {
+            if (!tag_config.imu.sensor[sensor_indx].enabled) {
+                continue;
             }
+            [[maybe_unused]]int ret;
+            ret = acq_imu_start_sensor(sensor_indx, (uint32_t)tag_config.imu.sensor[sensor_indx].samplerate_ms * 1000);
         }
+        s_active_subsystems |= EN_IMU;
     }
 
     // Pressure
-    if (tag_config.pressure.enabled) {
-        if (MISSION_STATE_LOW_POWER_RETRIEVE == next_state) {
-            acq_pressure_deinit();
-            log_pressure_deinit();
-        } else {
-            acq_pressure_start();
-        }
+    if (EN_PRESSURE & sys_to_disable) {
+        acq_pressure_deinit();
+        log_pressure_deinit();
+        s_active_subsystems &= ~EN_PRESSURE;
+    } else if (EN_PRESSURE & sys_to_enable) {
+        acq_pressure_start();
+        s_active_subsystems |= EN_PRESSURE;
     }
 
     // Burnwire
-    if (tag_config.burnwire.enabled) {
-        if ((MISSION_STATE_BURN == next_state) || (MISSION_STATE_LOW_POWER_BURN == next_state)) {
-            burnwire_on();
-        } else {
-            burnwire_off();
-        }
+    if (EN_BURN & sys_to_disable) {
+        burnwire_off();
+        s_active_subsystems &= ~EN_BURN;
+    } else if (EN_BURN & sys_to_enable) {
+        burnwire_on();
+        s_active_subsystems |= EN_BURN;
     }
-
 
     // GPS
     if (tag_config.gps.enabled) {
@@ -646,41 +613,37 @@ void mission_set_state(MissionState next_state, MissionTransitionCause cause) {
     }
 
     // Satellite
-    if (tag_config.argos.enabled) {
-        if ((MISSION_STATE_RECORD_SURFACE == next_state) || (MISSION_STATE_RECORD_DIVE == next_state)) {
-            argos_tx_mgr_disable();
-        } else {
-            argos_tx_mgr_enable();
-        }
+    if (EN_ARGOS & sys_to_disable) {
+        argos_tx_mgr_disable();
+        s_active_subsystems &= ~EN_ARGOS;
+    } else if (EN_ARGOS & sys_to_enable) {
+        ArgosTxStrategy strategy = (tag_config.argos.path_prediction_enabled) ? ARGOS_TX_STRATEGY_PATH_PREDICTOR: ARGOS_TX_STRATEGY_TIMER; 
+        argos_tx_mgr_enable(strategy);
+        s_active_subsystems |= EN_ARGOS;
     }
 
     // ECG
-    if (tag_config.ecg.enabled) {
-        if ((MISSION_STATE_LOW_POWER_BURN == next_state)
-            || (MISSION_STATE_RETRIEVE == next_state)
-            || (MISSION_STATE_LOW_POWER_RETRIEVE == next_state)
-        ) {
-            acq_ecg_deinit();
-            log_ecg_deinit();
-        } else {
-        	acq_ecg_start();
-        }
+    if (EN_ECG & sys_to_disable) {
+        acq_ecg_deinit();
+        log_ecg_deinit();
+        s_active_subsystems &= ~EN_ECG;
+    } else if (EN_ECG & sys_to_enable) {
+        acq_ecg_start();
+        s_active_subsystems |= EN_ECG;
     }
 
     // Audio
-    if (tag_config.audio.enabled) {
-        if ((MISSION_STATE_LOW_POWER_BURN == next_state)
-            || (MISSION_STATE_LOW_POWER_RETRIEVE == next_state)
-        ) {
-            acq_audio_disable();
-            log_audio_disable();
-        } else {
-            acq_audio_start(log_audio_buffer, AUDIO_LOG_BUFFER_SIZE_BLOCKS, AUDIO_LOG_BLOCK_SIZE);
-        }
+    if (EN_AUDIO & sys_to_disable) {
+        acq_audio_disable();
+        log_audio_disable();
+        s_active_subsystems &= ~EN_AUDIO;
+    } else if (EN_AUDIO & sys_to_enable){
+        acq_audio_start(log_audio_buffer, AUDIO_LOG_BUFFER_SIZE_BLOCKS, AUDIO_LOG_BLOCK_SIZE);
+        s_active_subsystems |= EN_AUDIO;
     }
 
     // update state dependent tasks
-    __update_state_dependent_task_list(next_state);
+    priv__update_state_dependent_task_list(next_state);
 
     // Log state transition
     mission_log_state_transition(s_state, next_state, cause);
@@ -694,7 +657,6 @@ void mission_set_state(MissionState next_state, MissionTransitionCause cause) {
     }
     // update state
     s_state = next_state;
-
     // LED
     if ((MISSION_STATE_RECORD_DIVE == next_state) || (MISSION_STATE_RETRIEVE == next_state) || (MISSION_STATE_LOW_POWER_RETRIEVE == next_state)) {
         led_heartbeat_dim();
@@ -711,18 +673,18 @@ void TIM5_IRQHandler(void){
   HAL_TIM_IRQHandler(&mission_htim);
 }
 
-static void __periodic_timer_msp_deinit(TIM_HandleTypeDef* tim_baseHandle) {
+static void priv__periodic_timer_msp_deinit(TIM_HandleTypeDef* tim_baseHandle) {
     __HAL_RCC_MISSION_TIM_CLK_DISABLE();
     HAL_NVIC_DisableIRQ(MISSION_TIM_IRQn);
 }
 
-static void __periodic_timer_msp_init(TIM_HandleTypeDef* tim_baseHandle) {
+static void priv__periodic_timer_msp_init(TIM_HandleTypeDef* tim_baseHandle) {
     __HAL_RCC_MISSION_TIM_CLK_ENABLE();
     HAL_NVIC_SetPriority(MISSION_TIM_IRQn, 0, 0);
     HAL_NVIC_EnableIRQ(MISSION_TIM_IRQn);
 }
 
-static void __periodic_timer_complete_callback(TIM_HandleTypeDef* tim_baseHandle) {
+static void priv__periodic_timer_complete_callback(TIM_HandleTypeDef* tim_baseHandle) {
     if (s_update_periodic_mission_tasks == 1) {
         // ToDo: Handle Error
     }
@@ -731,15 +693,15 @@ static void __periodic_timer_complete_callback(TIM_HandleTypeDef* tim_baseHandle
 
 /// @brief set a 1 second timer for periodic tasks
 /// @param  
-static void __init_periodic_task_timer(void){
+static void priv__init_periodic_task_timer(void){
     s_update_periodic_mission_tasks = 0;
 
 
     TIM_ClockConfigTypeDef sClockSourceConfig = {0};
     TIM_MasterConfigTypeDef sMasterConfig = {0};
     
-    HAL_TIM_RegisterCallback(&mission_htim, HAL_TIM_BASE_MSPINIT_CB_ID, __periodic_timer_msp_init);
-    HAL_TIM_RegisterCallback(&mission_htim, HAL_TIM_BASE_MSPDEINIT_CB_ID, __periodic_timer_msp_deinit);
+    HAL_TIM_RegisterCallback(&mission_htim, HAL_TIM_BASE_MSPINIT_CB_ID, priv__periodic_timer_msp_init);
+    HAL_TIM_RegisterCallback(&mission_htim, HAL_TIM_BASE_MSPDEINIT_CB_ID, priv__periodic_timer_msp_deinit);
 
     mission_htim.Instance = TIM5;
     mission_htim.Init.Prescaler = 15999;
@@ -763,13 +725,42 @@ static void __init_periodic_task_timer(void){
         Error_Handler();
     }
 
-    HAL_TIM_RegisterCallback(&mission_htim, HAL_TIM_PERIOD_ELAPSED_CB_ID, __periodic_timer_complete_callback);
+    HAL_TIM_RegisterCallback(&mission_htim, HAL_TIM_PERIOD_ELAPSED_CB_ID, priv__periodic_timer_complete_callback);
 }
 
 /// @brief Initialize mission state machine
 /// @param
 void mission_init(void) {
-    if (tag_config.audio.enabled) {
+    // hardware_mask
+    s_enabled_subsystems = (tag_config.hw_config.audio.available * EN_AUDIO)
+        | (tag_config.hw_config.argos.available * EN_ARGOS)
+        | (tag_config.hw_config.bms.available * EN_BMS)
+        | (tag_config.hw_config.burnwire.available * EN_BURN)
+        | (tag_config.hw_config.ecg.available * EN_ECG)
+        | (tag_config.hw_config.flasher.available * EN_FLASH)
+        | (tag_config.hw_config.water_sensor.available * EN_WATER_SENSE)
+        | (tag_config.hw_config.gps.available * EN_GPS)
+        | (tag_config.hw_config.imu.available * EN_IMU)
+        | (tag_config.hw_config.pressure.available * EN_PRESSURE)
+        | (tag_config.hw_config.vhf_pinger.available * EN_VHF)
+        ;
+
+    // software mask
+    s_enabled_subsystems &= ((tag_config.audio.enabled * EN_AUDIO)
+            | (tag_config.argos.enabled * EN_ARGOS)
+            | (tag_config.battery.enabled * EN_BMS)
+            | (tag_config.burnwire.enabled * EN_BURN)
+            | (tag_config.ecg.enabled * EN_ECG)
+            | (tag_config.flasher.enabled * EN_FLASH)
+            | (tag_config.hw_config.water_sensor.available * EN_WATER_SENSE)
+            | (tag_config.gps.enabled * EN_GPS)
+            | (tag_config.imu.enabled * EN_IMU)
+            | (tag_config.pressure.enabled * EN_PRESSURE)
+            | (tag_config.vhf.enabled * EN_VHF)
+        )
+        ;
+
+    if (s_enabled_subsystems & EN_AUDIO) {
         CETI_LOG("Initializing Audio Logging");
         // link log_audio to acq_audio
         log_audio_init(&tag_config.audio);
@@ -777,19 +768,21 @@ void mission_init(void) {
     }
 
     /* perform runtime system hardware test to detect available systems */
-    if (tag_config.battery.enabled){
+    if (s_enabled_subsystems & EN_BMS){
         CETI_LOG("Initializing BMS Logging");
         log_battery_init();
         acq_battery_register_callback(log_battery_buffer_sample); // link logging to acquisition
     }
 
-    if (tag_config.pressure.enabled) {
+    if (s_enabled_subsystems & EN_PRESSURE) {
         CETI_LOG("Initializing Pressure Logging");
+        s_dive_threshold_raw = acq_pressure_bar_to_pressure_raw(tag_config.pressure.dive_threshold_bar);
+        s_surface_threshold_raw = acq_pressure_bar_to_pressure_raw(tag_config.pressure.surface_threshold_bar);
         log_pressure_init();
         acq_pressure_register_sample_callback(log_pressure_buffer_sample);
     }
 
-    if (tag_config.imu.enabled) {
+    if (s_enabled_subsystems & EN_IMU) {
         CETI_LOG("Initializing IMU Logging");
         log_imu_init();
         const ImuCallback cb[] = {
@@ -806,19 +799,29 @@ void mission_init(void) {
         }
     }
 
-    if (tag_config.ecg.enabled) {
+    if (s_enabled_subsystems & EN_ECG) {
         CETI_LOG("Initializing ECG Logging");
         log_ecg_init();
         acq_ecg_register_sample_callback(log_ecg_push_sample);
     }
 
-    if (tag_config.argos.enabled) {
-        CETI_LOG("Initializing ARGOS");
-        MX_USART2_UART_Init();
-        satellite_init();
+    if (s_enabled_subsystems & EN_GPS) {
+        CETI_LOG("Initializing GPS Logging");
+        log_gps_init();
+        gps_register_msg_complete_callback(priv__gps_msg_callback);
     }
 
-    if (tag_config.flasher.enabled) {
+    if (s_enabled_subsystems & EN_ARGOS) {
+        CETI_LOG("Initializing ARGOS");
+        satellite_start(&tag_config.argos);
+        log_argos_init();
+    }
+
+    if (s_enabled_subsystems & EN_FLASH) {
+        CETI_LOG("Enabling Antenna Flasher");
+    }
+
+    if (s_enabled_subsystems & EN_WATER_SENSE) {
         CETI_LOG("Enabling Antenna Flasher");
     }
 
@@ -826,14 +829,52 @@ void mission_init(void) {
 
     mission_battery_init();
 
-    uint64_t now_timestamp_s = rtc_get_epoch_us()/1000000;
-    // start burn timer
-    s_burn_start_timestamp_s = now_timestamp_s + 4 * 60 * 60;
+    if (s_enabled_subsystems & EN_BURN) {
+        CETI_LOG("Initializing Burnwire");
+        uint64_t now_timestamp_s = rtc_get_epoch_us()/1000000;
+        uint64_t seconds_until_timer_release = -1; // set to max
+        uint64_t seconds_until_time_of_day_release = -1;  // set to max
+        s_burn_start_timestamp_s = -1; //set to mx
 
-    // initialize gps log
-    log_gps_init();
+        // calculate time of day release
+        if (tag_config.mission.time_of_day_release_utc.enabled) {
+            RTC_TimeTypeDef rtc_time;
+            rtc_get_datetime(NULL, &rtc_time);
+            uint64_t target_tod_hours = tag_config.mission.time_of_day_release_utc.hour;
+            uint64_t target_tod_minutes = ( 60 * target_tod_hours ) +  tag_config.mission.time_of_day_release_utc.minute;
+            uint64_t target_tod_seconds = ( 60 * target_tod_minutes );
 
-    __init_periodic_task_timer();
+            uint64_t actual_tod_seconds = ( 60 * ((60 * rtc_time.Hours) + rtc_time.Minutes) + rtc_time.Seconds);
+            if (actual_tod_seconds > target_tod_seconds) {
+                target_tod_seconds += 24*60*60;
+            }
+            
+            seconds_until_time_of_day_release = (target_tod_seconds - actual_tod_seconds);            
+        }
+
+        // calculate timer release
+        if (tag_config.mission.timer_release.enabled) {
+            uint64_t hours = tag_config.mission.timer_release.hours;
+            uint64_t minutes = ( 60 * hours ) + tag_config.mission.timer_release.minutes;
+            seconds_until_timer_release = 60 * minutes;
+        }
+
+        // start burn timer
+        if ((-1 == seconds_until_time_of_day_release) && (-1 == seconds_until_timer_release)) {
+            s_burn_start_timestamp_s = -1; // no burner set
+            CETI_LOG("Burn Timer: Not set");
+        } else {
+            if (seconds_until_time_of_day_release < seconds_until_timer_release) {
+                s_burn_start_timestamp_s = now_timestamp_s + seconds_until_time_of_day_release;
+                CETI_LOG("Burn Timer: Set to Time of Day Release: %lld (%lld s)", s_burn_start_timestamp_s, seconds_until_time_of_day_release);
+            } else {
+                s_burn_start_timestamp_s = now_timestamp_s + seconds_until_timer_release;
+                CETI_LOG("Burn Timer: Set to Timed Release: %lld (%lld s)", s_burn_start_timestamp_s, seconds_until_timer_release);
+            }
+        }
+    }
+
+    priv__init_periodic_task_timer();
 
     // force state transition
     mission_log_init(); // initialize mission log prior to performing initial state transistion.
@@ -843,169 +884,34 @@ void mission_init(void) {
     // Battery acquisition performed for all states
     acq_battery_start();
 }
+#endif
 
 /// @brief determines the next state the tag should transition into
 /// @param current_state
 /// @return
-static MissionState __mission_get_next_state(MissionState current_state, MissionTransitionCause transition_cause[static 1]) {
-    switch (current_state) {
-        case MISSION_STATE_MISSION_START: {
-            *transition_cause = MISSION_TRANSITION_START;
-            return STARTING_STATE;
+static MissionState priv__mission_get_next_state(MissionState current_state, MissionTransitionCause *transition_cause) {
+    MissionState next_state = current_state;
+    MissionTransitionCause internal_cause = MISSION_TRANSITION_NONE;
+    for (size_t i = 0; i < ARRAY_LEN(s_transition_table); i++) {
+        const MissionTransitionRule *rule = &s_transition_table[i];
+        if (rule->from != current_state) {
+            continue;
         }
 
-        case MISSION_STATE_RECORD_SURFACE: {
-            if (mission_battery_is_low_voltage()) {
-                CETI_LOG("Entering burn due to low voltage!!!");
-                *transition_cause = MISSION_TRANSITION_LOW_VOLTAGE;
-                return MISSION_STATE_LOW_POWER_BURN;
-            }
-
-            if (mission_battery_is_in_error()) {
-                CETI_LOG("Entering burn due to BMS errors!!!");
-                *transition_cause = MISSION_TRANSITION_BATTERY_ERRORS;
-                return MISSION_STATE_LOW_POWER_BURN;
-            }
-
-            if (__is_time_to_burn()) {
-                CETI_LOG("Entering burn due to timeout!!!");
-                *transition_cause = MISSION_TRANSITION_TIMER ;
-                return MISSION_STATE_BURN;
-            }
-
-            if (__is_high_pressure()) {
-                *transition_cause = MISSION_TRANSITION_HIGH_PRESSURE;
-                return MISSION_STATE_RECORD_DIVE;
-            }
-
-            if (tag_config.mission.float_detection_enabled){
-                if (float_detection_is_floating()) {
-                    *transition_cause = MISSION_TRANSITION_FLOAT_DETECTED;
-                    return MISSION_STATE_RECORD_FLOATING;
-                }
-            }
-
-            return MISSION_STATE_RECORD_SURFACE; // remain in current state
-        } // case MISSION_STATE_RECORD_SURFACE
-
-        case MISSION_STATE_RECORD_FLOATING: {
-            if (mission_battery_is_low_voltage()) {
-                CETI_LOG("Entering burn due to low voltage!!!");
-                *transition_cause = MISSION_TRANSITION_LOW_VOLTAGE;
-                return MISSION_STATE_LOW_POWER_BURN;
-            }
-
-            if (mission_battery_is_in_error()) {
-                CETI_LOG("Entering burn due to BMS errors!!!");
-                *transition_cause = MISSION_TRANSITION_BATTERY_ERRORS;
-                return MISSION_STATE_LOW_POWER_BURN;
-            }
-
-            if (__is_time_to_burn()) {
-                CETI_LOG("Entering burn due to timeout!!!");
-                *transition_cause = MISSION_TRANSITION_TIMER;
-                return MISSION_STATE_BURN;
-            }
-
-            if (__is_high_pressure()) {
-                *transition_cause = MISSION_TRANSITION_HIGH_PRESSURE;
-                return MISSION_STATE_RECORD_DIVE;
-            }
-
-            if (tag_config.mission.float_detection_enabled){
-                if (!float_detection_is_floating()) {
-                    return MISSION_STATE_RECORD_SURFACE;
-                }
-            }
-
-            return MISSION_STATE_RECORD_FLOATING; // remain in current state
-        } // case MISSION_STATE_RECORD_SURFACE
-
-        case MISSION_STATE_RECORD_DIVE: {
-            if (mission_battery_is_low_voltage()) {
-                CETI_LOG("Entering burn due to low voltage!!!");
-                *transition_cause = MISSION_TRANSITION_LOW_VOLTAGE;
-                return MISSION_STATE_LOW_POWER_BURN;
-            }
-
-            if (mission_battery_is_in_error()) {
-                CETI_LOG("Entering burn due to BMS errors!!!");
-                *transition_cause = MISSION_TRANSITION_BATTERY_ERRORS;
-                return MISSION_STATE_LOW_POWER_BURN;
-            }
-
-            if (__is_time_to_burn()) {
-                CETI_LOG("Entering burn due to timeout!!!");
-                *transition_cause = MISSION_TRANSITION_TIMER;
-                return MISSION_STATE_BURN;
-            }
-
-            if (__is_low_pressure()) {
-                *transition_cause = MISSION_TRANSITION_LOW_PRESSURE;
-                return MISSION_STATE_RECORD_SURFACE;
-            }
-
-            return MISSION_STATE_RECORD_DIVE; // remain in current state
-        } // case MISSION_STATE_RECORD_DIVE
-
-        case MISSION_STATE_BURN: {
-            if (mission_battery_is_low_voltage()) {
-                CETI_LOG("Entering burn due to low voltage!!!");
-                *transition_cause = MISSION_TRANSITION_LOW_VOLTAGE;
-                return MISSION_STATE_LOW_POWER_BURN;
-            }
-
-            if (mission_battery_is_in_error()) {
-                CETI_LOG("Entering burn due to BMS errors!!!");
-                *transition_cause = MISSION_TRANSITION_BATTERY_ERRORS;
-                return MISSION_STATE_LOW_POWER_BURN;
-            }
-
-            if (__is_burn_complete()) {
-                *transition_cause = MISSION_TRANSITION_TIMER;
-                return MISSION_STATE_RETRIEVE;
-            }
-            return MISSION_STATE_BURN; // remain in current state
-        } // case MISSION_STATE_BURN
-
-        case MISSION_STATE_LOW_POWER_BURN: {
-            if (__is_burn_complete()) {
-                *transition_cause = MISSION_TRANSITION_TIMER;
-                return MISSION_STATE_LOW_POWER_RETRIEVE;
-            }
-
-            return MISSION_STATE_LOW_POWER_BURN;
-        } // case MISSION_STATE_LOW_POWER_BURN
-
-        case MISSION_STATE_RETRIEVE: {
-            if (mission_battery_is_low_voltage()) {
-                CETI_LOG("Entering burn due to low voltage!!!");
-                *transition_cause = MISSION_TRANSITION_LOW_VOLTAGE;
-                return MISSION_STATE_LOW_POWER_RETRIEVE;
-            }
-
-            if (mission_battery_is_in_error()) {
-                CETI_LOG("Entering burn due to BMS errors!!!");
-                *transition_cause = MISSION_TRANSITION_BATTERY_ERRORS;
-                return MISSION_STATE_LOW_POWER_RETRIEVE;
-            }
-            return MISSION_STATE_RETRIEVE;
-        } // case MISSION_STATE_RETRIEVE
-
-        case MISSION_STATE_LOW_POWER_RETRIEVE: {
-            return MISSION_STATE_LOW_POWER_RETRIEVE;
-        }
-
-        case MISSION_STATE_ERROR: {
-            // ToDo: Handle error
-            return MISSION_STATE_RECORD_SURFACE;
-        }
-        default: {
-            return MISSION_STATE_ERROR;
+        if (rule->condition == NULL || rule->condition()) {
+            internal_cause = rule->cause;
+            next_state = rule->to;
+            break;
         }
     }
+
+    if (NULL != transition_cause) {
+        *transition_cause = internal_cause;
+    }
+    return next_state;
 }
 
+#ifndef UNIT_TEST
 /// @brief updates the current system state based on latest system interaction
 /// @param
 void mission_task(void) {
@@ -1016,12 +922,16 @@ void mission_task(void) {
     
     /* state independent tasks */
     // Check if tag is stuck not transmitting GPS via ARGOS
-    __wdt_task();
+    priv__wdt_task();
 
     if(s_update_periodic_mission_tasks) {
+        priv__resyncronize_rtc_task();
+
+        priv__update_argos_coordinates();
+
         mission_battery_task();
 
-        if (tag_config.mission.float_detection_enabled){
+        if (EN_FLOAT & s_active_subsystems) {
             // Update float detection
             sh2_SensorValue_t rotation;
             acq_imu_get_rotation(&rotation); 
@@ -1030,7 +940,7 @@ void mission_task(void) {
 
         // Update the mission state
         MissionTransitionCause cause = MISSION_TRANSITION_NONE;
-        MissionState next_state = __mission_get_next_state(s_state, &cause);
+        MissionState next_state = priv__mission_get_next_state(s_state, &cause);
         mission_set_state(next_state, cause);
         s_update_periodic_mission_tasks = 0;
     }
@@ -1044,157 +954,54 @@ void mission_task(void) {
 #endif
 }
 
-/// @brief call after mission_task to puts the system to sleep until
+/// @brief call after mission_task to put the system to sleep until
 ///        the system receives another input signal
 /// @param
 void mission_sleep(void) {
-    switch (s_state) {
-        case MISSION_STATE_MISSION_START:
-            break;
-
-        case MISSION_STATE_RECORD_SURFACE:{
-            __disable_irq();
-            if (gps_bulk_queue_is_empty()
-                && !log_battery_sample_buffer_is_half_full()
-                && !log_ecg_sample_buffer_is_half_full()
-                && !log_pressure_sample_buffer_is_half_full()
-                && !log_imu_any_buffer_half_full()
-            ) {
-                // nothing to currently do!
-                // go to sleep until next interrupt
-                HAL_SuspendTick();
-                HAL_PWR_EnableSleepOnExit();
-                HAL_PWR_EnterSLEEPMode(PWR_MAINREGULATOR_ON, PWR_SLEEPENTRY_WFI);
-                HAL_ResumeTick();
-            }
-            __enable_irq();
-            break;
-        }
-
-        case MISSION_STATE_RECORD_FLOATING: {
-            __disable_irq();
-            if (gps_bulk_queue_is_empty() 
-                && gps_queue_is_empty() 
-                && !argos_tx_mgr_ready_to_tx()
-                && !log_battery_sample_buffer_is_half_full()
-                && !log_ecg_sample_buffer_is_half_full()
-                && !log_pressure_sample_buffer_is_half_full()
-                && !log_imu_any_buffer_half_full()
-            ) {
-                // nothing to currently do!
-                // go to sleep until next interrupt
-                HAL_SuspendTick();
-                HAL_PWR_EnableSleepOnExit();
-                HAL_PWR_EnterSLEEPMode(PWR_MAINREGULATOR_ON, PWR_SLEEPENTRY_WFI);
-                HAL_ResumeTick();
-            }
-            __enable_irq();
-            break;
-        }
-
-        case MISSION_STATE_RECORD_DIVE:
-            __disable_irq();
-            if ( !log_battery_sample_buffer_is_half_full()
-                && !log_ecg_sample_buffer_is_half_full()
-                && !log_pressure_sample_buffer_is_half_full()
-                && !log_imu_any_buffer_half_full()
-            ) {
-                // nothing to currently do!
-                // go to sleep until next interrupt
-                HAL_SuspendTick();
-                HAL_PWR_EnableSleepOnExit();
-                HAL_PWR_EnterSLEEPMode(PWR_MAINREGULATOR_ON, PWR_SLEEPENTRY_WFI);
-                HAL_ResumeTick();
-            }
-            __enable_irq();
-            break;
-
-        case MISSION_STATE_BURN:
-            __disable_irq();
-            if ( gps_bulk_queue_is_empty() 
-                 && gps_queue_is_empty() 
-                 && !argos_tx_mgr_ready_to_tx()
-                 && !log_ecg_sample_buffer_is_half_full()
-                 && !log_battery_sample_buffer_is_half_full()
-                 && !log_pressure_sample_buffer_is_half_full()
-                 && !log_imu_any_buffer_half_full()
-            ) {
-                // nothing to currently do!
-                // go to sleep until next interrupt
-                HAL_SuspendTick();
-                HAL_PWR_EnableSleepOnExit();
-                HAL_PWR_EnterSLEEPMode(PWR_MAINREGULATOR_ON, PWR_SLEEPENTRY_WFI);
-                HAL_ResumeTick();
-            }
-            __enable_irq();
-            break;
-
-        case MISSION_STATE_LOW_POWER_BURN:
-            __disable_irq();
-            if ( gps_bulk_queue_is_empty() 
-                 && gps_queue_is_empty() 
-                 && !argos_tx_mgr_ready_to_tx()
-                 && !log_battery_sample_buffer_is_half_full()
-                 && !log_pressure_sample_buffer_is_half_full()
-            ) {
-                // nothing to currently do!
-                // go to sleep until next interrupt
-                HAL_SuspendTick();
-                
-                // ToDo: enter STOP1 mode instead
-                HAL_PWREx_EnterSTOP1Mode(PWR_STOPENTRY_WFI);
-
-                // HAL_PWR_EnterSLEEPMode(PWR_MAINREGULATOR_ON, PWR_SLEEPENTRY_WFI);
-                SystemClock_Config();
-                HAL_ResumeTick();
-            }
-            __enable_irq();
-            break;
-
-        case MISSION_STATE_RETRIEVE: {
-            __disable_irq();
-            if ( gps_bulk_queue_is_empty() 
-                 && gps_queue_is_empty() 
-                 && !argos_tx_mgr_ready_to_tx()
-                 && !log_battery_sample_buffer_is_half_full()
-                 && !log_pressure_sample_buffer_is_half_full()
-                 && !log_imu_any_buffer_half_full()
-            ) {
-                // nothing to currently do!
-                // go to sleep until next interrupt
-                HAL_SuspendTick();
-                HAL_PWR_EnableSleepOnExit();
-                HAL_PWR_EnterSLEEPMode(PWR_MAINREGULATOR_ON, PWR_SLEEPENTRY_WFI);
-
-                HAL_ResumeTick();
-            }
-            __enable_irq();
-            break;
-        }
-
-        case MISSION_STATE_LOW_POWER_RETRIEVE: {
-            __disable_irq();
-            if (gps_bulk_queue_is_empty() 
-                && gps_queue_is_empty() 
-                && !argos_tx_mgr_ready_to_tx()
-            ) {
-                // nothing to currently do!
-                // go to sleep until next interrupt
-                HAL_SuspendTick();
-
-                // ToDo: enter STOP1 mode instead
-                HAL_PWREx_EnterSTOP1Mode(PWR_STOPENTRY_WFI);
-
-                // HAL_PWR_EnterSLEEPMode(PWR_MAINREGULATOR_ON, PWR_SLEEPENTRY_WFI);
-                SystemClock_Config();
-
-                HAL_ResumeTick();
-            }
-            __enable_irq();
-            break;
-        }
-
-        case MISSION_STATE_ERROR:
-            break;
+    if (MISSION_SLEEP_NONE == s_state_sleep_depth[s_state]){
+        return;
     }
+
+    __disable_irq();
+    if (   !((s_active_subsystems & EN_BMS) && log_battery_sample_buffer_is_half_full())
+        && !((s_active_subsystems & EN_IMU) && log_imu_any_buffer_half_full())
+        && !((s_active_subsystems & EN_ECG) && log_ecg_sample_buffer_is_half_full())
+        && !((s_active_subsystems & EN_PRESSURE) && log_pressure_sample_buffer_is_half_full())
+        && !((s_active_subsystems & EN_ARGOS) && argos_tx_mgr_ready_to_tx())
+        && !((s_active_subsystems & EN_GPS) && log_gps_buffer_is_half_full())
+        && !s_update_periodic_mission_tasks
+    ) {
+        // nothing to currently do!
+        // go to sleep until next interrupt
+        switch(s_state_sleep_depth[s_state]) {
+            case MISSION_SLEEP_NONE:
+                break;
+
+            case MISSION_SLEEP_SLEEP:
+                HAL_SuspendTick();
+                HAL_PWR_EnableSleepOnExit();
+                HAL_PWR_EnterSLEEPMode(PWR_MAINREGULATOR_ON, PWR_SLEEPENTRY_WFI);
+                HAL_ResumeTick();
+                break;
+
+            case MISSION_SLEEP_STOP1:
+                HAL_SuspendTick();
+                HAL_PWR_EnableSleepOnExit();
+                HAL_PWREx_EnterSTOP1Mode(PWR_STOPENTRY_WFI);
+                SystemClock_Config();
+                HAL_ResumeTick();
+                break;
+
+            case MISSION_SLEEP_STOP2:
+                HAL_SuspendTick();
+                HAL_PWR_EnableSleepOnExit();
+                HAL_PWREx_EnterSTOP2Mode(PWR_STOPENTRY_WFI);
+                SystemClock_Config();
+                HAL_ResumeTick();
+                break;
+        }
+    }
+    __enable_irq();
 }
+
+#endif

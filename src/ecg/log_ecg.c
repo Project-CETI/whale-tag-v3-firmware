@@ -46,17 +46,17 @@ static char *log_ecg_csv_header =
 /// @brief opens and creates an ecg file
 /// @param filename filename string pointer
 [[gnu::nonnull]]
-static void __open_csv_file(char *filename) {
+static void priv__open_csv_file(char *filename) {
     /* Create/open ecg csv file */
     UINT fx_create_result = fx_file_create(&sdio_disk, filename);
     if ((fx_create_result != FX_SUCCESS) && (fx_create_result != FX_ALREADY_CREATED)) {
-        error_queue_push(CETI_ERROR(ERR_SUBSYS_LOG_ECG, ERR_TYPE_FILEX, fx_create_result), __open_csv_file);
+        error_queue_push(CETI_ERROR(ERR_SUBSYS_LOG_ECG, ERR_TYPE_FILEX, fx_create_result), priv__open_csv_file);
     }
 
     /* open file */
     UINT fx_open_result = buffer_writer_open(&s_bw, filename);
     if (FX_SUCCESS != fx_open_result) {
-        error_queue_push(CETI_ERROR(ERR_SUBSYS_LOG_ECG, ERR_TYPE_FILEX, fx_open_result), __open_csv_file);
+        error_queue_push(CETI_ERROR(ERR_SUBSYS_LOG_ECG, ERR_TYPE_FILEX, fx_open_result), priv__open_csv_file);
     }
     
     /* log file creation */
@@ -75,7 +75,7 @@ static void __open_csv_file(char *filename) {
 /// @param buffer_len destination buffer capacity
 /// @return encoded string length
 [[gnu::nonnull]]
-static int __sample_to_csv(const EcgSample *p_sample, uint8_t *p_buffer, size_t buffer_len) {
+static int priv__sample_to_csv(const EcgSample *p_sample, uint8_t *p_buffer, size_t buffer_len) {
     uint8_t offset = 0;
     offset += snprintf((char *)&p_buffer[offset], buffer_len - offset, "%lld", p_sample->timestamp_us);
 
@@ -98,7 +98,7 @@ void log_ecg_init(void) {
     s_ecg_buffer_read_cursor = 0;
 
     // create file
-    __open_csv_file(ECG_CSV_FILENAME);
+    priv__open_csv_file(ECG_CSV_FILENAME);
 }
 
 /// @brief indication if the ecg sample buffer is halffull and needs servicing
@@ -142,7 +142,7 @@ void log_ecg_task(void) {
         // encode sample
         uint8_t csv_encode_buffer[512];
         const EcgSample *p_sample = &s_ecg_sample_buffer[s_ecg_buffer_read_cursor];
-        size_t encoded_bytes = __sample_to_csv(p_sample, csv_encode_buffer, sizeof(csv_encode_buffer));
+        size_t encoded_bytes = priv__sample_to_csv(p_sample, csv_encode_buffer, sizeof(csv_encode_buffer));
 
         // write sample
         UINT write_result = buffer_writer_write(&s_bw, csv_encode_buffer, encoded_bytes);

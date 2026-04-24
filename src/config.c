@@ -39,6 +39,8 @@ CetiTagRuntimeConfiguration nv_tag_config = {
     },
     .argos = {
         .enabled = SATELLITE_ENABLED,
+        .path_prediction_enabled = 1,
+        .modulation_protocol = ARGOS_MOD_LDA2,
     },
     .battery = {
         .enabled = BMS_ENABLED,
@@ -85,6 +87,8 @@ CetiTagRuntimeConfiguration nv_tag_config = {
     },
     .pressure = {
         .enabled = PRESSURE_ENABLED,
+        .dive_threshold_bar = PRESSURE_DIVE_THRESHOLD_BAR,
+        .surface_threshold_bar = PRESSURE_SURFACE_THRESHOLD_BAR,
         .samplerate_ms = PRESSURE_SAMPLERATE_mS,
     },
     .hw_config = {

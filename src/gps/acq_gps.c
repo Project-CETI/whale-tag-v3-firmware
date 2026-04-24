@@ -12,6 +12,7 @@
 #include "error.h"
 #include "m10s.h"
 #include "main.h"
+#include "timing.h"
 
 #include <math.h>
 #include <string.h>
@@ -22,9 +23,8 @@ extern UART_HandleTypeDef GPS_huart;
 // === PRIVATE DEFINES ===
 #define NMEA_START_CHAR '$'
 #define NMEA_END_CHAR '\r'
-#define NMEA_MAX_SIZE (82)
+#define GPS_BULK_TRANSFER_SIZE (8 * 512)
 
-#define GPS_BUFFER_SIZE (NMEA_MAX_SIZE + 1)
 #define GPS_BUFFER_COUNT (1 + sizeof(gps_raw_buffer) / NMEA_MAX_SIZE)
 
 #define GPS_BUFFER_VALID_START (1 << 0)
@@ -39,69 +39,53 @@ typedef enum {
 // === PRIVATE VARIABLES ===
 static GpsState s_gps_state = GPS_STATE_OFF;
 
-static int rx_buffer_index = 0;
-
 // === PRIVATE METHODS ===
+static uint8_t gps_raw_buffer[2 * GPS_BULK_TRANSFER_SIZE];
+static volatile uint16_t gps_raw_buffer_read_position = 0;
+static volatile uint8_t gps_bulk_write_position = 0;
+static volatile uint8_t gps_bulk_read_position = 0;
 
-static inline void __power_en(GPIO_PinState state) {
+static inline void priv__power_en(GPIO_PinState state) {
 #ifdef GPS_PWR_EN_GPIO_Output_Pin
     HAL_GPIO_WritePin(GPS_PWR_EN_GPIO_Output_GPIO_Port, GPS_PWR_EN_GPIO_Output_Pin, state);
 #endif
 }
 
 // === PUBLIC METHODS ===
-static uint8_t gps_raw_buffer[2 * GPS_BULK_TRANSFER_SIZE];
-static volatile uint16_t gps_raw_buffer_read_position = 0;
-static volatile uint8_t gps_bulk_write_position = 0;
-static volatile uint8_t gps_bulk_read_position = 0;
+static GpsSentence s_current_sentence = {0};
 
-static uint8_t gps_buffer[GPS_BUFFER_COUNT][GPS_BUFFER_SIZE];
-static volatile uint8_t gpsBuffer_write_index = 0;
-static volatile uint8_t gpsBuffer_read_index = 0;
-int gpsBuffer_overflow = 0;
-
-static void (*s_msg_complete_callback)(const uint8_t * msg_ptr, uint16_t len) = NULL;
-static void (*s_raw_rx_callback)(const uint8_t * raw_ptr, uint16_t len) = NULL;
+uint64_t s_callback_timestamp_us;
+static void (*s_msg_complete_callback)(const GpsSentence * p_sentence) = NULL;
 
 /// @brief seperates a set of bytes into gps nmea messages
 /// @param bytes pointer to bytes to process
 /// @param byte_len number of bytes to process
-static void __gps_rx_process_bytes(const uint8_t *bytes, uint16_t position) {
-    static uint8_t partial_position = 0;
-    uint8_t *current_sentence = gps_buffer[gpsBuffer_write_index];
-    /* call message received callback */
-    if (NULL != s_raw_rx_callback) {
-            s_raw_rx_callback(bytes, position);
-    }
-    
+static void priv__gps_rx_process_bytes(const uint8_t *bytes, uint16_t position) {
     /* seperate bytes into nmea_messages */
     for (int i = 0; i < position; i++) {
-        if (0 == partial_position) { // nmea not started
-            if (NMEA_START_CHAR == bytes[i]) {
-                current_sentence[0] = NMEA_START_CHAR;
-                partial_position = 1;
+        if (0 == s_current_sentence.msg_len) { // nmea not started
+            if (NMEA_START_CHAR == bytes[i]) { // start found
+                s_current_sentence.timestamp_us = s_callback_timestamp_us;
+                s_current_sentence.msg[0] = NMEA_START_CHAR;
+                s_current_sentence.msg_len = 1;
             }
         } else {
-            // copy sentence to buffer
-            current_sentence[partial_position++] = bytes[i];
-
-            // end sentence
-            if (('\n' == bytes[i])) {
-                current_sentence[partial_position] = 0;
-                gpsBuffer_write_index = (gpsBuffer_write_index + 1) % GPS_BUFFER_COUNT;
-                if (gpsBuffer_write_index == gpsBuffer_read_index) {
-                    gpsBuffer_overflow = 1;
-                }
+            if (('\n' != bytes[i])) {
+                // copy sentence to buffer
+                s_current_sentence.msg[s_current_sentence.msg_len++] = bytes[i];
+            } else {
+                //end of sentence
+                // advance sentence buffer
+                s_current_sentence.msg_len = s_current_sentence.msg_len;
+                s_current_sentence.msg[s_current_sentence.msg_len] = 0;
 
                 /* call message received callback */
                 if (NULL != s_msg_complete_callback) {
-                    s_msg_complete_callback(current_sentence, partial_position);
+                    s_msg_complete_callback(&s_current_sentence);
                 }
                 
                 /* setup next message */
-                current_sentence = gps_buffer[gpsBuffer_write_index];
-                partial_position = 0;
-
+                s_current_sentence.msg_len = 0;
             }
         }
     }
@@ -111,12 +95,13 @@ static void __gps_rx_process_bytes(const uint8_t *bytes, uint16_t position) {
 /// @param huart
 /// @param pos
 void gps_rx_callback(UART_HandleTypeDef *huart, uint16_t pos) {
+    s_callback_timestamp_us = rtc_get_epoch_us();
     if ((pos < gps_raw_buffer_read_position)) {
         /* process to end of buffer */
-        __gps_rx_process_bytes(&gps_raw_buffer[gps_raw_buffer_read_position], sizeof(gps_raw_buffer) - gps_raw_buffer_read_position);
+        priv__gps_rx_process_bytes(&gps_raw_buffer[gps_raw_buffer_read_position], sizeof(gps_raw_buffer) - gps_raw_buffer_read_position);
         gps_raw_buffer_read_position = 0;
     }
-    __gps_rx_process_bytes(&gps_raw_buffer[gps_raw_buffer_read_position], (pos - gps_raw_buffer_read_position));
+    priv__gps_rx_process_bytes(&gps_raw_buffer[gps_raw_buffer_read_position], (pos - gps_raw_buffer_read_position));
     gps_raw_buffer_read_position = pos;
 
     // half transfer boundry cross
@@ -131,38 +116,14 @@ void gps_rx_callback(UART_HandleTypeDef *huart, uint16_t pos) {
     }
 }
 
-/// @brief check if gps message queue is empty
-/// @param
-/// @return 1 if queue is empty, 0 otherwise
-uint8_t gps_queue_is_empty(void) {
-    return (gpsBuffer_read_index == gpsBuffer_write_index);
-}
-
-/// @brief returns pointer to latest gps NMEA message if any
-/// @param
-/// @return pointer to nest NMEA message, NULL if no NMEA messages to parse.
-const uint8_t *gps_pop_sentence(void) {
-    if (gps_queue_is_empty()) {
-        return NULL;
-    }
-
-    const uint8_t *return_buffer = gps_buffer[gpsBuffer_read_index];
-    gpsBuffer_read_index = (gpsBuffer_read_index + 1) % GPS_BUFFER_COUNT;
-    return return_buffer;
-}
-
 /// @brief Turns GPS off (through power FET) and starts buffering thread
 void gps_sleep(void) {
     // disable power to gps module
-    __power_en(GPIO_PIN_RESET);
+    priv__power_en(GPIO_PIN_RESET);
     s_gps_state = GPS_STATE_OFF;
 
     // stop the DMA
     HAL_UART_DMAStop(&GPS_huart);
-    // Note: the buffers should be checked to be flushed
-    //  gpsBuffer_write_index = 0;
-    //  gpsBuffer_read_index = 0;
-    //  rx_buffer_index= 0;
 }
 
 void gps_standby(void) {
@@ -176,7 +137,7 @@ void gps_standby(void) {
     HAL_UART_DMAStop(&GPS_huart);
 }
 
-static void __gps_gpio_init(void) {
+static void priv__gps_gpio_init(void) {
     // GPS_PWR_EN
     // GPS_SAFEBOOT_N
     // GPS_NRST
@@ -195,7 +156,7 @@ static void __gps_gpio_init(void) {
     HAL_GPIO_Init(GPS_EXT_INT_GPIO_Input_GPIO_Port, &GPIO_InitStruct);
 }
 
-static HAL_StatusTypeDef __gps_uart_init(void) {
+static HAL_StatusTypeDef priv__gps_uart_init(void) {
     HAL_StatusTypeDef result = HAL_OK;
     GPS_huart.Instance = USART1;
     GPS_huart.Init.BaudRate = 9600;
@@ -222,8 +183,10 @@ static HAL_StatusTypeDef __gps_uart_init(void) {
 }
 
 void gps_init(void) {
-    __gps_gpio_init();
-    __gps_uart_init();
+    HAL_GPIO_WritePin(GPS_NRST_GPIO_Output_GPIO_Port, GPS_NRST_GPIO_Output_Pin, GPIO_PIN_SET);
+
+    priv__gps_gpio_init();
+    priv__gps_uart_init();
 
     uint8_t buffer[512] = {};
     uint16_t msg_length = m10s_disable_i2c_output(buffer, sizeof(buffer));
@@ -242,9 +205,6 @@ void gps_wake(void) {
     }
 
     // initiate UART DMA
-    gpsBuffer_write_index = 0;
-    gpsBuffer_read_index = 0;
-    rx_buffer_index = 0;
     // HAL_UART_Transmit(&GPS_huart, (uint8_t *)"$PUBX,00*33\r\n", strlen("$PUBX,00*33\r\n"), 1000);
     HAL_UART_DMAStop(&GPS_huart);
     // Disable receiver to prevent overrun while clearing flags
@@ -261,9 +221,9 @@ void gps_wake(void) {
     if (GPS_STATE_OFF == s_gps_state) {
         // Enable power to GPS module and starts buffering thread
         HAL_GPIO_WritePin(GPS_NRST_GPIO_Output_GPIO_Port, GPS_NRST_GPIO_Output_Pin, GPIO_PIN_RESET);
-        __power_en(GPIO_PIN_RESET);
+        priv__power_en(GPIO_PIN_RESET);
         HAL_Delay(500);
-        __power_en(GPIO_PIN_SET);
+        priv__power_en(GPIO_PIN_SET);
         HAL_GPIO_WritePin(GPS_NRST_GPIO_Output_GPIO_Port, GPS_NRST_GPIO_Output_Pin, GPIO_PIN_SET);
     } else if (GPS_STATE_STANDBY == s_gps_state) {
         GPIO_InitTypeDef GPIO_InitStruct;
@@ -284,22 +244,6 @@ void gps_wake(void) {
     s_gps_state = GPS_STATE_ON;
 }
 
-/// @brief check if gps message queue is empty
-/// @param
-/// @return 1 if queue is empty, 0 otherwise
-uint8_t gps_bulk_queue_is_empty(void) {
-    return (gps_bulk_write_position == gps_bulk_read_position);
-}
-
-const uint8_t *gps_pop_bulk_transfer(void) {
-    if (gps_bulk_queue_is_empty()) {
-        return NULL;
-    }
-    uint8_t nv_read_position = gps_bulk_read_position;
-    gps_bulk_read_position = nv_read_position ^ 1;
-    return &gps_raw_buffer[nv_read_position * GPS_BULK_TRANSFER_SIZE];
-}
-
 /// @brief Set the GPS NMEA message period to 30 seconds
 /// @param
 void gps_low_data_rate(void) {
@@ -316,10 +260,6 @@ void gps_high_data_rate(void) {
     HAL_UART_Transmit(&GPS_huart, buffer, msg_len, 1000);
 }
 
-void gps_register_msg_complete_callback(void (*callback)(const uint8_t *, uint16_t)) {
+void gps_register_msg_complete_callback(void (*callback)(const GpsSentence *)) {
     s_msg_complete_callback = callback;
-}
-
-void gps_register_bytes_received_callback(void (*callback)(const uint8_t *, uint16_t)){
-    s_raw_rx_callback = callback;
 }

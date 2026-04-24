@@ -2,7 +2,14 @@
 #ifndef UTIL_TIMING_H
 #define UTIL_TIMING_H
 
+#ifndef UNIT_TEST
 #include "main.h"
+#else
+typedef struct RTC_DateTypeDef RTC_DateTypeDef;
+typedef struct RTC_TimeTypeDef RTC_TimeTypeDef;
+typedef enum HAL_StatusTypeDef HAL_StatusTypeDef;
+#endif
+
 #include <time.h>
 
 uint64_t rtc_get_epoch_s(void);

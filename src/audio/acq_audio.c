@@ -105,7 +105,7 @@ void acq_audio_dma_complete_callback(DMA_HandleTypeDef *hdma) {
 
 /// @brief configures Serial Audio Interface of stm32 to interface with the ad7768
 /// @param
-HAL_StatusTypeDef acq_audio_sai_init(const AudioConfig *p_config) {
+HAL_StatusTypeDef acq_audio_sai_init(const AudioConfig p_config[static 1]) {
     s_audio_hsai.Instance = SAI1_Block_A;
     s_audio_hsai.Init.Protocol = SAI_FREE_PROTOCOL;
     s_audio_hsai.Init.AudioMode = SAI_MODESLAVE_RX;
@@ -244,7 +244,7 @@ HAL_StatusTypeDef acq_audio_sai_dma_start(uint8_t *buffer_ptr, uint16_t block_si
     /* Process Locked */
 }
 
-int acq_audio_init(const AudioConfig *p_config) {
+int acq_audio_init(const AudioConfig p_config[static 1]) {
     if (s_audio_enabled) {
         // nothing to do
         return 0;
@@ -362,7 +362,7 @@ void acq_audio_deinit(void) {
         //         .lvds_enable = 0,
         //         .mclk_div = AD7768_MCLK_DIV_32,
         // };
-        // int ret = ad7768_spi_write(&audio_adc, AD7768_REG_PWR_MODE, __reg_powerMode_intoRaw(&sleep_mode));
+        // int ret = ad7768_spi_write(&audio_adc, AD7768_REG_PWR_MODE, priv__reg_powerMode_intoRaw(&sleep_mode));
         [[maybe_unused]] int ret;
         ret = ad7768_spi_write(&audio_adc, AD7768_REG_PWR_MODE, 0x80);
 }

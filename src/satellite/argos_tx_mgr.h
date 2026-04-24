@@ -15,15 +15,15 @@
 #include "version_hw.h"
 
 /* PUBLIC MACROS */
-#define ARGOS_TX_STRATEGY_TIMER (0)
-#define ARGOS_TX_STRATEGY_PATH_PREDICTOR (1)
-
-#define ARGOS_TX_STRATEGY (ARGOS_TX_STRATEGY_TIMER)
+typedef enum {
+    ARGOS_TX_STRATEGY_TIMER = 0,
+    ARGOS_TX_STRATEGY_PATH_PREDICTOR = 1,
+} ArgosTxStrategy;
 
 /* PUBLIC FUNCTIONS */
 void argos_tx_mgr_pass_start_alarm_callback(RTC_HandleTypeDef *hrtc);
 void argos_tx_mgr_TIM_IRQ(TIM_HandleTypeDef *htim);
-void argos_tx_mgr_enable(void);
+void argos_tx_mgr_enable(ArgosTxStrategy strategy);
 void argos_tx_mgr_disable(void);
 uint8_t argos_tx_mgr_ready_to_tx(void);
 void argos_tx_mgr_inval_ready_to_tx(void);

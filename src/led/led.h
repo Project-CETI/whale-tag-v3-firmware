@@ -5,8 +5,8 @@
 // Contributors: Michael Salino-Hugg
 // Description: High-level LED controller
 //-----------------------------------------------------------------------------
-#ifndef __CETI_LED_H__
-#define __CETI_LED_H__
+#ifndef CETI_LED_H__
+#define CETI_LED_H__
 
 typedef enum {
     LED_RED = 0,
@@ -28,4 +28,4 @@ void led_usb(void);
 void led_idle(void);
 void led_bootloader(void);
 
-#endif // __CETI_LED_H__
+#endif // CETI_LED_H__

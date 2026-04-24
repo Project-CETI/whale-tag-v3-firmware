@@ -55,10 +55,19 @@
 
 /* PRESSURE CONFIG */
 #define PRESSURE_ENABLED (1)
+#define PRESSURE_DIVE_THRESHOLD_BAR (5.0)
+#define PRESSURE_SURFACE_THRESHOLD_BAR (1.0)
 #define PRESSURE_SAMPLERATE_mS (1000)
 
 /* ARGOS ENABLED */
 #define SATELLITE_ENABLED (1)
+
+typedef enum {
+    ARGOS_MOD_LDA2,
+    ARGOS_MOD_VLDA4,
+    ARGOS_MOD_LDK,
+    ARGOS_MOD_LDA2L,
+} RecoveryArgoModulation;
 
 typedef struct {
     uint8_t enabled;
@@ -71,6 +80,8 @@ typedef struct {
 
 typedef struct {
     uint8_t enabled;
+    uint8_t path_prediction_enabled;
+    RecoveryArgoModulation modulation_protocol;
     uint8_t id[8];
     uint8_t address[8];
     uint8_t secret_key[64];
@@ -138,8 +149,14 @@ typedef struct {
 
 typedef struct {
     uint8_t enabled;
+    float   dive_threshold_bar;
+    float   surface_threshold_bar;
     uint16_t samplerate_ms;
 } PressureConfig;
+
+typedef struct {
+    uint8_t enabled;
+} VhfPingerConfig;
 
 typedef enum {
     ECG_HW_CONFIG_3_TERMINAL,
@@ -202,6 +219,7 @@ typedef struct {
     GpsConfig gps;
     MissionConfig mission;
     PressureConfig pressure;
+    VhfPingerConfig vhf;
     HwConfig hw_config;
 } CetiTagRuntimeConfiguration;
 

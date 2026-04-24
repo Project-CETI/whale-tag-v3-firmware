@@ -36,13 +36,13 @@ static uint64_t s_float_start_time_s = 0;
     [float_detection_timer] -> [buffer sample]
 */
 
-static void __reset_float_detection(void) {
+static void priv__reset_float_detection(void) {
     bzero(s_measurement_queue, sizeof(s_measurement_queue));
     bzero(&s_measurement_sum, sizeof(s_measurement_sum));
     s_buffer_cursor_position = 0;
 }
 
-static void __get_average_rotation(sh2_RotationVectorWAcc_t *q) {
+static void priv__get_average_rotation(sh2_RotationVectorWAcc_t *q) {
     float sum_length = quaternion_magnitude(float)(s_measurement_sum);
 
     sh2_RotationVectorWAcc_t estimated_rotation;
@@ -56,9 +56,9 @@ static void __get_average_rotation(sh2_RotationVectorWAcc_t *q) {
     }
 }
 
-static int __oriented_upright(void) {
+static int priv__oriented_upright(void) {
     sh2_RotationVectorWAcc_t q = {};
-    __get_average_rotation(&q);
+    priv__get_average_rotation(&q);
 
     
     // Pitch (x-axis rotation)
@@ -89,13 +89,13 @@ void float_detection_push_rotation(const sh2_RotationVectorWAcc_t *q) {
     s_buffer_cursor_position++;
 
     // is floating
-    if (__oriented_upright()) {
+    if (priv__oriented_upright()) {
         if (!s_float_start_detected) {
             s_float_start_time_s =  rtc_get_epoch_s();
             s_float_start_detected = 1;
         }
     } else if (s_float_start_detected) {
-        __reset_float_detection();
+        priv__reset_float_detection();
     }
 }
 
@@ -105,6 +105,6 @@ void float_detection_push_rotation(const sh2_RotationVectorWAcc_t *q) {
 /// @param
 /// @return bool - true tag floating; false tag not floating
 int float_detection_is_floating(void) {
-    return __oriented_upright()
+    return priv__oriented_upright()
         && (rtc_get_epoch_s() - s_float_start_time_s  > FLOAT_DETECT_HOLD_TIME_S);
 }

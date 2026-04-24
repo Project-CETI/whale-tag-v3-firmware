@@ -7,7 +7,7 @@
 extern FX_MEDIA sdio_disk;
 static FX_FILE fp = {};
 
-typedef struct __attribute__((packed)) {
+typedef struct attribute__((packed)) {
     uint32_t timestamp;
     uint32_t func_addr;
     uint8_t event;
@@ -38,8 +38,8 @@ static inline void profile_record_event(void *func, uint8_t event) {
 
     // Atomically claim a slot by disabling interrupts around the increment.
     // This prevents ISRs from racing on s_trace_count.
-    uint32_t primask = __get_PRIMASK();
-    __disable_irq();
+    uint32_t primask = get_PRIMASK();
+    disable_irq();
 
     uint32_t idx = s_trace_count;
     if (idx < PROFILING_BUFFER_LEN) {
@@ -53,16 +53,16 @@ static inline void profile_record_event(void *func, uint8_t event) {
     } else {
         s_dropped_events++;
     }
-    __set_PRIMASK(primask);
+    set_PRIMASK(primask);
 }
 
 __attribute__((no_instrument_function))
-void __cyg_profile_func_enter(void *func, void *caller) {
+void cyg_profile_func_enter(void *func, void *caller) {
     profile_record_event(func, 0);
 }
 
 __attribute__((no_instrument_function))
-void __cyg_profile_func_exit(void *func, void *caller) {
+void cyg_profile_func_exit(void *func, void *caller) {
     profile_record_event(func, 1);
 }
 
@@ -95,21 +95,21 @@ void profile_flush(void) {
 
     // Swap buffers atomically — hooks immediately start writing to the new buffer
     // while we flush the old one. No events are lost.
-    __disable_irq();
+    disable_irq();
     int buf_to_flush = s_active_buf;
     uint32_t count = s_trace_count;
     s_active_buf ^= 1;
     s_trace_count = 0;
     s_flush_buf = buf_to_flush;
-    __enable_irq();
+    enable_irq();
 
     // Write the completed buffer to SD (hooks are still running into the other buffer)
     fx_file_write(&fp, s_buffers[buf_to_flush], count * sizeof(ProfilingEvent));
     fx_media_flush(&sdio_disk);
 
-    __disable_irq();
+    disable_irq();
     s_flush_buf = -1;
-    __enable_irq();
+    enable_irq();
 }
 
 __attribute__((no_instrument_function))

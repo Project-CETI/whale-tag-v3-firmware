@@ -39,5 +39,5 @@ define logo_with_text
 endef
 
 define microrobotics_logo_with_text
-  @$(PRINT) "\n$$(sed "6s|\(.*\)|\1    \\\033[0;33m$(1)\\\033[0m|" $(MICROROBOTICS_LOGO))\n"
+  $(PRINT) "\n$$(sed "6s|\(.*\)|\1    \\\033[0;33m$(1)\\\033[0m|" $(MICROROBOTICS_LOGO))\n"
 endef

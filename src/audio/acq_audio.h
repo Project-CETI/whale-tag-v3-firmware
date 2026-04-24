@@ -22,7 +22,7 @@ typedef int (*AcqAudioLogCallback)(uint8_t *pData, uint32_t size);
 
 // funcitons
 void acq_audio_disable(void);
-int acq_audio_init(const AudioConfig *p_config);
+int acq_audio_init(const AudioConfig p_config[static 1]);
 void acq_audio_start(uint8_t *p_buffer, uint16_t buffer_size_blocks, uint16_t block_size_bytes);
 void acq_audio_stop(void);
 void acq_audio_set_log_callback(AcqAudioLogCallback cb);

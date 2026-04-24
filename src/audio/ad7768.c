@@ -39,7 +39,8 @@ const uint8_t one_shot_pin_ctrl_mode_sel[3][4] = {
 /*********************
  * Private Functions *
  *********************/
-static inline const ad7768_Reg_ChStandby __reg_channelStandby_fromRaw(const uint8_t raw) {
+[[gnu::const]]
+static inline const ad7768_Reg_ChStandby priv__reg_channelStandby_fromRaw(const uint8_t raw) {
     return (ad7768_Reg_ChStandby){
         .ch[0] = _RSHIFT(raw, 0, 1),
         .ch[1] = _RSHIFT(raw, 1, 1),
@@ -48,21 +49,25 @@ static inline const ad7768_Reg_ChStandby __reg_channelStandby_fromRaw(const uint
     };
 }
 
-static inline const uint8_t __reg_channelStandby_intoRaw(const ad7768_Reg_ChStandby *reg) {
-    return _LSHIFT(reg->ch[0], 0, 1) | _LSHIFT(reg->ch[1], 1, 1) | _LSHIFT(reg->ch[2], 2, 1) | _LSHIFT(reg->ch[3], 3, 1);
+[[gnu::const]]
+static inline const uint8_t priv__reg_channelStandby_intoRaw(ad7768_Reg_ChStandby reg) {
+    return _LSHIFT(reg.ch[0], 0, 1) | _LSHIFT(reg.ch[1], 1, 1) | _LSHIFT(reg.ch[2], 2, 1) | _LSHIFT(reg.ch[3], 3, 1);
 }
 
-static inline const ad7768_Reg_ChMode __reg_channelMode_fromRaw(const uint8_t raw) {
+[[gnu::const]]
+static inline const ad7768_Reg_ChMode priv__reg_channelMode_fromRaw(const uint8_t raw) {
     return (ad7768_Reg_ChMode){
         .filter_type = _RSHIFT(raw, 3, 1),
         .dec_rate = _RSHIFT(raw, 0, 3)};
 }
 
-static inline const uint8_t __reg_channelMode_intoRaw(const ad7768_Reg_ChMode *reg) {
-    return _LSHIFT(reg->filter_type, 3, 1) | _LSHIFT(reg->dec_rate, 0, 3);
+[[gnu::const]]
+static inline const uint8_t priv__reg_channelMode_intoRaw(const ad7768_Reg_ChMode reg) {
+    return _LSHIFT(reg.filter_type, 3, 1) | _LSHIFT(reg.dec_rate, 0, 3);
 }
 
-static inline const ad7768_Reg_ChModeSelect __reg_channelModeSelect_fromRaw(const uint8_t raw) {
+[[gnu::const]]
+static inline const ad7768_Reg_ChModeSelect priv__reg_channelModeSelect_fromRaw(const uint8_t raw) {
     return (ad7768_Reg_ChModeSelect){
         .ch = {
             [0] = _RSHIFT(raw, 0, 1),
@@ -71,11 +76,13 @@ static inline const ad7768_Reg_ChModeSelect __reg_channelModeSelect_fromRaw(cons
             [3] = _RSHIFT(raw, 3, 1)}};
 }
 
-static inline const uint8_t __reg_channelModeSelect_intoRaw(const ad7768_Reg_ChModeSelect *reg) {
-    return _LSHIFT(reg->ch[0], 0, 1) | _LSHIFT(reg->ch[1], 1, 1) | _LSHIFT(reg->ch[2], 2, 1) | _LSHIFT(reg->ch[3], 3, 1) | _LSHIFT(reg->ch[2], 4, 1) | _LSHIFT(reg->ch[3], 5, 1);
+[[gnu::const]]
+static inline const uint8_t priv__reg_channelModeSelect_intoRaw(ad7768_Reg_ChModeSelect reg) {
+    return _LSHIFT(reg.ch[0], 0, 1) | _LSHIFT(reg.ch[1], 1, 1) | _LSHIFT(reg.ch[2], 2, 1) | _LSHIFT(reg.ch[3], 3, 1) | _LSHIFT(reg.ch[2], 4, 1) | _LSHIFT(reg.ch[3], 5, 1);
 }
 
-static inline const ad7768_Reg_PowerMode __reg_powerMode_fromRaw(const uint8_t raw) {
+[[gnu::const]]
+static inline const ad7768_Reg_PowerMode priv__reg_powerMode_fromRaw(const uint8_t raw) {
     return (ad7768_Reg_PowerMode){
         .sleep_mode = _RSHIFT(raw, 7, 1),
         .power_mode = _RSHIFT(raw, 4, 2),
@@ -84,11 +91,13 @@ static inline const ad7768_Reg_PowerMode __reg_powerMode_fromRaw(const uint8_t r
     };
 }
 
-static inline const uint8_t __reg_powerMode_intoRaw(const ad7768_Reg_PowerMode *reg) {
-    return _LSHIFT(reg->sleep_mode, 7, 1) | _LSHIFT(reg->power_mode, 4, 2) | _LSHIFT(reg->lvds_enable, 3, 1) | _LSHIFT(reg->mclk_div, 0, 2);
+[[gnu::const]]
+static inline const uint8_t priv__reg_powerMode_intoRaw(ad7768_Reg_PowerMode reg) {
+    return _LSHIFT(reg.sleep_mode, 7, 1) | _LSHIFT(reg.power_mode, 4, 2) | _LSHIFT(reg.lvds_enable, 3, 1) | _LSHIFT(reg.mclk_div, 0, 2);
 }
 
-static inline const ad7768_Reg_GeneralCfg __reg_generalCfg_fromRaw(const uint8_t raw) {
+[[gnu::const]]
+static inline const ad7768_Reg_GeneralCfg priv__reg_generalCfg_fromRaw(const uint8_t raw) {
     return (ad7768_Reg_GeneralCfg){
         .retime_en = _RSHIFT(raw, 5, 1),
         .vcm_pd = _RSHIFT(raw, 4, 1),
@@ -96,11 +105,13 @@ static inline const ad7768_Reg_GeneralCfg __reg_generalCfg_fromRaw(const uint8_t
     };
 }
 
-static inline const uint8_t __reg_generalCfg_intoRaw(const ad7768_Reg_GeneralCfg *reg) {
-    return _LSHIFT(reg->retime_en, 5, 1) | _LSHIFT(reg->vcm_pd, 4, 1) | _LSHIFT(reg->vcm_vsel, 0, 2);
+[[gnu::const]]
+static inline const uint8_t priv__reg_generalCfg_intoRaw(ad7768_Reg_GeneralCfg reg) {
+    return _LSHIFT(reg.retime_en, 5, 1) | _LSHIFT(reg.vcm_pd, 4, 1) | _LSHIFT(reg.vcm_vsel, 0, 2);
 }
 
-static inline const ad7768_Reg_DataControl __reg_dataControl_fromRaw(const uint8_t raw) {
+[[gnu::const]]
+static inline const ad7768_Reg_DataControl priv__reg_dataControl_fromRaw(const uint8_t raw) {
     return (ad7768_Reg_DataControl){
         .spi_sync = _RSHIFT(raw, 7, 1),
         .single_shot_en = _RSHIFT(raw, 4, 1),
@@ -108,31 +119,36 @@ static inline const ad7768_Reg_DataControl __reg_dataControl_fromRaw(const uint8
     };
 }
 
-static inline const uint8_t __reg_dataControl_intoRaw(const ad7768_Reg_DataControl *reg) {
-    return _LSHIFT(reg->spi_sync, 7, 1) | _LSHIFT(reg->single_shot_en, 4, 1) | _LSHIFT(reg->spi_reset, 0, 2);
+[[gnu::const]]
+static inline const uint8_t priv__reg_dataControl_intoRaw(ad7768_Reg_DataControl reg) {
+    return _LSHIFT(reg.spi_sync, 7, 1) | _LSHIFT(reg.single_shot_en, 4, 1) | _LSHIFT(reg.spi_reset, 0, 2);
 }
 
-static inline const ad7768_Reg_InterfaceCfg __reg_interfaceCfg_fromRaw(const uint8_t raw) {
-    return (ad7768_Reg_InterfaceCfg){
+[[gnu::const]]
+static inline const ad7768_Reg_InterfaceCfg priv__reg_interfaceCfg_fromRaw(const uint8_t raw) {
+    return (ad7768_Reg_InterfaceCfg){ 
         .crc_select = _RSHIFT(raw, 2, 2),
         .dclk_div = _RSHIFT(raw, 0, 2),
     };
 }
 
-static inline const uint8_t __reg_interfaceCfg_intoRaw(const ad7768_Reg_InterfaceCfg *reg) {
-    return _LSHIFT(reg->crc_select, 2, 2) | _LSHIFT(reg->dclk_div, 0, 2);
+[[gnu::const]]
+static inline const uint8_t priv__reg_interfaceCfg_intoRaw(ad7768_Reg_InterfaceCfg reg) {
+    return _LSHIFT(reg.crc_select, 2, 2) | _LSHIFT(reg.dclk_div, 0, 2);
 }
 
-static inline const ad7768_Reg_BISTControl __reg_bistControl_fromRaw(const uint8_t raw) {
-    return (ad7768_Reg_BISTControl){
-        .ram_bist_start = _RSHIFT(raw, 0, 1)};
+[[gnu::const]]
+static inline const ad7768_Reg_BISTControl priv__reg_bistControl_fromRaw(const uint8_t raw) {
+    return (ad7768_Reg_BISTControl){.ram_bist_start = _RSHIFT(raw, 0, 1)};
 }
 
-static inline const uint8_t __reg_bistControl_intoRaw(const ad7768_Reg_BISTControl *reg) {
-    return _LSHIFT(reg->ram_bist_start, 0, 1);
+[[gnu::const]]
+static inline const uint8_t priv__reg_bistControl_intoRaw(ad7768_Reg_BISTControl reg) {
+    return _LSHIFT(reg.ram_bist_start, 0, 1);
 }
 
-static inline const ad7768_Reg_DeviceStatus __reg_deviceStatus_fromRaw(const uint8_t raw) {
+[[gnu::const]]
+static inline const ad7768_Reg_DeviceStatus priv__reg_deviceStatus_fromRaw(const uint8_t raw) {
     return (ad7768_Reg_DeviceStatus){
         .chip_error = _RSHIFT(raw, 3, 1),
         .no_clock_error = _RSHIFT(raw, 2, 1),
@@ -141,11 +157,11 @@ static inline const ad7768_Reg_DeviceStatus __reg_deviceStatus_fromRaw(const uin
     };
 }
 
-static inline void prv_ad7768_spi_select(ad7768_dev *dev) {
+static inline void priv__spi_select(ad7768_dev dev[static 1]) {
     HAL_GPIO_WritePin(dev->spi_cs_port, dev->spi_cs_pin, GPIO_PIN_RESET);
 }
 
-static inline void prv_ad7768_spi_deselect(ad7768_dev *dev) {
+static inline void prv__spi_deselect(ad7768_dev dev[static 1]) {
     HAL_GPIO_WritePin(dev->spi_cs_port, dev->spi_cs_pin, GPIO_PIN_SET);
 }
 
@@ -165,13 +181,13 @@ HAL_StatusTypeDef ad7768_spi_read(ad7768_dev *dev, uint8_t reg_addr, uint8_t *re
     uint8_t rx_buf[2];
     HAL_StatusTypeDef ret;
 
-    prv_ad7768_spi_select(dev);
+    priv__spi_select(dev);
     ret = HAL_SPI_Transmit(dev->spi_handler, (uint8_t *)tx_buf, 2, ADC_TIMEOUT);
-    prv_ad7768_spi_deselect(dev);
+    prv__spi_deselect(dev);
     HAL_Delay(1); // guarentee > needs 100 ns wait
-    prv_ad7768_spi_select(dev);
+    priv__spi_select(dev);
     ret |= HAL_SPI_TransmitReceive(dev->spi_handler, (uint8_t *)&tx_buf, (uint8_t *)&rx_buf, 2, ADC_TIMEOUT);
-    prv_ad7768_spi_deselect(dev);
+    prv__spi_deselect(dev);
 
     *reg_data = rx_buf[1];
 
@@ -192,9 +208,9 @@ HAL_StatusTypeDef ad7768_spi_read(ad7768_dev *dev, uint8_t reg_addr, uint8_t *re
 HAL_StatusTypeDef ad7768_spi_write(ad7768_dev *dev, uint8_t reg_addr, uint8_t reg_data) {
     HAL_StatusTypeDef ret;
     uint8_t buf[2] = {AD7768_SPI_WRITE(reg_addr), reg_data};
-    prv_ad7768_spi_select(dev);
+    priv__spi_select(dev);
     ret = HAL_SPI_Transmit(dev->spi_handler, (uint8_t *)&buf, 2, ADC_TIMEOUT);
-    prv_ad7768_spi_deselect(dev);
+    prv__spi_deselect(dev);
 #ifdef AD7768_DEBUG
     CETI_LOG("WROTE:{ addr: %02xh, value: %02xh} via spi", buf[0], buf[1]);
     uint8_t result;
@@ -221,10 +237,10 @@ HAL_StatusTypeDef ad7768_set_sleep_mode(ad7768_dev *dev, ad7768_sleep_mode mode)
     uint8_t reg_data;
 
     ret |= ad7768_spi_read(dev, AD7768_REG_PWR_MODE, &reg_data);
-    dev->power_mode = __reg_powerMode_fromRaw(reg_data);
+    dev->power_mode = priv__reg_powerMode_fromRaw(reg_data);
     if (dev->power_mode.sleep_mode != mode) {
         dev->power_mode.sleep_mode = mode;
-        ret |= ad7768_spi_write(dev, AD7768_REG_PWR_MODE, __reg_powerMode_intoRaw(&dev->power_mode));
+        ret |= ad7768_spi_write(dev, AD7768_REG_PWR_MODE, priv__reg_powerMode_intoRaw(dev->power_mode));
     }
 
     return ret;
@@ -256,7 +272,7 @@ HAL_StatusTypeDef ad7768_set_power_mode(ad7768_dev *dev, ad7768_power_mode mode)
 
     if (dev->pin_spi_ctrl == AD7768_SPI_CTRL) {
         dev->power_mode.power_mode = mode;
-        ret = ad7768_spi_write(dev, AD7768_REG_PWR_MODE, __reg_powerMode_intoRaw(&dev->power_mode));
+        ret = ad7768_spi_write(dev, AD7768_REG_PWR_MODE, priv__reg_powerMode_intoRaw(dev->power_mode));
     }
     return ret;
 }
@@ -287,10 +303,10 @@ HAL_StatusTypeDef ad7768_set_mclk_div(ad7768_dev *dev, ad7768_mclk_div clk_div) 
     uint8_t raw;
 
     ret |= ad7768_spi_read(dev, AD7768_REG_PWR_MODE, &raw);
-    dev->power_mode = __reg_powerMode_fromRaw(raw);
+    dev->power_mode = priv__reg_powerMode_fromRaw(raw);
     if (dev->power_mode.mclk_div != clk_div) {
         dev->power_mode.mclk_div = clk_div;
-        ret |= ad7768_spi_write(dev, AD7768_REG_PWR_MODE, __reg_powerMode_intoRaw(&dev->power_mode));
+        ret |= ad7768_spi_write(dev, AD7768_REG_PWR_MODE, priv__reg_powerMode_intoRaw(dev->power_mode));
     }
 
     return ret;
@@ -327,10 +343,10 @@ HAL_StatusTypeDef ad7768_set_dclk_div(ad7768_dev *dev, ad7768_dclk_div clk_div) 
     }
 
     ret |= ad7768_spi_read(dev, AD7768_REG_INTERFACE_CFG, &raw);
-    dev->interface_config = __reg_interfaceCfg_fromRaw(raw);
+    dev->interface_config = priv__reg_interfaceCfg_fromRaw(raw);
     if (dev->interface_config.dclk_div != clk_div) {
         dev->interface_config.dclk_div = clk_div;
-        ret |= ad7768_spi_write(dev, AD7768_REG_INTERFACE_CFG, __reg_interfaceCfg_intoRaw(&dev->interface_config));
+        ret |= ad7768_spi_write(dev, AD7768_REG_INTERFACE_CFG, priv__reg_interfaceCfg_intoRaw(dev->interface_config));
     }
 
     return ret;
@@ -365,10 +381,10 @@ HAL_StatusTypeDef ad7768_set_conv_op(ad7768_dev *dev, ad7768_conv_op conv_op) {
     }
 
     ret |= ad7768_spi_read(dev, AD7768_REG_DATA_CTRL, &raw);
-    dev->data_control = __reg_dataControl_fromRaw(raw);
+    dev->data_control = priv__reg_dataControl_fromRaw(raw);
     if (dev->data_control.single_shot_en != conv_op) {
         dev->data_control.single_shot_en = conv_op;
-        ret |= ad7768_spi_write(dev, AD7768_REG_DATA_CTRL, __reg_dataControl_intoRaw(&dev->data_control));
+        ret |= ad7768_spi_write(dev, AD7768_REG_DATA_CTRL, priv__reg_dataControl_intoRaw(dev->data_control));
     }
     return ret;
 }
@@ -399,11 +415,11 @@ HAL_StatusTypeDef ad7768_set_crc_sel(ad7768_dev *dev, ad7768_crc_sel crc_sel) {
     uint8_t raw;
 
     ret |= ad7768_spi_read(dev, AD7768_REG_INTERFACE_CFG, &raw);
-    dev->interface_config = __reg_interfaceCfg_fromRaw(raw);
+    dev->interface_config = priv__reg_interfaceCfg_fromRaw(raw);
 
     if (dev->interface_config.crc_select != crc_sel) {
         dev->interface_config.crc_select = crc_sel;
-        ret |= ad7768_spi_write(dev, AD7768_REG_INTERFACE_CFG, __reg_interfaceCfg_intoRaw(&dev->interface_config));
+        ret |= ad7768_spi_write(dev, AD7768_REG_INTERFACE_CFG, priv__reg_interfaceCfg_intoRaw(dev->interface_config));
     }
 
     return ret;
@@ -439,10 +455,10 @@ HAL_StatusTypeDef ad7768_set_ch_state(ad7768_dev *dev, ad7768_ch ch, ad7768_ch_s
     uint8_t raw;
 
     ret |= ad7768_spi_read(dev, AD7768_REG_CH_STANDBY, &raw);
-    dev->channel_standby = __reg_channelStandby_fromRaw(raw);
+    dev->channel_standby = priv__reg_channelStandby_fromRaw(raw);
     if (dev->channel_standby.ch[ch] != state) {
         dev->channel_standby.ch[ch] = state;
-        ret |= ad7768_spi_write(dev, AD7768_REG_CH_STANDBY, __reg_channelStandby_intoRaw(&dev->channel_standby));
+        ret |= ad7768_spi_write(dev, AD7768_REG_CH_STANDBY, priv__reg_channelStandby_intoRaw(dev->channel_standby));
     }
 
     return ret;
@@ -488,7 +504,7 @@ HAL_StatusTypeDef ad7768_set_mode_config(ad7768_dev *dev, ad7768_ch_mode mode, a
         .filter_type = filt_type,
         .dec_rate = dec_rate};
 
-    return ad7768_spi_write(dev, (mode == AD7768_MODE_A) ? AD7768_REG_CH_MODE_A : AD7768_REG_CH_MODE_B, __reg_channelMode_intoRaw(&dev->channel_mode[mode]));
+    return ad7768_spi_write(dev, (mode == AD7768_MODE_A) ? AD7768_REG_CH_MODE_A : AD7768_REG_CH_MODE_B, priv__reg_channelMode_intoRaw(dev->channel_mode[mode]));
 }
 
 /**
@@ -529,10 +545,10 @@ HAL_StatusTypeDef ad7768_set_ch_mode(ad7768_dev *dev,
     uint8_t raw;
 
     ret = ad7768_spi_read(dev, AD7768_REG_CH_MODE_SEL, &raw);
-    dev->channel_mode_select = __reg_channelModeSelect_fromRaw(raw);
+    dev->channel_mode_select = priv__reg_channelModeSelect_fromRaw(raw);
     if (dev->channel_mode_select.ch[ch] != mode) {
         dev->channel_mode_select.ch[ch] = mode;
-        ret = ad7768_spi_write(dev, AD7768_REG_CH_MODE_SEL, __reg_channelModeSelect_intoRaw(&dev->channel_mode_select));
+        ret = ad7768_spi_write(dev, AD7768_REG_CH_MODE_SEL, priv__reg_channelModeSelect_intoRaw(dev->channel_mode_select));
     }
 
     return ret;
@@ -563,8 +579,8 @@ HAL_StatusTypeDef ad7768_get_ch_mode(ad7768_dev *dev,
  */
 HAL_StatusTypeDef ad7768_softReset(ad7768_dev *dev) {
     HAL_StatusTypeDef ret = HAL_OK;
-    ret |= ad7768_spi_write(dev, AD7768_REG_DATA_CTRL, __reg_dataControl_intoRaw(&(ad7768_Reg_DataControl){.spi_reset = AD7768_SPI_RESET_FIRST}));
-    ret |= ad7768_spi_write(dev, AD7768_REG_DATA_CTRL, __reg_dataControl_intoRaw(&(ad7768_Reg_DataControl){.spi_reset = AD7768_SPI_RESET_SECOND}));
+    ret |= ad7768_spi_write(dev, AD7768_REG_DATA_CTRL, priv__reg_dataControl_intoRaw((ad7768_Reg_DataControl){.spi_reset = AD7768_SPI_RESET_FIRST}));
+    ret |= ad7768_spi_write(dev, AD7768_REG_DATA_CTRL, priv__reg_dataControl_intoRaw((ad7768_Reg_DataControl){.spi_reset = AD7768_SPI_RESET_SECOND}));
     HAL_Delay(5);
     return ret;
 }
@@ -595,12 +611,12 @@ HAL_StatusTypeDef ad7768_setup(ad7768_dev *dev) {
         return HAL_ERROR;
     }
 
-    ret |= ad7768_spi_write(dev, AD7768_REG_CH_STANDBY, __reg_channelStandby_intoRaw(&dev->channel_standby));
-    ret |= ad7768_spi_write(dev, AD7768_REG_CH_MODE_A, __reg_channelMode_intoRaw(&dev->channel_mode[AD7768_MODE_A]));
-    ret |= ad7768_spi_write(dev, AD7768_REG_CH_MODE_B, __reg_channelMode_intoRaw(&dev->channel_mode[AD7768_MODE_B]));
-    ret |= ad7768_spi_write(dev, AD7768_REG_CH_MODE_SEL, __reg_channelModeSelect_intoRaw(&dev->channel_mode_select));
-    ret |= ad7768_spi_write(dev, AD7768_REG_PWR_MODE, __reg_powerMode_intoRaw(&dev->power_mode));
-    ret |= ad7768_spi_write(dev, AD7768_REG_INTERFACE_CFG, __reg_interfaceCfg_intoRaw(&dev->interface_config));
+    ret |= ad7768_spi_write(dev, AD7768_REG_CH_STANDBY, priv__reg_channelStandby_intoRaw(dev->channel_standby));
+    ret |= ad7768_spi_write(dev, AD7768_REG_CH_MODE_A, priv__reg_channelMode_intoRaw(dev->channel_mode[AD7768_MODE_A]));
+    ret |= ad7768_spi_write(dev, AD7768_REG_CH_MODE_B, priv__reg_channelMode_intoRaw(dev->channel_mode[AD7768_MODE_B]));
+    ret |= ad7768_spi_write(dev, AD7768_REG_CH_MODE_SEL, priv__reg_channelModeSelect_intoRaw(dev->channel_mode_select));
+    ret |= ad7768_spi_write(dev, AD7768_REG_PWR_MODE, priv__reg_powerMode_intoRaw(dev->power_mode));
+    ret |= ad7768_spi_write(dev, AD7768_REG_INTERFACE_CFG, priv__reg_interfaceCfg_intoRaw(dev->interface_config));
     ret |= ad7768_spi_write(dev, AD7768_REG_GPIO_CTRL, 0x00);
     ret |= ad7768_sync(dev);
 
@@ -614,8 +630,8 @@ HAL_StatusTypeDef ad7768_sync(ad7768_dev *dev) {
 
     HAL_StatusTypeDef ret = HAL_OK;
 
-    ret |= ad7768_spi_write(dev, AD7768_REG_DATA_CTRL, __reg_dataControl_intoRaw(&(ad7768_Reg_DataControl){.spi_sync = 0}));
-    ret |= ad7768_spi_write(dev, AD7768_REG_DATA_CTRL, __reg_dataControl_intoRaw(&(ad7768_Reg_DataControl){.spi_sync = 1}));
+    ret |= ad7768_spi_write(dev, AD7768_REG_DATA_CTRL, priv__reg_dataControl_intoRaw((ad7768_Reg_DataControl){.spi_sync = 0}));
+    ret |= ad7768_spi_write(dev, AD7768_REG_DATA_CTRL, priv__reg_dataControl_intoRaw((ad7768_Reg_DataControl){.spi_sync = 1}));
 
     return ret;
 }

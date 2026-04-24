@@ -56,7 +56,7 @@ static char *log_battery_csv_header =
 /// @param raw raw status register value.
 /// @return 
 /// @note not thread safe
-static const char *__status_to_str(uint16_t raw) {
+static const char *priv__status_to_str(uint16_t raw) {
     static char status_string[72] = ""; // max string length is 65
     static uint16_t previous_status = 0;
     char *flags[11] = {};
@@ -109,7 +109,7 @@ static const char *__status_to_str(uint16_t raw) {
 /// @param raw raw protAlert register value.
 /// @return 
 /// @note not thread safe
-static const char *__protAlrt_to_str(uint16_t raw) {
+static const char *priv__protAlrt_to_str(uint16_t raw) {
     static char protAlrt_string[160] = "";
     static uint16_t previous_protAlrt = 0;
     char *flags[16] = {};
@@ -160,17 +160,17 @@ static const char *__protAlrt_to_str(uint16_t raw) {
 
 /// @brief opens/creates a new csv file. initializes csv header
 /// @param filename 
-static void __open_csv_file(char *filename) {
+static void priv__open_csv_file(char *filename) {
     /* Create/open battery csv file */
     UINT fx_create_result = fx_file_create(&sdio_disk, filename);
     if ((fx_create_result != FX_SUCCESS) && (fx_create_result != FX_ALREADY_CREATED)) {
-        error_queue_push(CETI_ERROR(ERR_SUBSYS_LOG_BMS, ERR_TYPE_FILEX, fx_create_result), __open_csv_file);
+        error_queue_push(CETI_ERROR(ERR_SUBSYS_LOG_BMS, ERR_TYPE_FILEX, fx_create_result), priv__open_csv_file);
     }
 
     /* open file */
     UINT fx_open_result = buffer_writer_open(&s_bw, filename);
     if (FX_SUCCESS != fx_open_result) {
-        error_queue_push(CETI_ERROR(ERR_SUBSYS_LOG_BMS, ERR_TYPE_FILEX, fx_open_result), __open_csv_file);
+        error_queue_push(CETI_ERROR(ERR_SUBSYS_LOG_BMS, ERR_TYPE_FILEX, fx_open_result), priv__open_csv_file);
     }
     
     metadata_log_file_creation(filename, DATA_TYPE_BMS, DATA_FORMAT_CSV, 0);
@@ -189,7 +189,7 @@ static void __open_csv_file(char *filename) {
 /// @param pBuffer output buffer
 /// @param buffer_len buffer capacity
 /// @return number of bytes in encoded output
-static int __sample_to_csv(const CetiBatterySample *pSample, uint8_t *pBuffer, size_t buffer_len) {
+static int priv__sample_to_csv(const CetiBatterySample *pSample, uint8_t *pBuffer, size_t buffer_len) {
     uint8_t offset = 0;
     offset += snprintf((char *)&pBuffer[offset], buffer_len - offset, "%lld", pSample->time_us);
 
@@ -204,8 +204,8 @@ static int __sample_to_csv(const CetiBatterySample *pSample, uint8_t *pBuffer, s
     offset += snprintf((char *)&pBuffer[offset], buffer_len - offset, ", %.3f", pSample->cell_temperature_c[0]);
     offset += snprintf((char *)&pBuffer[offset], buffer_len - offset, ", %.3f", pSample->cell_temperature_c[0]);
     offset += snprintf((char *)&pBuffer[offset], buffer_len - offset, ", %.3f", pSample->state_of_charge_percent);
-    offset += snprintf((char *)&pBuffer[offset], buffer_len - offset, ", %s", __status_to_str(pSample->status));
-    offset += snprintf((char *)&pBuffer[offset], buffer_len - offset, ", %s", __protAlrt_to_str(pSample->protection_alert));
+    offset += snprintf((char *)&pBuffer[offset], buffer_len - offset, ", %s", priv__status_to_str(pSample->status));
+    offset += snprintf((char *)&pBuffer[offset], buffer_len - offset, ", %s", priv__protAlrt_to_str(pSample->protection_alert));
     offset += snprintf((char *)&pBuffer[offset], buffer_len - offset, "\n");
     return offset;
 }
@@ -244,7 +244,7 @@ void log_battery_buffer_sample(const CetiBatterySample *p_sample) {
 /// @param  
 void log_battery_init(void) {
     // create output file for battery data
-    __open_csv_file(LOG_BATTERY_FILENAME);
+    priv__open_csv_file(LOG_BATTERY_FILENAME);
 }
 
 /// @brief Perfom non-time critical logging tasks. Call periodically.
@@ -254,7 +254,7 @@ void log_battery_task(void) {
     while (s_sample_buffer_read_cursor != s_sample_buffer_write_cursor) {
         uint8_t csv_encode_buffer[512];
         const CetiBatterySample *p_sample = &s_sample_buffer[s_sample_buffer_read_cursor];
-        size_t encoded_bytes = __sample_to_csv(p_sample, csv_encode_buffer, sizeof(csv_encode_buffer));
+        size_t encoded_bytes = priv__sample_to_csv(p_sample, csv_encode_buffer, sizeof(csv_encode_buffer));
         UINT write_result = buffer_writer_write(&s_bw, csv_encode_buffer, encoded_bytes);
         if (FX_SUCCESS != write_result) {
             error_queue_push(CETI_ERROR(ERR_SUBSYS_LOG_BMS, ERR_TYPE_FILEX, write_result), log_battery_task);

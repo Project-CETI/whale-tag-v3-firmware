@@ -16,3 +16,8 @@
 [submodule "lib/stm32-mw-filex"]
 	path = lib/stm32-mw-filex
 	url = https://github.com/STMicroelectronics/stm32-mw-filex.git
+[submodule "lib/unity"]
+	path = lib/unity
+	url = https://github.com/ThrowTheSwitch/Unity.git
+	update = none
+	shallow = true

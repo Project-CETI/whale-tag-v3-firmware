@@ -114,32 +114,32 @@ static BufferWriter s_bw[IMU_SENSOR_COUNT] = {
 
 typedef size_t (*ImuCsvConversionFunction)(const sh2_SensorValue_t *, uint8_t *, size_t);
 
-size_t __accel_sample_to_csv_line(const sh2_SensorValue_t *, uint8_t *, size_t);
-size_t __gyro_sample_to_csv_line(const sh2_SensorValue_t *, uint8_t *, size_t);
-size_t __mag_sample_to_csv_line(const sh2_SensorValue_t *, uint8_t *, size_t);
-size_t __quat_sample_to_csv_line(const sh2_SensorValue_t *, uint8_t *, size_t);
+size_t priv__accel_sample_to_csv_line(const sh2_SensorValue_t *, uint8_t *, size_t);
+size_t priv__gyro_sample_to_csv_line(const sh2_SensorValue_t *, uint8_t *, size_t);
+size_t priv__mag_sample_to_csv_line(const sh2_SensorValue_t *, uint8_t *, size_t);
+size_t priv__quat_sample_to_csv_line(const sh2_SensorValue_t *, uint8_t *, size_t);
 
 
 static ImuCsvConversionFunction s_sample_conversion_method[IMU_SENSOR_COUNT] = {
-    [IMU_SENSOR_ACCELEROMETER] = __accel_sample_to_csv_line,
-    [IMU_SENSOR_GYROSCOPE] = __gyro_sample_to_csv_line,
-    [IMU_SENSOR_MAGNETOMETER] = __mag_sample_to_csv_line,
-    [IMU_SENSOR_ROTATION] = __quat_sample_to_csv_line,
+    [IMU_SENSOR_ACCELEROMETER] = priv__accel_sample_to_csv_line,
+    [IMU_SENSOR_GYROSCOPE] = priv__gyro_sample_to_csv_line,
+    [IMU_SENSOR_MAGNETOMETER] = priv__mag_sample_to_csv_line,
+    [IMU_SENSOR_ROTATION] = priv__quat_sample_to_csv_line,
 };
 
 /********* CSV ***************************************************************/
-static void __create_csv_file(ImuSensor sensor_type) {
+static void priv__create_csv_file(ImuSensor sensor_type) {
     /* Create/open imu file */
     UINT fx_create_result = fx_file_create(&sdio_disk, s_filename[sensor_type]);
     if ((fx_create_result != FX_SUCCESS) && (fx_create_result != FX_ALREADY_CREATED)) {
-        error_queue_push(CETI_ERROR(ERR_SUBSYS_LOG_IMU, ERR_TYPE_FILEX, fx_create_result), __create_csv_file);
+        error_queue_push(CETI_ERROR(ERR_SUBSYS_LOG_IMU, ERR_TYPE_FILEX, fx_create_result), priv__create_csv_file);
         return;
     }
 
     /* open file */
     UINT fx_open_result = buffer_writer_open(&s_bw[sensor_type], s_filename[sensor_type]);
     if (FX_SUCCESS != fx_open_result) {
-        error_queue_push(CETI_ERROR(ERR_SUBSYS_LOG_IMU, ERR_TYPE_FILEX, fx_open_result), __create_csv_file);
+        error_queue_push(CETI_ERROR(ERR_SUBSYS_LOG_IMU, ERR_TYPE_FILEX, fx_open_result), priv__create_csv_file);
         return;
     }
 
@@ -155,7 +155,7 @@ static void __create_csv_file(ImuSensor sensor_type) {
 
 }
 
-size_t __accel_sample_to_csv_line(const sh2_SensorValue_t *p_sample, uint8_t *p_buffer, size_t buffer_len) {
+size_t priv__accel_sample_to_csv_line(const sh2_SensorValue_t *p_sample, uint8_t *p_buffer, size_t buffer_len) {
     size_t offset = 0;
     offset += snprintf((char *)&p_buffer[offset], buffer_len - offset, "%lld", p_sample->timestamp);
     offset += snprintf((char *)&p_buffer[offset], buffer_len - offset, ", ");
@@ -171,7 +171,7 @@ size_t __accel_sample_to_csv_line(const sh2_SensorValue_t *p_sample, uint8_t *p_
     return offset;
 }
 
-size_t __gyro_sample_to_csv_line(const sh2_SensorValue_t *p_sample, uint8_t *p_buffer, size_t buffer_len) {
+size_t priv__gyro_sample_to_csv_line(const sh2_SensorValue_t *p_sample, uint8_t *p_buffer, size_t buffer_len) {
     size_t offset = 0;
     offset += snprintf((char *)&p_buffer[offset], buffer_len - offset, "%lld", p_sample->timestamp);
     offset += snprintf((char *)&p_buffer[offset], buffer_len - offset, ", ");
@@ -188,7 +188,7 @@ size_t __gyro_sample_to_csv_line(const sh2_SensorValue_t *p_sample, uint8_t *p_b
     return offset;
 }
 
-size_t __mag_sample_to_csv_line(const sh2_SensorValue_t *p_sample, uint8_t *p_buffer, size_t buffer_len) {
+size_t priv__mag_sample_to_csv_line(const sh2_SensorValue_t *p_sample, uint8_t *p_buffer, size_t buffer_len) {
     size_t offset = 0;
     offset += snprintf((char *)&p_buffer[offset], buffer_len - offset, "%lld", p_sample->timestamp);
     offset += snprintf((char *)&p_buffer[offset], buffer_len - offset, ", ");
@@ -204,7 +204,7 @@ size_t __mag_sample_to_csv_line(const sh2_SensorValue_t *p_sample, uint8_t *p_bu
     return offset;
 }
 
-size_t __quat_sample_to_csv_line(const sh2_SensorValue_t *p_sample, uint8_t *p_buffer, size_t buffer_len) {
+size_t priv__quat_sample_to_csv_line(const sh2_SensorValue_t *p_sample, uint8_t *p_buffer, size_t buffer_len) {
     size_t offset = 0;
     offset += snprintf((char *)&p_buffer[offset], buffer_len - offset, "%lld", p_sample->timestamp);
     offset += snprintf((char *)&p_buffer[offset], buffer_len - offset, ", ");
@@ -225,7 +225,7 @@ size_t __quat_sample_to_csv_line(const sh2_SensorValue_t *p_sample, uint8_t *p_b
 
 void log_imu_init(void) {
     for (int i = 0; i < IMU_SENSOR_COUNT; i++) {
-        __create_csv_file(i);
+        priv__create_csv_file(i);
     }
 }
 

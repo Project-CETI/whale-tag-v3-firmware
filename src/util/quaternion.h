@@ -1,5 +1,5 @@
-#ifndef __CETI_QUATERNION_H__
-#define __CETI_QUATERNION_H__
+#ifndef CETI_QUATERNION_H__
+#define CETI_QUATERNION_H__
 #include <math.h>
 
 
@@ -84,4 +84,4 @@ T quaternion_magnitude(T)(Quaternion(T) q) {                                    
     return sqrt(q.real*q.real + q.i*q.i + q.j*q.j + q.k*q.k);                            \
 }
 
-#endif // __CETI_QUATERNION_H__
+#endif // CETI_QUATERNION_H__

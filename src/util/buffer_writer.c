@@ -4,7 +4,7 @@ extern FX_MEDIA sdio_disk;
 
 /********* Private ***********************************************************/
 __attribute__((no_instrument_function))
-static UINT __flush(BufferWriter *w) {
+static UINT priv__flush(BufferWriter *w) {
     if (0 == w->cursor) {
         return FX_SUCCESS;
     }
@@ -37,7 +37,7 @@ UINT buffer_writer_write(BufferWriter *w, uint8_t *p_bytes, size_t len) {
         /* fill buffer and flush */
         memcpy(&w->buffer[w->cursor], p_bytes, remaining_capacity);
         w->cursor = w->capacity;
-        w_result = __flush(w);
+        w_result = priv__flush(w);
         if(FX_SUCCESS != w_result) {
             return w_result;
         }
@@ -56,7 +56,7 @@ UINT buffer_writer_write(BufferWriter *w, uint8_t *p_bytes, size_t len) {
     
     /* write out data if we have enough */
     if (w->cursor >= w->threshold) {
-        return __flush(w);
+        return priv__flush(w);
     }
     return FX_SUCCESS;
     
@@ -64,7 +64,7 @@ UINT buffer_writer_write(BufferWriter *w, uint8_t *p_bytes, size_t len) {
 
 __attribute__((no_instrument_function))
 UINT buffer_writer_close(BufferWriter *w) {
-    UINT fx_result = __flush(w);
+    UINT fx_result = priv__flush(w);
     if (FX_SUCCESS != fx_result) {
         return fx_result;
     }
@@ -77,7 +77,7 @@ UINT buffer_writer_close(BufferWriter *w) {
 __attribute__((no_instrument_function))
 UINT buffer_writer_flush(BufferWriter *w) {
     /* write any data in internal buffer */
-    UINT fx_result = __flush(w);
+    UINT fx_result = priv__flush(w);
     if (FX_SUCCESS != fx_result) {
         return fx_result;
     }

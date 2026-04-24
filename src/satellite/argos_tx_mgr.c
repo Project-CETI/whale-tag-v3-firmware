@@ -10,14 +10,13 @@
  *****************************************************************************/
 #include "argos_tx_mgr.h"
 
+#include "aop.h" // run update_aop.sh to update this header
 #include "error.h"
+#include "previpass.h"
+#include "timing.h"
 
 #include <stdint.h>
 
-#if ARGOS_TX_STRATEGY == ARGOS_TX_STRATEGY_PATH_PREDICTOR
-#include "previpass.h"
-#endif
-#include "aop.h" // run update_aop.sh to update this header
 
 /* MACROS */
 #define TX_TIMER_PERIOD_MS (30000)
@@ -25,21 +24,17 @@
 #define TX_VARIENCE_S (TX_BASE_INTERVAL_S / (10))
 
 /* EXTERNAL DECLARATIONS */
-#if ARGOS_TX_STRATEGY == ARGOS_TX_STRATEGY_PATH_PREDICTOR
 extern RTC_HandleTypeDef hrtc;
-#endif
 extern TIM_HandleTypeDef htim2;
 
 /* PUBLIC GLOBAL VARIABLES */
 volatile uint8_t s_argos_tx_ready = 0;
 
 /* PRIVATE GLOBAL VARIABLES */
-#if ARGOS_TX_STRATEGY == ARGOS_TX_STRATEGY_PATH_PREDICTOR
-
-#define NUM_SATS_IN_AOP_TABLE (sizeof(aop_data.aopTable) / sizeof(struct AopSatelliteEntry_t))
-#endif
+#define NUM_SATS_IN_AOP_TABLE (sizeof(nv_aop_data.aopTable) / sizeof(struct AopSatelliteEntry_t))
 
 static volatile uint8_t s_enabled = 0;
+static ArgosTxStrategy s_strategy;
 static uint8_t s_second_count = 0;
 static uint8_t s_next_tx_interval_s;
 
@@ -54,7 +49,7 @@ static float s_longitude = 0.0f; // (0.0f to 360.0f)
 /// @brief generates a psudorandom value between 0 and 0xFFFF
 /// @param
 /// @return
-static inline uint16_t __rand(void) {
+static inline uint16_t priv__rand(void) {
     static uint16_t value;
     value += RAND_PRIME;
     return value;
@@ -63,8 +58,8 @@ static inline uint16_t __rand(void) {
 /// @brief generates a psudorandom time interval
 /// @param
 /// @return
-static inline int16_t __get_rand_tx_interval_s(void) {
-    return TX_BASE_INTERVAL_S - TX_VARIENCE_S + (2 * (int32_t)__rand() * TX_VARIENCE_S / TX_RAND_MAX);
+static inline int16_t priv__get_rand_tx_interval_s(void) {
+    return TX_BASE_INTERVAL_S - TX_VARIENCE_S + (2 * (int32_t)priv__rand() * TX_VARIENCE_S / TX_RAND_MAX);
 }
 
 /// @brief timer callback to time duration between consecutive transmissions
@@ -73,7 +68,7 @@ void argos_tx_mgr_TIM_IRQ(TIM_HandleTypeDef *htim) {
     s_second_count++;
     if (s_second_count >= s_next_tx_interval_s) {
         s_argos_tx_ready = 1;
-        s_next_tx_interval_s = __get_rand_tx_interval_s();
+        s_next_tx_interval_s = priv__get_rand_tx_interval_s();
         s_second_count = 0;
         HAL_PWR_DisableSleepOnExit();
     }
@@ -82,19 +77,19 @@ void argos_tx_mgr_TIM_IRQ(TIM_HandleTypeDef *htim) {
 /// @brief enables transmit timer used to time duration between consecutive
 /// transmissions
 /// @param
-static inline void __timer_enable(void) {
+static inline void priv__timer_enable(void) {
     if (s_enabled) {
         return; // already enabled
     }
     HAL_TIM_Base_Start_IT(&htim2);
-    s_next_tx_interval_s = __get_rand_tx_interval_s();
+    s_next_tx_interval_s = priv__get_rand_tx_interval_s();
     s_enabled = 1;
 }
 
 /// @brief disables transmit timer used to time duration between consecutive
 /// transmissions
 /// @param
-static inline void __timer_disable(void) {
+static inline void priv__timer_disable(void) {
     if (!s_enabled) {
         return;
     }
@@ -104,12 +99,11 @@ static inline void __timer_disable(void) {
     s_enabled = 0;
 }
 
-#if ARGOS_TX_STRATEGY == ARGOS_TX_STRATEGY_PATH_PREDICTOR
 /// @brief converts a pass prediction datetime to RTC date and time
 /// @param pass_date pointer to pass prediction datetime
 /// @param rtc_date pointer to RTC date output
 /// @param rtc_time pointer to RTC time output
-static void __pass_date_to_rtc_date(const struct CalendarDateTime_t *pass_date, RTC_DateTypeDef *rtc_date, RTC_TimeTypeDef *rtc_time) {
+static void priv__pass_date_to_rtc_date(const struct CalendarDateTime_t *pass_date, RTC_DateTypeDef *rtc_date, RTC_TimeTypeDef *rtc_time) {
     if (NULL == pass_date) {
         // error: no input
         return;
@@ -130,7 +124,7 @@ static void __pass_date_to_rtc_date(const struct CalendarDateTime_t *pass_date, 
 /// @param rtc_date pointer to RTC date
 /// @param rtc_time pointer to RTC time
 /// @param pass_date pointer to pass prediction datetime output
-static void __rtc_date_to_pass_date(const RTC_DateTypeDef *rtc_date, const RTC_TimeTypeDef *rtc_time, struct CalendarDateTime_t *pass_date) {
+static void priv__rtc_date_to_pass_date(const RTC_DateTypeDef *rtc_date, const RTC_TimeTypeDef *rtc_time, struct CalendarDateTime_t *pass_date) {
     if ((NULL == rtc_date) || (NULL == rtc_time) || (NULL == pass_date)) {
         // error: no input
         return;
@@ -146,7 +140,7 @@ static void __rtc_date_to_pass_date(const RTC_DateTypeDef *rtc_date, const RTC_T
 /// @brief performs satellite pass prediction and sets pass start and stop RTC
 /// alarms
 /// @param
-void __update_next_satellite_pass_alarms(void) {
+void priv__update_next_satellite_pass_alarms(void) {
     RTC_AlarmTypeDef pass_alarm = {
         .AlarmMask = RTC_ALARMMASK_DATEWEEKDAY,
     };
@@ -157,7 +151,7 @@ void __update_next_satellite_pass_alarms(void) {
     HAL_RTC_GetDate(&hrtc, &rtc_date, RTC_FORMAT_BCD);
     if (!s_valid_coordinates) {
         /* Do not have adequate information to perform pass prediction */
-        __timer_enable();
+        priv__timer_enable();
 
         // set end alarm for 15 minutes in the future
         pass_alarm.AlarmTime = rtc_time; // copy rtc_time struct to Alarm
@@ -184,7 +178,7 @@ void __update_next_satellite_pass_alarms(void) {
     prepasConfiguration.beaconLongitude = s_longitude;
 
     struct CalendarDateTime_t tmp_date;
-    __rtc_date_to_pass_date(&rtc_date, &rtc_time, &tmp_date);
+    priv__rtc_date_to_pass_date(&rtc_date, &rtc_time, &tmp_date);
     PREVIPASS_UTIL_date_calendar_stu90(&tmp_date, &prepasConfiguration.start_stu90);
     prepasConfiguration.start_stu90 += 1 * 60;                                     // give ourselves 1 minutes time to setup calculation
     prepasConfiguration.end_stu90 = prepasConfiguration.start_stu90 + 6 * 60 * 60; // calculate passes for the next 6 hours
@@ -192,14 +186,14 @@ void __update_next_satellite_pass_alarms(void) {
     // Perform next pass prediction for each satellite
     uint32_t pass_start_epoch = 0xFFFFFFFF;
     uint32_t pass_end_epoch = 0;
-    uint32_t pass_start[aop_data.table_count];
-    uint32_t pass_end[aop_data.table_count];
-    for (int sat_num = 0; sat_num < aop_data.table_count; sat_num++) {
+    uint32_t pass_start[nv_aop_data.table_count];
+    uint32_t pass_end[nv_aop_data.table_count];
+    for (int sat_num = 0; sat_num < nv_aop_data.table_count; sat_num++) {
         struct SatelliteNextPassPrediction_t current_sat;
         bool memoryPoolOverflow;
         memoryPoolOverflow = PREVIPASS_estimate_next_pass_with_status(
             &prepasConfiguration,
-            &aop_data.aopTable[sat_num],
+            &nv_aop_data.aopTable[sat_num],
             &current_sat);
 
         // this is required as current_sat.epoch can be a very small number if no valid pass in 24 hour is found
@@ -256,13 +250,13 @@ void __update_next_satellite_pass_alarms(void) {
 
     // get next pass start time
     PREVIPASS_UTIL_date_stu90_calendar(pass_start_epoch, &tmp_date);
-    __pass_date_to_rtc_date(&tmp_date, NULL, &pass_alarm.AlarmTime);
+    priv__pass_date_to_rtc_date(&tmp_date, NULL, &pass_alarm.AlarmTime);
     pass_alarm.Alarm = RTC_ALARM_A;
     HAL_RTC_SetAlarm_IT(&hrtc, &pass_alarm, RTC_FORMAT_BCD); // set expected pass time to enable timer
 
     // get next pass end time
     PREVIPASS_UTIL_date_stu90_calendar(pass_end_epoch, &tmp_date);
-    __pass_date_to_rtc_date(&tmp_date, NULL, &pass_alarm.AlarmTime);
+    priv__pass_date_to_rtc_date(&tmp_date, NULL, &pass_alarm.AlarmTime);
     pass_alarm.Alarm = RTC_ALARM_B;
     HAL_RTC_SetAlarm_IT(&hrtc, &pass_alarm, RTC_FORMAT_BCD); // set time to disable timer and recheck pass prediction
 }
@@ -270,47 +264,49 @@ void __update_next_satellite_pass_alarms(void) {
 /// @brief pass start RTC alarm callback
 /// @param hrtc
 void argos_tx_mgr_pass_start_alarm_callback(RTC_HandleTypeDef *hrtc) {
-    __timer_enable(); // start transmitting
+    priv__timer_enable(); // start transmitting
 }
 
 /// @brief pass stop RTC alarm callback
 /// @param hrtc
 void HAL_RTC_AlarmBEventCallback(RTC_HandleTypeDef *hrtc) {
-    __timer_disable();                     // stop transmitting
-    __update_next_satellite_pass_alarms(); // update pass prediction to next pass
+    priv__timer_disable();                     // stop transmitting
+    priv__update_next_satellite_pass_alarms(); // update pass prediction to next pass
 }
-#endif
 
 /// @brief enables the argos transmission manager
 /// @param
-void argos_tx_mgr_enable(void) {
-#if ARGOS_TX_STRATEGY == ARGOS_TX_STRATEGY_TIMER
-    s_argos_tx_ready = 1;
-    __timer_enable();
-#elif ARGOS_TX_STRATEGY == ARGOS_TX_STRATEGY_PATH_PREDICTOR
-    // revert to timed tx if aop table older than 1 year
-    if (aop_timestamp_s + 31536000 < rtc_get_epoch_s()) {
-        s_argos_tx_ready = 1;
-        __timer_enable();
+void argos_tx_mgr_enable(ArgosTxStrategy strategy) {
+    // revert to timed tx if aop table older than 1 month
+    if ((ARGOS_TX_STRATEGY_PATH_PREDICTOR == strategy)  
+        && (nv_aop_data.timestamp_s + (30*24*60*60) < rtc_get_epoch_s())
+    ) {
         error_queue_push(CETI_ERROR(ERR_SUBSYS_ARGOS, ERR_TYPE_DEFAULT, ERR_OUTDATED_AOP_TABLE), argos_tx_mgr_enable);
-        return;
+        s_strategy = ARGOS_TX_STRATEGY_TIMER;
+    } else {
+        s_strategy = strategy;
     }
 
-    __update_next_satellite_pass_alarms(); // get next pass
-
-#endif
+    
+    switch( s_strategy ) {
+        case ARGOS_TX_STRATEGY_TIMER: {
+            s_argos_tx_ready = 1;
+            priv__timer_enable();
+        }
+        case ARGOS_TX_STRATEGY_PATH_PREDICTOR: {
+            priv__update_next_satellite_pass_alarms(); // get next pass
+        }
+    }
 }
 
 /// @brief disables the argos transmission manager
 /// @param
 void argos_tx_mgr_disable(void) {
-#if ARGOS_TX_STRATEGY == ARGOS_TX_STRATEGY_TIMER
-    __timer_disable();
-#elif ARGOS_TX_STRATEGY == ARGOS_TX_STRATEGY_PATH_PREDICTOR
-    HAL_RTC_DeactivateAlarm(&hrtc, RTC_ALARM_A); // disable pass alarms
-    HAL_RTC_DeactivateAlarm(&hrtc, RTC_ALARM_B);
-    __timer_disable(); // disable tx timer
-#endif
+    if (ARGOS_TX_STRATEGY_PATH_PREDICTOR == s_strategy){
+        HAL_RTC_DeactivateAlarm(&hrtc, RTC_ALARM_A); // disable pass alarms
+        HAL_RTC_DeactivateAlarm(&hrtc, RTC_ALARM_B);
+    }
+    priv__timer_disable(); // disable tx timer
 }
 
 /// @brief checks if a transmission should happen

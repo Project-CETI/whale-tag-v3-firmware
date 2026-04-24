@@ -235,7 +235,7 @@ flash: # $(BUILD_DIR)/$(TARGET).elf
 	STM32_Programmer_CLI --connect port=swd --write $(BUILD_DIR)/$(TARGET).elf --go
 	$(call logo_with_text,Tag Flashed!)	
 
-clean: 
+clean: test_clean
 	$(call print0, Cleaning build artifacts)
 	@$(RM) -rf $(BUILD_ROOT)
 	@$(RM) -f $(AOP_H)
