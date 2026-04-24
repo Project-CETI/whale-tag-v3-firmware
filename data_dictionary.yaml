@@ -1,0 +1,715 @@
+---
+# CETI Whale Tag — Data File Format Definitions
+# This file documents the CSV files written to the SD card by the tag firmware.
+# It serves as a machine-readable data dictionary for downstream consumers.
+
+files:
+  - name: "{timestamp}.be.{bitdepth}bit.{channels}ch.{samplerate}sps.bin"
+    description: >
+      Raw hydrophone audio. Files are
+      rotated every 5 minutes. The filename encodes the start time
+      and format parameters.
+    source_file: "src/audio/log_audio.c"
+    file_format: raw_binary
+    byte_order: big-endian
+    file_format_version: 0
+    filename_fields:
+      - name: "timestamp"
+        description: "RTC epoch time in microseconds at file creation."
+      - name: "bitdepth"
+        description: "Bits per sample per channel."
+        default: 16
+      - name: "channels"
+        description: "Number of active channels."
+        default: 3
+      - name: "samplerate"
+        description: "Sample rate in samples per second."
+        default: 96000
+    fields:
+      - name: "Sample"
+        description: >
+          Interleaved signed audio samples, one value per active channel
+          per time step.
+        storage_type: i16
+        units: "ADC counts"
+        range:
+          min: -32768
+          max: 32767
+
+  - name: "data_battery.csv"
+    description: >
+      Time-series battery management system readings from the bms
+      fuel gauge.
+    source_file: "src/battery/log_battery.c"
+    file_format: csv
+    separator: ","
+    comment_prefix: "#"
+    file_format_version: 0
+    fields:
+      - name: "Timestamp [us]"
+        description: "Acquisition timestamp in microseconds since system epoch."
+        storage_type: u64
+        format: "%lld"
+        units: "microseconds"
+
+      - name: "Notes"
+        description: >
+          Status flags for the sample. Currently unimplemented (always empty).
+        storage_type: string
+        separator: "|"
+        possible_values:
+          - value: ""
+            description: "Normal sample, no issues."
+
+      - name: "Battery V1 [V]"
+        description: "Cell 1 voltage."
+        storage_type: float
+        format: "%.3f"
+        units: "volts"
+        conversion: "raw * 0.000078125"
+        conversion_source: "src/battery/max17320.h:CELL_VOLTAGE_LSB"
+
+      - name: "Battery V2 [V]"
+        description: "Cell 2 voltage."
+        storage_type: float
+        format: "%.3f"
+        units: "volts"
+        conversion: "raw * 0.000078125"
+        conversion_source: "src/battery/max17320.h:CELL_VOLTAGE_LSB"
+
+      - name: "Battery I [mA]"
+        description: "Average battery current."
+        storage_type: float
+        format: "%.3f"
+        units: "milliamps"
+        conversion: "raw_signed * 1.5625 / (R_SENSE * 1000)"
+        conversion_source: "src/battery/max17320.c:priv__current_mA_from_raw"
+
+      - name: "Battery Average Power [mW]"
+        description: "Average power consumption across both cells."
+        storage_type: float
+        format: "%.3f"
+        units: "milliwatts"
+        conversion: "CELL_COUNT * raw_signed * 1.6 * (0.005 / R_SENSE)"
+        conversion_source: "src/battery/max17320.c"
+
+      - name: "Battery T1 [C]"
+        description: "Cell 1 temperature."
+        storage_type: float
+        format: "%.3f"
+        units: "degrees Celsius"
+        conversion: "raw_signed / 256.0"
+        conversion_source: "src/battery/max17320.h:TEMPERATURE_LSB"
+
+      - name: "Battery T2 [C]"
+        description: "Cell 2 temperature."
+        storage_type: float
+        format: "%.3f"
+        units: "degrees Celsius"
+        conversion: "raw_signed / 256.0"
+        conversion_source: "src/battery/max17320.h:TEMPERATURE_LSB"
+
+      - name: "State of Charge [%]"
+        description: "Reported state of charge."
+        storage_type: float
+        format: "%.3f"
+        units: "percent"
+        range:
+          min: 0
+          max: 100
+        conversion: "raw / 256.0"
+        conversion_source: "src/battery/max17320.h:PERCENTAGE_LSB"
+
+      - name: "Status"
+        description: >
+          Pipe-delimited BMS status register flags. Cleared after each
+          read, so flags represent alerts since the previous sample.
+        type: BmsStatus
+
+      - name: "Protection Alerts"
+        description: >
+          Pipe-delimited protection alert register flags. Cleared after
+          each read, so flags represent alerts since the previous sample.
+        type: BmsProtectionAlert
+
+    example: |
+      # version: 0
+      Timestamp [us], Notes, Battery V1 [V], Battery V2 [V], Battery I [mA], Battery Average Power [mW], Battery T1 [C], Battery T2 [C], State of Charge [%], Status, Protection Alerts
+      1672531200000000, , 3.850, 3.845, -125.000, 963.200, 25.500, 25.750, 87.500, ,
+      1672531260000000, , 3.848, 3.843, -130.500, 1005.600, 25.750, 25.875, 87.250, Vmn, OVP | OCCP
+
+  - name: "data_ecg.csv"
+    description: >
+      ECG (electrocardiogram) readings from the ADS1219 24-bit ADC
+      at 1000 Hz. Includes lead-off detection pin states.
+    source_file: "src/ecg/log_ecg.c"
+    sensor: "ADS1219"
+    file_format: csv
+    separator: ","
+    comment_prefix: "#"
+    file_format_version: 0
+    fields:
+      - name: "Timestamp [us]"
+        description: "Acquisition timestamp in microseconds since system epoch."
+        storage_type: u64
+        format: "%lld"
+        units: "microseconds"
+
+      - name: "Notes"
+        description: "Reserved. Currently always empty."
+        storage_type: string
+
+      - name: "Ecg Value"
+        description: >
+          Raw 24-bit signed ADC reading, sign-extended to 32 bits.
+          Single-ended measurement on AIN0 with external voltage
+          reference and 1x gain.
+        storage_type: i32
+        format: "%ld"
+        units: "ADC counts"
+        range:
+          min: -8388608
+          max: 8388607
+
+      - name: "Ecg LoD+"
+        description: >
+          Lead-off detection positive electrode. GPIO pin state
+          indicating whether the positive electrode has good contact.
+        storage_type: u8
+        format: "%d"
+        possible_values:
+          - value: 0
+            description: "Electrode connected."
+          - value: 1
+            description: "Electrode disconnected (lead-off)."
+
+      - name: "Ecg LoD-"
+        description: >
+          Lead-off detection negative electrode. GPIO pin state
+          indicating whether the negative electrode has good contact.
+        storage_type: u8
+        format: "%d"
+        possible_values:
+          - value: 0
+            description: "Electrode connected."
+          - value: 1
+            description: "Electrode disconnected (lead-off)."
+
+    example: |
+      Timestamp [us], Notes, Ecg Value, Ecg LoD+, Ecg LoD-
+      1672531200000000, , 123456, 0, 0
+      1672531201000000, , -234567, 1, 0
+
+  - name: "data_gps.csv"
+    description: >
+      Time-series gps readings from the uBlocks MAX-M10s GPS Module
+    source_file: "src/gps/log_gps.c"
+    sensor: "uBlocks MAX-M10s"
+    file_format: csv
+    separator: ";"
+    comment_prefix: "#"
+    file_format_version: 0
+    fields:
+      - name: "Timestamp [us]"
+        description: "Acquisition timestamp in microseconds since system epoch."
+        storage_type: u64
+        format: "%lld"
+        units: "microseconds"
+
+      - name: "Notes"
+        description: >
+          Pipe-delimited status flags for the sample. Empty when no
+          anomalies occurred.
+        storage_type: string
+        separator: "|"
+        possible_values:
+          - value: ""
+            description: "Normal sample, no issues."
+          - value: "OVERFLOW"
+            description: >
+              The sample buffer overflowed before this sample could be
+              written to disk. One or more preceding samples may have been
+              lost.
+
+      - name: "Sentence"
+        description: "Nemea sentences received from GPS module"
+        storage_type: string
+
+    example: |
+      #version: 0
+      Timestamp [us]; Notes; NMEA Sentence
+      1672531200000000; ; $GNRMC,123456.00,A,4807.038,N,01131.000,E,0.0,0.0,230525,,,A*68
+      1672531201000000; OVERFLOW; $GNGGA,123456.00,4807.038,N,01131.000,E,1,08,0.9,545.4,M,47.0,M,,*47
+
+  - name: "data_imu_accel.csv"
+    description: >
+      Calibrated accelerometer readings from the BNO08x IMU.
+      One row per sample at 50 Hz.
+    source_file: "src/imu/log_imu.c"
+    sensor: "BNO08x (SH2)"
+    file_format: csv
+    separator: ","
+    comment_prefix: "#"
+    file_format_version: 0
+    fields:
+      - name: "Timestamp [us]"
+        description: "Acquisition timestamp in microseconds since system epoch."
+        storage_type: u64
+        format: "%lld"
+        units: "microseconds"
+
+      - name: "Notes"
+        description: "Reserved. Currently always empty."
+        storage_type: string
+
+      - name: "Accel_x_raw"
+        description: "Calibrated acceleration along the x axis."
+        storage_type: float
+        format: "%f"
+        units: "m/s^2"
+
+      - name: "Accel_y_raw"
+        description: "Calibrated acceleration along the y axis."
+        storage_type: float
+        format: "%f"
+        units: "m/s^2"
+
+      - name: "Accel_z_raw"
+        description: "Calibrated acceleration along the z axis."
+        storage_type: float
+        format: "%f"
+        units: "m/s^2"
+
+      - name: "Accel_status"
+        description: "Sensor accuracy level (lower 2 bits of status byte)."
+        type: ImuAccuracy
+        format: "%d"
+
+    example: |
+      Timestamp [us], Notes, Accel_x_raw, Accel_y_raw, Accel_z_raw, Accel_status
+      1672531200000000, , 0.123456, -0.234567, 9.812345, 3
+      1672531220000000, , 0.124000, -0.235000, 9.810000, 3
+
+  - name: "data_imu_gyro.csv"
+    description: >
+      Calibrated gyroscope readings from the BNO08x IMU.
+      One row per sample at 50 Hz.
+    source_file: "src/imu/log_imu.c"
+    sensor: "BNO08x (SH2)"
+    file_format: csv
+    separator: ","
+    comment_prefix: "#"
+    file_format_version: 0
+    fields:
+      - name: "Timestamp [us]"
+        description: "Acquisition timestamp in microseconds since system epoch."
+        storage_type: u64
+        format: "%lld"
+        units: "microseconds"
+
+      - name: "Notes"
+        description: "Reserved. Currently always empty."
+        storage_type: string
+
+      - name: "Gyro_x_raw"
+        description: "Calibrated angular velocity around the x axis."
+        storage_type: float
+        format: "%f"
+        units: "rad/s"
+
+      - name: "Gyro_y_raw"
+        description: "Calibrated angular velocity around the y axis."
+        storage_type: float
+        format: "%f"
+        units: "rad/s"
+
+      - name: "Gyro_z_raw"
+        description: "Calibrated angular velocity around the z axis."
+        storage_type: float
+        format: "%f"
+        units: "rad/s"
+
+      - name: "Gyro_status"
+        description: "Sensor accuracy level (lower 2 bits of status byte)."
+        type: ImuAccuracy
+        format: "%d"
+
+    example: |
+      Timestamp [us], Notes, Gyro_x_raw, Gyro_y_raw, Gyro_z_raw, Gyro_status
+      1672531200000000, , 0.001234, -0.002345, 0.000123, 2
+      1672531220000000, , 0.001200, -0.002400, 0.000100, 3
+
+  - name: "data_imu_mag.csv"
+    description: >
+      Calibrated magnetometer readings from the BNO08x IMU.
+      One row per sample at 50 Hz.
+    source_file: "src/imu/log_imu.c"
+    sensor: "BNO08x (SH2)"
+    file_format: csv
+    separator: ","
+    comment_prefix: "#"
+    file_format_version: 0
+    fields:
+      - name: "Timestamp [us]"
+        description: "Acquisition timestamp in microseconds since system epoch."
+        storage_type: u64
+        format: "%lld"
+        units: "microseconds"
+
+      - name: "Notes"
+        description: "Reserved. Currently always empty."
+        storage_type: string
+
+      - name: "Mag_x_raw"
+        description: "Calibrated magnetic field along the x axis."
+        storage_type: float
+        format: "%f"
+        units: "uTesla"
+
+      - name: "Mag_y_raw"
+        description: "Calibrated magnetic field along the y axis."
+        storage_type: float
+        format: "%f"
+        units: "uTesla"
+
+      - name: "Mag_z_raw"
+        description: "Calibrated magnetic field along the z axis."
+        storage_type: float
+        format: "%f"
+        units: "uTesla"
+
+      - name: "Mag_status"
+        description: "Sensor accuracy level (lower 2 bits of status byte)."
+        type: ImuAccuracy
+        format: "%d"
+
+    example: |
+      Timestamp [us], Notes, Mag_x_raw, Mag_y_raw, Mag_z_raw, Mag_status
+      1672531200000000, , 23.456789, -12.345678, 45.678901, 2
+      1672531220000000, , 23.500000, -12.300000, 45.700000, 3
+
+  - name: "data_imu_quat.csv"
+    description: >
+      Rotation vector (quaternion) from the BNO08x IMU's sensor fusion.
+      One row per sample at 20 Hz. Quaternion convention: Q = W + Xi + Yj + Zk.
+    source_file: "src/imu/log_imu.c"
+    sensor: "BNO08x (SH2)"
+    file_format: csv
+    separator: ","
+    comment_prefix: "#"
+    file_format_version: 0
+    fields:
+      - name: "Timestamp [us]"
+        description: "Acquisition timestamp in microseconds since system epoch."
+        storage_type: u64
+        format: "%lld"
+        units: "microseconds"
+
+      - name: "Notes"
+        description: "Reserved. Currently always empty."
+        storage_type: string
+
+      - name: "Quat_i"
+        description: "Quaternion imaginary i component."
+        storage_type: float
+        format: "%f"
+        units: "dimensionless"
+
+      - name: "Quat_j"
+        description: "Quaternion imaginary j component."
+        storage_type: float
+        format: "%f"
+        units: "dimensionless"
+
+      - name: "Quat_k"
+        description: "Quaternion imaginary k component."
+        storage_type: float
+        format: "%f"
+        units: "dimensionless"
+
+      - name: "Quat_Re"
+        description: "Quaternion real component (W)."
+        storage_type: float
+        format: "%f"
+        units: "dimensionless"
+
+      - name: "Quat_accuracy"
+        description: "Estimated accuracy of the rotation estimate."
+        storage_type: float
+        format: "%f"
+        units: "radians"
+
+    example: |
+      Timestamp [us], Notes, Quat_i, Quat_j, Quat_k, Quat_Re, Quat_accuracy
+      1672531200000000, , 0.012345, -0.023456, 0.034567, 0.999000, 0.017453
+      1672531250000000, , 0.012400, -0.023500, 0.034600, 0.999100, 0.015000
+
+  - name: "data_pressure.csv"
+    description: >
+      Time-series pressure and temperature readings from the Keller 4LD
+      pressure transmitter.
+    source_file: "src/pressure/log_pressure.c"
+    sensor: "Keller 4LD"
+    file_format: csv
+    separator: ","
+    comment_prefix: "#"
+    file_format_version: 0
+    fields:
+      - name: "Timestamp [us]"
+        description: "Acquisition timestamp in microseconds since system epoch."
+        storage_type: u64
+        format: "%lld"
+        units: "microseconds"
+
+      - name: "Notes"
+        description: >
+          Pipe-delimited status flags for the sample. Empty when no
+          anomalies occurred.
+        storage_type: string
+        separator: "|"
+        possible_values:
+          - value: ""
+            description: "Normal sample, no issues."
+          - value: "OVERFLOW"
+            description: >
+              The sample buffer overflowed before this sample could be
+              written to disk. One or more preceding samples may have been
+              lost.
+
+      - name: "Pressure [bar]"
+        description: "Absolute pressure converted from the sensor's raw 16-bit reading."
+        storage_type: float
+        format: "%.3f"
+        units: "bar"
+        range:
+          min: 0
+          max: 200
+        conversion: "(raw - 16384) * (200 / 32768)"
+        conversion_source: "src/pressure/acq_pressure.h:acq_pressure_raw_to_pressure_bar"
+
+      - name: "Temperature [C]"
+        description: "Temperature from the sensor's built-in thermometer."
+        storage_type: float
+        format: "%.3f"
+        units: "degrees Celsius"
+        conversion: "((raw >> 4) - 24) * 0.05 - 50.0"
+        conversion_source: "src/pressure/acq_pressure.h:acq_pressure_raw_to_temperature_c"
+
+    example: |
+      #version: 0
+      Timestamp [us], Notes, Pressure [bar], Temperature [C]
+      1672531200000000, , 1.013, 22.500
+      1672531201000000, OVERFLOW, 1.025, 22.510
+
+  - name: "tag_info.yaml"
+    description: >
+      Description of tag and deployment specific hardware configuration,
+      software configuration, mission settings, and generated files
+    file_format: yaml
+
+  - name: "tag_mission.csv"
+    description: >
+      Log of mission state machine transitions. One row per state
+      transition, recording what state the tag left, what state it
+      entered, and what caused the transition.
+    source_file: "src/mission/mission_log.c"
+    file_format: csv
+    separator: ","
+    comment_prefix: "#"
+    file_format_version: 0
+    fields:
+      - name: "Timestamp [us]"
+        description: "Time of the state transition in microseconds since system epoch."
+        storage_type: u64
+        format: "%lld"
+        units: "microseconds"
+
+      - name: "From State"
+        description: "The state the mission was in before the transition."
+        type: MissionState
+
+      - name: "To State"
+        description: "The state the mission transitioned into."
+        type: MissionState
+
+      - name: "Cause"
+        description: "What triggered the state transition."
+        type: MissionTransitionCause
+
+    example: |
+      # version: 0
+      Timestamp [us], From State, To State, Cause
+      1672531200000000, MISSION_START, RECORD_SURFACE, MISSION_START
+      1672531500000000, RECORD_SURFACE, RECORD_DIVE, HIGH_PRESSURE
+      1672532400000000, RECORD_DIVE, RECORD_FLOATING, FLOAT_DETECTED
+
+  - name: "tag_rf.csv"
+    description: >
+      Log of argos transmissions.
+    source_file: "src/mission.c"
+    file_format: csv
+    separator: ","
+    comment_prefix: "#"
+    file_format_version: 0
+    fields:
+      - name: "Timestamp [us]"
+        description: "Time of the state transition in microseconds since system epoch."
+        storage_type: u64
+        format: "%lld"
+        units: "microseconds"
+
+      - name: "Notes"
+        description: "Reserved. Currently always empty."
+        storage_type: string
+
+      - name: "Type"
+        description: "ARGOs message type."
+        storage_type: string
+        values:
+          - value: "LDA2"
+          - value: "VLDA2"
+          - value: "LDK"
+          - value: "LDA2L"
+
+      - name: "Message"
+        description: "Transmitted message in hexidecimal representation. Up to 24 bytes"
+        type: string
+
+    example: |
+      # version: 0
+      Timestamp [us], Notes, Type, Message
+      1672531200000000, , LDA2, 0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF
+      1672531300000000, , VLDA2, 012345
+      1672531400000000, , LDK, 0123456789ABCDEF0123456789ABCDEF
+      1672531500000000, , LDA2L, 0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF
+      
+types:
+  MissionState:
+    description: "Mission state machine states."
+    storage_type: string
+    source: "src/mission.c:MissionState"
+    values:
+      - value: "MISSION_START"
+        description: "Initial state at mission boot."
+      - value: "RECORD_SURFACE"
+        description: "Recording at the surface."
+      - value: "RECORD_FLOATING"
+        description: "Recording while floating (post-dive ascent detected)."
+      - value: "RECORD_DIVE"
+        description: "Recording during a dive."
+      - value: "BURN"
+        description: "Burn wire activated for tag release."
+      - value: "LOW_POWER_BURN"
+        description: "Low-power burn wire activation (battery conservation)."
+      - value: "RETRIEVE"
+        description: "Tag is awaiting retrieval."
+      - value: "LOW_POWER_RETRIEVE"
+        description: "Low-power retrieval mode."
+      - value: "ERROR"
+        description: "Error state."
+
+  MissionTransitionCause:
+    description: "What triggered a mission state transition."
+    storage_type: string
+    source: "src/mission.c:MissionTransitionCause"
+    values:
+      - value: "MISSION_START"
+        description: "Mission boot / initialization."
+      - value: "LOW_PRESSURE"
+        description: "Pressure dropped below dive threshold (surfaced)."
+      - value: "HIGH_PRESSURE"
+        description: "Pressure exceeded dive threshold (diving)."
+      - value: "FLOAT_DETECTED"
+        description: "Float detection algorithm triggered."
+      - value: "FLOAT_ENDED"
+        description: "Float condition ended."
+      - value: "BATTERY_ERRORS"
+        description: "Battery management system reported errors."
+      - value: "LOW_VOLTAGE"
+        description: "Battery voltage fell below threshold."
+      - value: "TIMER"
+        description: "A time-based trigger expired."
+
+  BmsStatus:
+    description: "MAX17320 status register flags (register 0x000, mask 0xF7C6)."
+    storage_type: string
+    separator: " | "
+    source: "src/battery/log_battery.c:priv__status_to_str"
+    values:
+      - value: ""
+        description: "No status flags set."
+      - value: "PA"
+        description: "Protect Alert"
+      - value: "POR"
+        description: "Power-on Reset"
+      - value: "Imn"
+        description: "Current min threshold"
+      - value: "Imx"
+        description: "Current max threshold"
+      - value: "Vmn"
+        description: "Voltage min threshold"
+      - value: "Vmx"
+        description: "Voltage max threshold"
+      - value: "Tmn"
+        description: "Temperature min threshold"
+      - value: "Tmx"
+        description: "Temperature max threshold"
+      - value: "Smn"
+        description: "State-of-Charge min threshold"
+      - value: "Smx"
+        description: "State-of-Charge max threshold"
+
+  BmsProtectionAlert:
+    description: "MAX17320 protection alert register flags (register 0x0AF)."
+    storage_type: string
+    separator: " | "
+    source: "src/battery/log_battery.c:priv__protAlrt_to_str"
+    values:
+      - value: ""
+        description: "No protection alerts."
+      - value: "ChgWDT"
+        description: "Charge watchdog timeout"
+      - value: "TooHotC"
+        description: "Too hot during charge"
+      - value: "Full"
+        description: "Battery full"
+      - value: "TooColdC"
+        description: "Too cold during charge"
+      - value: "OVP"
+        description: "Over-voltage protection"
+      - value: "OCCP"
+        description: "Over-current charge protection"
+      - value: "Qovflw"
+        description: "Charge overflow"
+      - value: "PrepF"
+        description: "Precharge fail"
+      - value: "Imbalance"
+        description: "Cell imbalance"
+      - value: "PermFail"
+        description: "Permanent failure"
+      - value: "DieHot"
+        description: "Die temperature too high"
+      - value: "TooHotD"
+        description: "Too hot during discharge"
+      - value: "UVP"
+        description: "Under-voltage protection"
+      - value: "ODCP"
+        description: "Over-current discharge protection"
+      - value: "ResDFault"
+        description: "Resistance detect fault"
+      - value: "LDet"
+        description: "Leak detection"
+
+  ImuAccuracy:
+    description: "BNO08x sensor accuracy level (lower 2 bits of status byte)."
+    storage_type: int
+    source: "lib/sh2/sh2_SensorValue.h"
+    values:
+      - value: 0
+        description: "Unreliable"
+      - value: 1
+        description: "Low accuracy"
+      - value: 2
+        description: "Medium accuracy"
+      - value: 3
+        description: "High accuracy"
