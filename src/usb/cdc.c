@@ -488,6 +488,7 @@ static void priv__cmd_vhf_pinger(int argc, const char *const *argv) {
         return;
     }    
 
+    #ifdef VHF_EN_GPIO_Output_GPIO_Port
     switch(argv[1][0]) {
         case '0':
             HAL_GPIO_WritePin(VHF_EN_GPIO_Output_GPIO_Port, VHF_EN_GPIO_Output_Pin, GPIO_PIN_RESET);
@@ -500,6 +501,7 @@ static void priv__cmd_vhf_pinger(int argc, const char *const *argv) {
         default:
             break;
     }
+    #endif
 }
 
 
