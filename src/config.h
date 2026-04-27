@@ -69,11 +69,19 @@ typedef enum {
     ARGOS_MOD_LDA2L,
 } RecoveryArgoModulation;
 
+typedef enum {
+    AUDIO_FORMAT_RAW,
+    AUDIO_FORMAT_WAV,
+    AUDIO_FORMAT_X3,
+    AUDIO_FORMAT_FLAC,
+} AudioFileFormat;
+
 typedef struct {
     uint8_t enabled;
     uint8_t bitdepth;
     uint8_t filter_type;
     uint8_t priority;
+    AudioFileFormat file_format;
     uint8_t channel_enabled[4];
     uint32_t samplerate_sps;
 } AudioConfig;
@@ -82,9 +90,9 @@ typedef struct {
     uint8_t enabled;
     uint8_t path_prediction_enabled;
     RecoveryArgoModulation modulation_protocol;
-    uint8_t id[8];
+    uint8_t id[8]; // typically 6
     uint8_t address[8];
-    uint8_t secret_key[64];
+    uint8_t secret_key[32];
 } ArgosConfig;
 
 typedef struct {

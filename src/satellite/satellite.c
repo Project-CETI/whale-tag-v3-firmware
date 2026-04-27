@@ -427,9 +427,9 @@ void satellite_start(ArgosConfig config[static 1]) {
         __NOP();
     } while (!satellite_ping());
 
-    satellite_set_id(config->id, 6);
-    satellite_set_mac_address(config->address);
-    satellite_set_secret_key(config->secret_key);
+    satellite_set_id((char *)config->id, 6);
+    satellite_set_mac_address((char *)config->address);
+    satellite_set_secret_key((char *)config->secret_key);
 
     // set radio protocol
     satellite_configure_radio(config->modulation_protocol);
