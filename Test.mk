@@ -84,7 +84,7 @@ test: $(TEST_BIN)
 
 test_clean:
 	@$(RM) -rf $(TEST_BUILD_DIR)
-	@$(RM) -r $(UNITY) $(UNITY_DIR)/Makefile
+	@$(RM) -rf $(UNITY) $(UNITY_DIR)/Makefile
 
 .PHONY: \
 	test \
