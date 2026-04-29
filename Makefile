@@ -154,7 +154,7 @@ build: $(DOCKER_IMAGE)
 		--user $(USER):$(USER_GROUP) \
 		--volume $(PWD):/ceti-firmware \
 		$(DOCKER_IMAGE) \
-			make
+			"make $(MAKEFLAGS) $(filter-out build,$(MAKECMDGOALS))"
 
 # src/version_hw.h
 $(VERSION_H):
