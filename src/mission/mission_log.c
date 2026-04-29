@@ -12,7 +12,9 @@
 #include "metadata.h"
 #include "timing.h"
  
+#ifndef UNIT_TEST
 #include <app_filex.h>
+#endif
 #include <stdio.h>
 
 

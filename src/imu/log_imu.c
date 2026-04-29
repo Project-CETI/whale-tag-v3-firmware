@@ -26,7 +26,9 @@
 #define IMU_FORMAT IMU_FORMAT_SEPERATE_CSV
 
 #include <sh2_SensorValue.h>
+#ifndef UNIT_TEST
 #include <app_filex.h> // filex
+#endif
 
 #include <stdio.h>
 

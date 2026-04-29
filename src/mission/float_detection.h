@@ -12,6 +12,7 @@
 #include "util/quaternion.h"
 
 DEFINE_QUATERION_TYPE(float)
+DEFINE_EULER_TYPE(float)
 
 void float_detection_enable(void);
 void float_detection_disable(void);

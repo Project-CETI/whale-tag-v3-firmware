@@ -12,7 +12,9 @@
 #include "metadata.h"
 #include "satellite.h"
 
+#ifndef UNIT_TEST
 #include <app_filex.h>
+#endif
 
 #include <stdint.h>
 #include <stdio.h>

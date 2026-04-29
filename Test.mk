@@ -68,18 +68,11 @@ TEST_RUN = $(addsuffix .run, $(TEST_BIN))
 
 # Run individual test binary
 $(TEST_RUN): $(TEST_BUILD_DIR)/%.run: $(TEST_BUILD_DIR)/%
+	$(call print1,Running Test:,$@)
 	@./$<
 
 # Run all tests sequentially — fail immediately if any test exits non-zero
-test: $(TEST_BIN)
-	@fail=0; \
-	for t in $(TEST_BIN); do \
-		./$$t || fail=1; \
-	done; \
-	if [ $$fail -ne 0 ]; then \
-		echo "$(RED)One or more tests failed.$(NO_COL)"; \
-		exit 1; \
-	fi
+test: $(TEST_RUN)
 	@$(PRINT) "\n$$(sed "6s|\(.*\)|\1    \\$(GREEN)Success!\\$(NO_COL)|" $(MICROROBOTICS_LOGO))\n\n"
 
 test_clean:

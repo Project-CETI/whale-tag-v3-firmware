@@ -5,7 +5,7 @@
  *   @copyright Harvard University Wood Lab
  *   @authors   Michael Salino-Hugg
  *****************************************************************************/
-#include "main.h"
+//#include "main.h"
 
 #include "acq_battery.h"
 #include "log_battery.h"
@@ -15,7 +15,9 @@
 #include "syslog.h"
 #include "util/buffer_writer.h"
 
+#ifndef UNIT_TEST
 #include <app_filex.h>
+#endif
 #include <stdio.h>
 
 
@@ -32,12 +34,17 @@ static BufferWriter s_bw = {
 /********* CSV ***************************************************************/
 #define LOG_BATTERY_FILENAME "data_battery.csv"
 
+#define _STR(x) #x
+#define STR(x) _STR(x)
+#define LOG_BATTERY_FILE_VERSION 0
+
 #define _RSHIFT(x, s, w) (((x) >> s) & ((1 << w) - 1))
 #define _LSHIFT(x, s, w) (((x) & ((1 << w) - 1)) << s)
 
 extern FX_MEDIA sdio_disk;
 
 static char *log_battery_csv_header =
+    "# version: " STR(LOG_BATTERY_FILE_VERSION) "\n"
     "Timestamp [us]"
     ", Notes"
     ", Battery V1 [V]"

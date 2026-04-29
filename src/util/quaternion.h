@@ -2,14 +2,14 @@
 #define CETI_QUATERNION_H__
 #include <math.h>
 
-
-
+#define Euler(T) Euler_##T
 #define Quaternion(T) Quaternion_##T
 #define quaternion_multiplication(T) quaternion_multiplication_##T
 #define quaternion_addition(T) quaternion_addition_##T
 #define quaternion_subtraction(T) quaternion_subtraction_##T
 #define quaternion_magnitude(T) quaternion_magnitude_##T
 #define quaternion_remove_yaw(T) quaternion_remove_yaw_##T
+#define quaternion_to_euler(T) quaternion_to_euler##T
 
 #define DEFINE_QUATERION_TYPE(T)                                                         \
 typedef struct {                                                                         \
@@ -18,6 +18,13 @@ typedef struct {                                                                
     T j;                                                                                 \
     T k;                                                                                 \
 } Quaternion(T);                                                                         
+
+#define DEFINE_EULER_TYPE(T) \
+typedef struct {             \
+    T pitch;                 \
+    T yaw;                   \
+    T roll;                  \
+} Euler(T);                
 
 /* Generic Type implementation */
 #define IMPLEMENT_QUATERION_TYPE(T)                                                      \
@@ -82,6 +89,27 @@ __attribute__((const))                                                          
 static inline                                                                            \
 T quaternion_magnitude(T)(Quaternion(T) q) {                                             \
     return sqrt(q.real*q.real + q.i*q.i + q.j*q.j + q.k*q.k);                            \
+}                                                                                        \
+                                                                                         \
+[[gnu::const]]                                                                           \
+Euler(T) quaternion_to_euler(T)(Quaternion(T) q) {                                       \
+    T sinpCosr = 2 * ((q.real * q.i) + (q.j * q.k));                                     \
+    T cospCosr = 1 - 2 * ((q.i * q.i) + (q.j * q.j));                                    \
+    T pitch = atan2(sinpCosr, cospCosr);                                                 \
+                                                                                         \
+    T sinyCosp = 2.0 * (q.real * q.k + q.i * q.j);                                       \
+    T cosyCosp = 1.0 - 2.0 * (q.j * q.j + q.k * q.k);                                    \
+    T yaw = atan2(sinyCosp, cosyCosp);                                                   \
+                                                                                         \
+    T sinr = sqrt(1+ 2 * ((q.real * q.j) - (q.k * q.i)));                                \
+    T cosr = sqrt(1 + 2 * ((q.real * q.j) - (q.k * q.i)));                               \
+    T roll =  (2.0 * atan2(sinr, cosr)) - (M_PI / 2.0);                                  \
+                                                                                         \
+    return (Euler(T)) {                                                                  \
+        .pitch = pitch,                                                                  \
+        .yaw = yaw,                                                                      \
+        .roll = roll,                                                                    \
+    };                                                                                   \
 }
 
 #endif // CETI_QUATERNION_H__

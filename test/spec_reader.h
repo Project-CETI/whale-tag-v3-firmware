@@ -40,10 +40,12 @@ typedef struct {
 } SpecField;
 
 #define SPEC_MAX_COMMENT_PREFIX 8
+#define SPEC_MAX_SEPARATOR      4
 
 typedef struct {
     int format_version;
     char comment_prefix[SPEC_MAX_COMMENT_PREFIX];
+    char separator[SPEC_MAX_SEPARATOR];
     int num_fields;
     SpecField fields[SPEC_MAX_FIELDS];
 } FileSpec;
@@ -98,6 +100,7 @@ static inline int spec__extract_double(const char *line, const char *key, double
 ///         not found
 static int spec_parse(const char *filename, FileSpec *spec) {
     memset(spec, 0, sizeof(*spec));
+    spec->separator[0] = ',';  /* default separator */
 
     FILE *f = fopen(SPEC_FILE, "r");
     if (!f) {
@@ -135,8 +138,9 @@ static int spec_parse(const char *filename, FileSpec *spec) {
             continue;
         }
 
-        /* A new list item at file_indent means a new file entry — stop. */
-        if (indent <= file_indent && strstr(trimmed, "- name:"))
+        /* Left this file entry — either a new list item or a top-level key
+           (e.g. "types:") at or below the file's indent level. */
+        if (indent <= file_indent)
             break;
 
         /* --- file-level keys --- */
@@ -144,6 +148,8 @@ static int spec_parse(const char *filename, FileSpec *spec) {
             spec__extract_int(trimmed, "file_format_version:", &spec->format_version);
             spec__extract_quoted(trimmed, "comment_prefix:", spec->comment_prefix,
                                  sizeof(spec->comment_prefix));
+            spec__extract_quoted(trimmed, "separator:", spec->separator,
+                                 sizeof(spec->separator));
             if (strstr(trimmed, "fields:")) {
                 in_fields = 1;
                 continue;

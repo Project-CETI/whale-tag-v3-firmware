@@ -13,7 +13,9 @@
 #include "metadata.h"
 #include "util/buffer_writer.h"
 
+#ifndef UNIT_TEST
 #include <app_filex.h>
+#endif
 #include <stdio.h>
 
 
@@ -113,9 +115,7 @@ int log_ecg_sample_buffer_is_half_full(void) {
 
 /// @brief adds an ecg sample to ecg sample buffer
 /// @param p_sample nonnull pointer to sample
-[[gnu::nonnull]]
-void log_ecg_push_sample(const EcgSample* p_sample) 
-{
+void log_ecg_push_sample(const EcgSample p_sample[static 1]) {
     // add sample to buffer
     uint16_t nv_w = s_ecg_buffer_write_cursor;
     s_ecg_sample_buffer[nv_w] = *p_sample;

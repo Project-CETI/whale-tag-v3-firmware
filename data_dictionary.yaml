@@ -231,7 +231,7 @@ files:
               written to disk. One or more preceding samples may have been
               lost.
 
-      - name: "Sentence"
+      - name: "NMEA Sentence"
         description: "Nemea sentences received from GPS module"
         storage_type: string
 

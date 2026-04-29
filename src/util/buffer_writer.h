@@ -8,7 +8,10 @@
 #ifndef CETI_BUFFER_WRITER_H__
 #define CETI_BUFFER_WRITER_H__
 
+
+#ifndef UNIT_TEST
 #include <app_filex.h>
+#endif
 
 typedef struct {
     uint8_t * buffer;

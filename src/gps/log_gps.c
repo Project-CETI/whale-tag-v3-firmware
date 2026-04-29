@@ -13,7 +13,9 @@
 #include "metadata.h"
 #include "util/buffer_writer.h"
 
+#ifndef UNIT_TEST
 #include <app_filex.h>
+#endif
 
 #include <stdio.h>
 
