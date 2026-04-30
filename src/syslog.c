@@ -9,6 +9,21 @@
 #include "main.h"
 #include "version.h"
 
+#ifdef DEBUG
+#include "core_cm33.h"
+
+void itm_printf(const char *fmt, ...) {
+    char buf[256];
+    va_list ap;
+    va_start(ap, fmt);
+    int len = vsnprintf(buf, sizeof(buf), fmt, ap);
+    va_end(ap);
+    for (int i = 0; i < len && i < (int)sizeof(buf); i++) {
+        ITM_SendChar(buf[i]);
+    }
+}
+#endif
+
 
 extern RTC_HandleTypeDef hrtc;
 extern FX_MEDIA sdio_disk;
@@ -77,6 +92,13 @@ UINT priv__syslog_write(const str identifier[static 1], const char fmt[static 1]
 
     *position = '\n';
     position++;
+
+    // Write to SWD if in DEBUG mode
+#ifdef DEBUG
+    for (int i = 0; i < (position - scratch_buffer) && i < (int)sizeof(scratch_buffer); i++) {
+        ITM_SendChar(scratch_buffer[i]);
+    }
+#endif
 
     UINT fx_result = buffer_writer_write(&s_bw,  scratch_buffer, (position - scratch_buffer));
     if (fx_result != FX_SUCCESS) {

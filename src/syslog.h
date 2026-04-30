@@ -13,6 +13,13 @@
     syslog_flush(); \
 } while(0)
 
+#ifdef DEBUG
+#define CETI_DEBUG(FMT_STR, ...) itm_printf("[%s] " FMT_STR "\n", __FUNCTION__ __VA_OPT__(, ) __VA_ARGS__)
+void itm_printf(const char *fmt, ...);
+#else
+#define CETI_DEBUG(FMT_STR, ...) ((void)0)
+#endif
+
 void syslog_init(void);
 void syslog_deinit(void);
 void syslog_flush(void);

@@ -8,6 +8,6 @@
         "log_syslog.h": "c",
         "mission.h": "c"
     },
-    "BOARD": "v3_1_1",
+    "BOARD": "v3_2",
     "MODE": "release",
 }
