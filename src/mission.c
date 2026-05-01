@@ -651,10 +651,6 @@ void mission_set_state(MissionState next_state, MissionTransitionCause cause) {
         mission_log_deinit(); // no state transitions after this state
     }
 
-    // periodic state_machine task timer
-    if (MISSION_STATE_MISSION_START == next_state) {
-    	HAL_TIM_Base_Start_IT(&mission_htim);
-    }
     // update state
     s_state = next_state;
     // LED
@@ -883,6 +879,7 @@ void mission_init(void) {
 
     // Battery acquisition performed for all states
     acq_battery_start();
+    HAL_TIM_Base_Start_IT(&mission_htim);
 }
 #endif
 
