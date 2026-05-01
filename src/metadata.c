@@ -189,8 +189,8 @@ static void priv__write_static_hardware_config(void) {
     if (tag_config.hw_config.vhf_pinger.available) {
         offset += snprintf((char *)&buffer[offset], sizeof(buffer) - offset, 
             "  vhf_pinger:\n"
-            "    controllable: %s"
-            "    ping_rate: { value: 1, units: Hz }"
+            "    controllable: %s\n"
+            "    ping_rate: { value: 1, units: Hz }\n"
             "    carrier_frequency: { value: %.3f, units: MHz }\n"
             , (HW_VERSION == HW_VERSION_3_2_0) ? "true" : "false" 
             , tag_config.hw_config.vhf_pinger.carrier_frequency_mhz
