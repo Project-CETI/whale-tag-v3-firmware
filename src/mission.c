@@ -95,8 +95,8 @@ static int priv__is_not_floating(void);
            └──────────┘                         └───────────┘
 */
 static const MissionTransitionRule s_transition_table[] = {
-    /* MISSION_START */
-    {.from = MISSION_STATE_MISSION_START, .condition = NULL, .to = STARTING_STATE, .cause = MISSION_TRANSITION_START},
+    /* MISSION_START - handled seperately based on tag_config */
+    // {.from = MISSION_STATE_MISSION_START, .condition = NULL, .to = STARTING_STATE, .cause = MISSION_TRANSITION_START},
     
     /* RECORD_SURFACE -- ordered by priority */
     {.from = MISSION_STATE_RECORD_SURFACE, .condition = mission_battery_is_low_voltage, .to = MISSION_STATE_LOW_POWER_BURN,  .cause = MISSION_TRANSITION_LOW_VOLTAGE    },
@@ -617,8 +617,8 @@ void mission_set_state(MissionState next_state, MissionTransitionCause cause) {
         argos_tx_mgr_disable();
         s_active_subsystems &= ~EN_ARGOS;
     } else if (EN_ARGOS & sys_to_enable) {
-        ArgosTxStrategy strategy = (tag_config.argos.path_prediction_enabled) ? ARGOS_TX_STRATEGY_PATH_PREDICTOR: ARGOS_TX_STRATEGY_TIMER; 
-        argos_tx_mgr_enable(strategy);
+        ArgosTxStrategy strategy = (tag_config.argos.pass_prediction_enabled) ? ARGOS_TX_STRATEGY_PATH_PREDICTOR: ARGOS_TX_STRATEGY_TIMER; 
+        argos_tx_mgr_enable(strategy, tag_config.argos.transmission_interval_s, tag_config.argos.transmission_variance_percentage);
         s_active_subsystems |= EN_ARGOS;
     }
 
@@ -887,6 +887,13 @@ void mission_init(void) {
 /// @param current_state
 /// @return
 static MissionState priv__mission_get_next_state(MissionState current_state, MissionTransitionCause *transition_cause) {
+    if (current_state == MISSION_STATE_MISSION_START) {
+        if (NULL != transition_cause) {
+            *transition_cause = MISSION_TRANSITION_START;
+        }
+        return tag_config.mission.starting_state;
+    }
+    
     MissionState next_state = current_state;
     MissionTransitionCause internal_cause = MISSION_TRANSITION_NONE;
     for (size_t i = 0; i < ARRAY_LEN(s_transition_table); i++) {

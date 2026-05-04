@@ -21,7 +21,7 @@ extern uint8_t _tag_aop_end;
 
 __attribute__((section(".tag_config_flash")))
 CetiTagRuntimeConfiguration nv_tag_config = {
-    .config_version = 0xdeadbeef,
+    .config_version = 0,
     .hw_version = HW_VERSION,
     .hostname = "new_tag",
     .audio = {
@@ -39,8 +39,10 @@ CetiTagRuntimeConfiguration nv_tag_config = {
     },
     .argos = {
         .enabled = SATELLITE_ENABLED,
-        .path_prediction_enabled = 1,
+        .pass_prediction_enabled = 0,
         .modulation_protocol = ARGOS_MOD_LDA2,
+        .transmission_interval_s = 90,
+        .transmission_variance_percentage = 10,
     },
     .battery = {
         .enabled = BMS_ENABLED,
@@ -80,6 +82,7 @@ CetiTagRuntimeConfiguration nv_tag_config = {
         },
     },
     .mission = {
+        .starting_state = MISSION_STATE_RECORD_SURFACE,
         .low_power_release = {
             .enabled = BMS_ENABLED,
             .threshold_mV = 3600,
@@ -106,6 +109,8 @@ CetiTagRuntimeConfiguration nv_tag_config = {
         .bms.available = BMS_ENABLED,
         .ecg = {
             .available = ECG_ENABLED,
+            .configuration = ECG_HW_CONFIG_3_TERMINAL,
+            .gain = 550.0f,
         },
         .flasher.available = FLASHER_ENABLED,
         .water_sensor.available = 0,

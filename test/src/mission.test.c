@@ -11,9 +11,12 @@ CetiTagRuntimeConfiguration tag_config = {
     .hw_config.bms.available = 1,
     .battery.enabled = 1,
     .pressure.enabled = 1,
-    .mission.low_power_release = {
-        .enabled = 1,
-        .threshold_mV = 3600,
+    .mission = {
+        .starting_state = MISSION_STATE_RECORD_SURFACE,
+        .low_power_release = {
+            .enabled = 1,
+            .threshold_mV = 3600,
+        },
     },
 };
 

@@ -37,6 +37,8 @@ static volatile uint8_t s_enabled = 0;
 static ArgosTxStrategy s_strategy;
 static uint8_t s_second_count = 0;
 static uint8_t s_next_tx_interval_s;
+static uint32_t s_tx_base_interval_s = TX_BASE_INTERVAL_S;
+static uint32_t s_tx_varience_s = TX_BASE_INTERVAL_S / 10;
 
 static uint8_t s_valid_coordinates = 0;
 static float s_latitude = 0.0f;  // (-90.0f to 90.0f)
@@ -59,7 +61,7 @@ static inline uint16_t priv__rand(void) {
 /// @param
 /// @return
 static inline int16_t priv__get_rand_tx_interval_s(void) {
-    return TX_BASE_INTERVAL_S - TX_VARIENCE_S + (2 * (int32_t)priv__rand() * TX_VARIENCE_S / TX_RAND_MAX);
+    return s_tx_base_interval_s - s_tx_varience_s + (2 * (int32_t)priv__rand() * s_tx_varience_s / TX_RAND_MAX);
 }
 
 /// @brief timer callback to time duration between consecutive transmissions
@@ -276,7 +278,10 @@ void HAL_RTC_AlarmBEventCallback(RTC_HandleTypeDef *hrtc) {
 
 /// @brief enables the argos transmission manager
 /// @param
-void argos_tx_mgr_enable(ArgosTxStrategy strategy) {
+void argos_tx_mgr_enable(ArgosTxStrategy strategy, uint32_t tx_interval_s, uint32_t tx_varience_percent) {
+    s_tx_base_interval_s = tx_interval_s;
+    s_tx_varience_s = tx_interval_s / tx_varience_percent;
+
     // revert to timed tx if aop table older than 1 month
     if ((ARGOS_TX_STRATEGY_PATH_PREDICTOR == strategy)  
         && (nv_aop_data.timestamp_s + (30*24*60*60) < rtc_get_epoch_s())

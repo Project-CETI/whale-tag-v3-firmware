@@ -88,11 +88,13 @@ typedef struct {
 
 typedef struct {
     uint8_t enabled;
-    uint8_t path_prediction_enabled;
+    uint8_t pass_prediction_enabled;
     RecoveryArgoModulation modulation_protocol;
     uint8_t id[8]; // typically 6
     uint8_t address[8];
     uint8_t secret_key[32];
+    uint32_t transmission_interval_s;
+    uint8_t transmission_variance_percentage;
 } ArgosConfig;
 
 typedef struct {
@@ -137,7 +139,21 @@ typedef struct {
     ImuSensorConfig sensor[IMU_SENSOR_COUNT];
 } ImuConfig;
 
+typedef enum {
+    MISSION_STATE_MISSION_START,
+    MISSION_STATE_RECORD_SURFACE,
+    MISSION_STATE_RECORD_FLOATING,
+    MISSION_STATE_RECORD_DIVE,
+    MISSION_STATE_BURN,
+    MISSION_STATE_LOW_POWER_BURN,
+    MISSION_STATE_RETRIEVE,
+    MISSION_STATE_LOW_POWER_RETRIEVE,
+    MISSION_STATE_PREDEPLOYMENT,
+    MISSION_STATE_ERROR
+} MissionState;
+
 typedef struct {
+    MissionState starting_state;
     uint8_t float_detection_enabled;
     struct {
         uint8_t enabled;
@@ -188,7 +204,7 @@ typedef struct {
     struct {
         uint8_t available;
         EcgHardwareConfig configuration;
-        float gain_db;
+        float gain;
     } ecg;
     struct {
         uint8_t available;

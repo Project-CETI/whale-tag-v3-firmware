@@ -47,6 +47,18 @@ static const char * format_str[] = {
     [DATA_FORMAT_TXT] = "txt",
 };
 
+static const char *const MissionStateNames[] = {
+    [MISSION_STATE_MISSION_START] = "MISSION_START",
+    [MISSION_STATE_RECORD_SURFACE] = "RECORD_SURFACE",
+    [MISSION_STATE_RECORD_FLOATING] = "RECORD_FLOATING",
+    [MISSION_STATE_RECORD_DIVE] = "RECORD_DIVE",
+    [MISSION_STATE_BURN] = "BURN",
+    [MISSION_STATE_LOW_POWER_BURN] = "LOW_POWER_BURN",
+    [MISSION_STATE_RETRIEVE] = "RETRIEVE",
+    [MISSION_STATE_LOW_POWER_RETRIEVE] = "LOW_POWER_RETRIEVE",
+    [MISSION_STATE_ERROR] = "ERROR",
+};
+
 static void priv__write_static_hardware_config(void) {
     uint16_t offset = 0;
     char buffer[4096];
@@ -138,11 +150,11 @@ static void priv__write_static_hardware_config(void) {
             "      manufacturer: Analog Devices\n"
             "      model: AD8232\n"
             "    configuration: %s\n"
-            "    gain: { value: %0.2f , units: dB } \n",
+            "    gain: { value: %0.2f , units: V/V } \n",
             (tag_config.hw_config.ecg.configuration == ECG_HW_CONFIG_2_TERMINAL) ? "2 Terminal"
             : (tag_config.hw_config.ecg.configuration == ECG_HW_CONFIG_3_TERMINAL) ? "3 Terminal" 
             : "unknown",
-            tag_config.hw_config.ecg.gain_db
+            tag_config.hw_config.ecg.gain
         );
     }
     
@@ -266,8 +278,14 @@ static void priv__write_static_software_config(void) {
                 "    enabled: true\n"
                 "    id: %s\n"
                 "    address: %s\n"
+                "    strategy: %s\n"
+                "    transmission period: { value: %ld, units: seconds }\n"
+                "    transmission period variance: { value : %d, units: percentage }\n"
                 , id_buffer
                 , address_buffer
+                , (tag_config.argos.pass_prediction_enabled) ? "Satellite Pass Prediction" : "Psuedo-random Timer"
+                , tag_config.argos.transmission_interval_s
+                , tag_config.argos.transmission_variance_percentage
             );
         }
     }
@@ -360,6 +378,11 @@ static void priv__write_static_mission_config(void) {
 
     offset += snprintf((char *)&buffer[offset], sizeof(buffer) - offset, 
         "mission: \n"
+    );
+    
+    offset += snprintf((char *)&buffer[offset], sizeof(buffer) - offset, 
+        "  starting_state: %s\n"
+        , MissionStateNames[tag_config.mission.starting_state]
     );
 
     if (tag_config.hw_config.burnwire.available) {

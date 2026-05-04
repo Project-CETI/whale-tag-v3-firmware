@@ -23,7 +23,7 @@ typedef enum {
 /* PUBLIC FUNCTIONS */
 void argos_tx_mgr_pass_start_alarm_callback(RTC_HandleTypeDef *hrtc);
 void argos_tx_mgr_TIM_IRQ(TIM_HandleTypeDef *htim);
-void argos_tx_mgr_enable(ArgosTxStrategy strategy);
+void argos_tx_mgr_enable(ArgosTxStrategy strategy, uint32_t tx_interval_s, uint32_t tx_varience_percent);
 void argos_tx_mgr_disable(void);
 uint8_t argos_tx_mgr_ready_to_tx(void);
 void argos_tx_mgr_inval_ready_to_tx(void);
