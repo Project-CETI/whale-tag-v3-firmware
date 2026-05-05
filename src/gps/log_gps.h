@@ -17,5 +17,4 @@ void log_gps_task(void);
 int log_gps_buffer_is_half_full(void);
 void log_gps_push_sentence(const GpsSentence *p_sentence);
 
-
 #endif // CETI_LOG_GPS_H__

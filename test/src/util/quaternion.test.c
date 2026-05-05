@@ -5,8 +5,6 @@
 DEFINE_QUATERION_TYPE(float)
 IMPLEMENT_QUATERION_TYPE(float)
 
-
-
 void setUp(void) {
 }
 

@@ -11,10 +11,9 @@
 #include "error.h"
 #include "metadata.h"
 #include "timing.h"
- 
+
 #include <app_filex.h>
 #include <stdio.h>
-
 
 #define MISSION_LOG_CSV_FILENAME "tag_mission.csv"
 #define MISSION_LOG_CSV_HEADER "Timestamp [us], From State, To State, Cause\n"
@@ -67,7 +66,6 @@ int mission_log_init(void) {
     //
     metadata_log_file_creation(MISSION_LOG_CSV_FILENAME, DATA_TYPE_MISSION, DATA_FORMAT_CSV, 0);
 
-
     // check that the file has no contents
     if ((0 == s_mission_log_file.fx_file_current_file_size)) {
         UINT fx_write_result = fx_file_write(&s_mission_log_file, MISSION_LOG_CSV_HEADER, strlen(MISSION_LOG_CSV_HEADER));
@@ -95,8 +93,7 @@ void mission_log_state_transition(MissionState current_state, MissionState next_
     uint16_t transistion_string_length = snprintf(
         transition_string, sizeof(transition_string) - 1,
         "%lld, %s, %s, %s\n",
-        transistion_time_us, MissionStateNames[current_state], MissionStateNames[next_state], MissionTransitionCauseNames[cause]
-    );
+        transistion_time_us, MissionStateNames[current_state], MissionStateNames[next_state], MissionTransitionCauseNames[cause]);
 
     // write to file
     UINT fx_result = fx_file_write(&s_mission_log_file, transition_string, transistion_string_length);

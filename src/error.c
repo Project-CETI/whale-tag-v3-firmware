@@ -22,7 +22,8 @@ extern FX_MEDIA sdio_disk;
 #define ERROR_QUEUE_SIZE (1024 / sizeof(ErrorQueueElement))
 #if ERROR_FILE_FORMAT == FILE_FORMAT_BIN
 #define ERROR_FILE_FILENAME "tag_errors.bin"
-#define ERROR_QUEUE_ELEMENT_HEADER {'C', 'E', 'T', 'I'}
+#define ERROR_QUEUE_ELEMENT_HEADER \
+    { 'C', 'E', 'T', 'I' }
 #else
 #error "Unsupported error file format"
 #endif
@@ -53,7 +54,7 @@ int error_queue_init(void) {
 
     UINT fx_open_result = fx_file_open(&sdio_disk, &s_error_queue_file, ERROR_FILE_FILENAME, FX_OPEN_FOR_WRITE);
     if (FX_SUCCESS != fx_open_result) {
-        return - 1;
+        return -1;
     }
 
     metadata_log_file_creation(ERROR_FILE_FILENAME, DATA_TYPE_ERRORS, DATA_FORMAT_BIN, 0);
@@ -73,8 +74,7 @@ void error_queue_push(CetiStatus error, void *calling_func) {
             .frame_header = ERROR_QUEUE_ELEMENT_HEADER,
             .error = error,
             .timestamp = rtc_get_epoch_us(),
-            .func = calling_func
-        };
+            .func = calling_func};
         s_error_write_position = next_w;
     }
 }
@@ -127,10 +127,10 @@ void error_queue_flush(void) {
 /// @param
 void error_queue_task(void) {
     static size_t r_half = 0;
-    size_t w_half = s_error_write_position / (ERROR_QUEUE_SIZE /2);
+    size_t w_half = s_error_write_position / (ERROR_QUEUE_SIZE / 2);
     if (r_half != w_half) {
         error_queue_flush();
-        r_half = s_error_read_position / (ERROR_QUEUE_SIZE /2);
+        r_half = s_error_read_position / (ERROR_QUEUE_SIZE / 2);
     }
 }
 

@@ -17,7 +17,6 @@
 #include <stdint.h>
 #include <stdio.h>
 
-
 /* External Variables */
 extern FX_MEDIA sdio_disk;
 
@@ -26,7 +25,7 @@ extern FX_MEDIA sdio_disk;
 #define ARGOS_TX_LOG_CSV_VERSION 0
 
 /* Private Variables */
-char *s_argos_tx_log_csv_header = 
+char *s_argos_tx_log_csv_header =
     "# version: 0\n"
     "Timestamp [us]"
     ", Notes"
@@ -36,16 +35,14 @@ char *s_argos_tx_log_csv_header =
 
 static FX_FILE s_file = {};
 
-
 /* Private Functions */
-static void priv__create_csv_file(char * filename) {
+static void priv__create_csv_file(char *filename) {
     /* Create/open file */
     UINT fx_create_result = fx_file_create(&sdio_disk, filename);
     if ((fx_create_result != FX_SUCCESS) && (fx_create_result != FX_ALREADY_CREATED)) {
         error_queue_push(
-            CETI_ERROR(ERR_SUBSYS_LOG_ARGOS, ERR_TYPE_FILEX, fx_create_result), 
-            priv__create_csv_file
-        );
+            CETI_ERROR(ERR_SUBSYS_LOG_ARGOS, ERR_TYPE_FILEX, fx_create_result),
+            priv__create_csv_file);
         return;
     }
 
@@ -67,14 +64,14 @@ static void priv__create_csv_file(char * filename) {
 
 static uint16_t priv__event_to_csv_line(ArgosTxEvent event, uint8_t *buffer, uint16_t capacity) {
     uint8_t offset = 0;
-    //Timestamp [uS]
+    // Timestamp [uS]
     offset += snprintf((char *)&buffer[offset], capacity - offset, "%lld", event.timestamp_us);
-    
+
     //", Notes"
     offset += snprintf((char *)&buffer[offset], capacity - offset, ", ");
 
     //", Type"
-    const char * argos_type_string[] = {
+    const char *argos_type_string[] = {
         [ARGOS_MOD_LDA2] = "LDA2",
         [ARGOS_MOD_VLDA4] = "VLDA2",
         [ARGOS_MOD_LDK] = "LDK",
@@ -87,7 +84,7 @@ static uint16_t priv__event_to_csv_line(ArgosTxEvent event, uint8_t *buffer, uin
 
     offset += snprintf((char *)&buffer[offset], capacity - offset, "\n");
     return offset;
-} 
+}
 
 /* Functions */
 void log_argos_init() {

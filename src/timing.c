@@ -13,22 +13,30 @@ static int s_timing_has_synced = 0;
 
 /* Days from Jan 1 to the first of each month, non-leap year. */
 static const uint16_t k_days_before_month[12] = {
-    0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334,
+    0,
+    31,
+    59,
+    90,
+    120,
+    151,
+    181,
+    212,
+    243,
+    273,
+    304,
+    334,
 };
 
 /* Convert a broken-down UTC date/time to a Unix epoch in seconds.
  * year = full year (e.g. 2026), mon = 1..12, mday = 1..31.
  * Replaces newlib timegm(), which is unavailable in newlib-nano. */
 static uint64_t priv__timegm_utc(int year, int mon, int mday,
-                           int hour, int min, int sec) {
+                                 int hour, int min, int sec) {
     int years_since_1970 = year - 1970;
     /* Leap days from 1970 up to (but not including) this year. */
-    int leaps = ((year - 1) / 4) - ((year - 1) / 100) + ((year - 1) / 400)
-              - (1969 / 4 - 1969 / 100 + 1969 / 400);
+    int leaps = ((year - 1) / 4) - ((year - 1) / 100) + ((year - 1) / 400) - (1969 / 4 - 1969 / 100 + 1969 / 400);
 
-    long days = (long)years_since_1970 * 365 + leaps
-              + k_days_before_month[mon - 1]
-              + (mday - 1);
+    long days = (long)years_since_1970 * 365 + leaps + k_days_before_month[mon - 1] + (mday - 1);
 
     /* Add today's leap day if we're in or past March of a leap year. */
     int is_leap = ((year % 4 == 0) && (year % 100 != 0)) || (year % 400 == 0);
@@ -36,8 +44,7 @@ static uint64_t priv__timegm_utc(int year, int mon, int mday,
         days += 1;
     }
 
-    return (uint64_t)days * 86400 + (uint64_t)hour * 3600
-         + (uint64_t)min * 60 + (uint64_t)sec;
+    return (uint64_t)days * 86400 + (uint64_t)hour * 3600 + (uint64_t)min * 60 + (uint64_t)sec;
 }
 
 volatile uint64_t s_timer_sync_rtc_epoch_us = 0;
@@ -53,20 +60,23 @@ uint64_t rtc_get_epoch_s(void) {
     HAL_RTC_GetTime(&hrtc, &time, RTC_FORMAT_BIN);
     HAL_RTC_GetDate(&hrtc, &date, RTC_FORMAT_BIN);
     return priv__timegm_utc(2000 + date.Year, date.Month, date.Date,
-                        time.Hours, time.Minutes, time.Seconds);
+                            time.Hours, time.Minutes, time.Seconds);
 }
 
 __attribute__((no_instrument_function))
-uint64_t rtc_get_epoch_ms(void) { return rtc_get_epoch_us() / 1000; }
+uint64_t
+rtc_get_epoch_ms(void) { return rtc_get_epoch_us() / 1000; }
 
 __attribute__((no_instrument_function))
-uint64_t rtc_get_epoch_us(void) {
+uint64_t
+rtc_get_epoch_us(void) {
     // use the systemclock for better accuracy
     return s_timer_sync_rtc_epoch_us + (uint64_t)timing_get_time_since_on_us();
 }
 
 __attribute__((no_instrument_function))
-uint64_t timing_get_time_since_on_us(void) {
+uint64_t
+timing_get_time_since_on_us(void) {
     return (uint64_t)uS_htim.Instance->CNT;
 }
 
@@ -83,7 +93,7 @@ static uint8_t priv__dec_to_bcd(uint8_t val) {
 }
 
 void rtc_set_epoch_s(uint64_t epoch) {
-    struct tm *dt = gmtime((time_t*)&epoch);
+    struct tm *dt = gmtime((time_t *)&epoch);
     if (dt == NULL) {
         return;
     }
@@ -163,7 +173,7 @@ static void priv__sync_us_anchor_to_rtc(void) {
     uS_htim.Instance->CNT = 0;
 
     seconds = (uint64_t)priv__timegm_utc(2000 + date.Year, date.Month, date.Date,
-                                     time.Hours, time.Minutes, time.Seconds);
+                                         time.Hours, time.Minutes, time.Seconds);
     subseconds_us = ((uint64_t)1000000 * time.SubSeconds) / (time.SecondFraction + 1);
 
     s_timer_sync_rtc_epoch_us = (seconds * 1000000ULL) + subseconds_us;

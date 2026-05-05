@@ -244,31 +244,31 @@ void satellite_transmit(const char *message, size_t message_len) {
 /// @param capacity 'uint16_t' capacity of destination buffer
 /// @note  it sucks that metaprogramming isn't a thing in C (MSH)
 #define priv__SATELLITE_GET_COMMAND(cmd, dst, length, capacity)                              \
-    do {                                                                                 \
-        if (length == NULL || dst == NULL) {                                             \
-            return 1;                                                                    \
-        }                                                                                \
+    do {                                                                                     \
+        if (length == NULL || dst == NULL) {                                                 \
+            return 1;                                                                        \
+        }                                                                                    \
         priv__satellite_write_with_response("AT+" cmd "=?\r\n", strlen("AT+" cmd "=?\r\n")); \
-        if (!satellite_response_ok) {                                                    \
-            return 2;                                                                    \
-        }                                                                                \
-        if (memcmp("+" cmd "=", satellite_response_buffer, strlen("+" cmd "="))) {       \
-            return 3;                                                                    \
-        }                                                                                \
-        uint8_t *start_ptr = &satellite_response_buffer[strlen("+" cmd "=")];            \
-        uint8_t *end_ptr = memchr(start_ptr, '\r', satellite_response_end_position);     \
-        if (NULL == end_ptr) {                                                           \
-            return 4;                                                                    \
-        }                                                                                \
-        size_t len = end_ptr - start_ptr;                                                \
-        if (len > capacity) {                                                            \
-            return 5;                                                                    \
-        }                                                                                \
-        memcpy(dst, start_ptr, len);                                                     \
-        *length = len;                                                                   \
-        if (len < capacity) {                                                            \
-            dst[len] = 0;                                                                \
-        }                                                                                \
+        if (!satellite_response_ok) {                                                        \
+            return 2;                                                                        \
+        }                                                                                    \
+        if (memcmp("+" cmd "=", satellite_response_buffer, strlen("+" cmd "="))) {           \
+            return 3;                                                                        \
+        }                                                                                    \
+        uint8_t *start_ptr = &satellite_response_buffer[strlen("+" cmd "=")];                \
+        uint8_t *end_ptr = memchr(start_ptr, '\r', satellite_response_end_position);         \
+        if (NULL == end_ptr) {                                                               \
+            return 4;                                                                        \
+        }                                                                                    \
+        size_t len = end_ptr - start_ptr;                                                    \
+        if (len > capacity) {                                                                \
+            return 5;                                                                        \
+        }                                                                                    \
+        memcpy(dst, start_ptr, len);                                                         \
+        *length = len;                                                                       \
+        if (len < capacity) {                                                                \
+            dst[len] = 0;                                                                    \
+        }                                                                                    \
     } while (0)
 
 /// @brief gets AGROS ID from module
@@ -349,13 +349,13 @@ int satellite_get_secret_key(char dst[ARGOS_SECRET_KEY_LENGTH + 1], uint16_t *le
 /// @param length `uint16_t` value length
 /// @note  it sucks that metaprogramming isn't a thing in C (MSH)
 #define priv__SATELLITE_SET_COMMAND(cmd, value_array, length) \
-    do {                                                  \
-        char tx_buffer[128] = "AT+" cmd "=";              \
-        uint16_t len = strlen("AT+" cmd "=");             \
-        memcpy(&tx_buffer[len], value_array, length);     \
-        len += length;                                    \
-        tx_buffer[len++] = '\r';                          \
-        tx_buffer[len++] = '\n';                          \
+    do {                                                      \
+        char tx_buffer[128] = "AT+" cmd "=";                  \
+        uint16_t len = strlen("AT+" cmd "=");                 \
+        memcpy(&tx_buffer[len], value_array, length);         \
+        len += length;                                        \
+        tx_buffer[len++] = '\r';                              \
+        tx_buffer[len++] = '\n';                              \
         priv__satellite_write_until_ok(tx_buffer, len);       \
     } while (0)
 
@@ -416,7 +416,7 @@ void satellite_init(void) {
 }
 
 /// @brief start satellite communication
-/// @param scheme 
+/// @param scheme
 void satellite_start(ArgosConfig config[static 1]) {
     while ((0 != priv__satellite_wait_for_response(10000)) || !satellite_response_ok) {
         satellite_ping();

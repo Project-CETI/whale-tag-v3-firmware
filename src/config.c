@@ -19,6 +19,7 @@ extern uint8_t _tag_config_flash_end;
 extern uint8_t _tag_aop_start;
 extern uint8_t _tag_aop_end;
 
+/* clang-format off */
 __attribute__((section(".tag_config_flash")))
 CetiTagRuntimeConfiguration nv_tag_config = {
     .config_version = 0xdeadbeef,
@@ -114,6 +115,8 @@ CetiTagRuntimeConfiguration nv_tag_config = {
         .pressure.available = PRESSURE_ENABLED,
     }
 };
+/* clang-format on */
+
 
 uint8_t tag_config_valid = 0;
 CetiTagRuntimeConfiguration tag_config = {0};

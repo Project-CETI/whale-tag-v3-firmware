@@ -43,11 +43,11 @@ static BufferWriter s_bw = {
 
 char *log_pressure_csv_header =
     "# version: " STR(PRESSURE_CSV_VERSION) "\n"
-    "Timestamp [us]"
-    ", Notes"
-    ", Pressure [bar]"
-    ", Temperature [C]"
-    "\n";
+                                            "Timestamp [us]"
+                                            ", Notes"
+                                            ", Pressure [bar]"
+                                            ", Temperature [C]"
+                                            "\n";
 
 /// @brief creates a .csv file and a writes pressure csv header to file if file
 /// was newly created
@@ -107,12 +107,11 @@ static uint16_t s_pressure_sample_buffer_read_position = 0;
 /// @brief adds a pressure sample to the sample buffer
 /// @param p_sample pointer to input sample
 /// @note
-__attribute__((no_instrument_function))
-void log_pressure_buffer_sample(const CetiPressureSample *p_sample) {
+__attribute__((no_instrument_function)) void log_pressure_buffer_sample(const CetiPressureSample *p_sample) {
     static uint8_t overflowed = 0;
     uint16_t nv_write_position = s_pressure_sample_buffer_write_position;
     CetiPressureSample *p_buffer = &pressure_sample_buffer[nv_write_position];
-    
+
     /* check if overflow occured */
     nv_write_position = (nv_write_position + 1) % PRESSURE_BUFFER_SIZE;
     if (nv_write_position == s_pressure_sample_buffer_read_position) {
@@ -120,16 +119,16 @@ void log_pressure_buffer_sample(const CetiPressureSample *p_sample) {
         error_queue_push(CETI_ERROR(ERR_SUBSYS_LOG_PRESSURE, ERR_TYPE_DEFAULT, ERR_BUFFER_OVERFLOW), log_pressure_buffer_sample);
     }
     memcpy(p_buffer, p_sample, sizeof(CetiPressureSample));
-    
+
     /* log if overflow resolved */
-    if(overflowed) {
+    if (overflowed) {
         p_buffer->status |= CSV_OVERFLOW_FLAG;
         overflowed = 0;
     }
-    
+
     /* update buffer */
     s_pressure_sample_buffer_write_position = nv_write_position;
-    
+
     /* buffer filling up, tag needs to wake to service */
     if (log_pressure_sample_buffer_is_half_full()) {
         HAL_PWR_DisableSleepOnExit();
@@ -168,10 +167,10 @@ void log_pressure_deinit(void) {
 }
 
 /// @brief returns if the sample buffer is atleast half full.
-/// @param  
+/// @param
 /// @return bool
 int log_pressure_sample_buffer_is_half_full(void) {
     int8_t buffered_samples = ((int8_t)s_pressure_sample_buffer_write_position - (int8_t)s_pressure_sample_buffer_read_position);
-    buffered_samples = (buffered_samples >= 0) ? buffered_samples :  PRESSURE_BUFFER_SIZE + buffered_samples;
-    return (buffered_samples >= PRESSURE_BUFFER_SIZE/2);
+    buffered_samples = (buffered_samples >= 0) ? buffered_samples : PRESSURE_BUFFER_SIZE + buffered_samples;
+    return (buffered_samples >= PRESSURE_BUFFER_SIZE / 2);
 }

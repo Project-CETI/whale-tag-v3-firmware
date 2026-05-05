@@ -34,7 +34,7 @@ typedef enum {
     DATA_FORMAT_TXT,
 } DataFormat;
 
-void metadata_create(char * mission_directory);
-void metadata_log_file_creation(char * filename, DataType data_type, DataFormat format, uint16_t version);
+void metadata_create(char *mission_directory);
+void metadata_log_file_creation(char *filename, DataType data_type, DataFormat format, uint16_t version);
 
 #endif

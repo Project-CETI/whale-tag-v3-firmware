@@ -49,7 +49,7 @@ void acq_pressure_get_latest(CetiPressureSample *p_sample) {
 /***/
 
 uint64_t fake_time_value = 0;
-uint64_t rtc_get_epoch_us(void){
+uint64_t rtc_get_epoch_us(void) {
     return fake_time_value;
 }
 
@@ -169,7 +169,6 @@ void test_high_pressure_disabled(void) {
     tag_config.pressure.enabled = 1;
 }
 
-
 /** Helper: set all fakes to "quiet" (no transitions should fire) */
 static void set_nominal(void) {
     /* pressure between surface (1 bar) and dive (5 bar) thresholds */
@@ -189,13 +188,15 @@ static void assert_transition(MissionState from, MissionState expected_to, Missi
     MissionState next = priv__mission_get_next_state(from, &cause);
     char msg[128];
     snprintf(msg, sizeof(msg), "%s -> got %s (cause %s), expected %s (cause %s)",
-        MissionStateNames[from],
-        MissionStateNames[next],
-        (cause < sizeof(MissionTransitionCauseNames)/sizeof(*MissionTransitionCauseNames) && MissionTransitionCauseNames[cause])
-            ? MissionTransitionCauseNames[cause] : "NONE",
-        MissionStateNames[expected_to],
-        (expected_cause < sizeof(MissionTransitionCauseNames)/sizeof(*MissionTransitionCauseNames) && MissionTransitionCauseNames[expected_cause])
-            ? MissionTransitionCauseNames[expected_cause] : "NONE");
+             MissionStateNames[from],
+             MissionStateNames[next],
+             (cause < sizeof(MissionTransitionCauseNames) / sizeof(*MissionTransitionCauseNames) && MissionTransitionCauseNames[cause])
+                 ? MissionTransitionCauseNames[cause]
+                 : "NONE",
+             MissionStateNames[expected_to],
+             (expected_cause < sizeof(MissionTransitionCauseNames) / sizeof(*MissionTransitionCauseNames) && MissionTransitionCauseNames[expected_cause])
+                 ? MissionTransitionCauseNames[expected_cause]
+                 : "NONE");
     TEST_ASSERT_EQUAL_MESSAGE(expected_to, next, msg);
     TEST_ASSERT_EQUAL_MESSAGE(expected_cause, cause, msg);
 }

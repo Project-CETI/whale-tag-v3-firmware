@@ -35,7 +35,7 @@ static volatile uint32_t s_subscriptions; // bitmask of subscribed sensors
 
 /* sensor specific callbacks */
 #define AUDIO_STREAM_BUFFER_SIZE_BLOCKS (2)
-#define AUDIO_STREAM_BLOCK_SIZE_MAX (STREAM_RINGBUF_SIZE/2)
+#define AUDIO_STREAM_BLOCK_SIZE_MAX (STREAM_RINGBUF_SIZE / 2)
 #define AUDIO_STREAM_BLOCK_SIZE ((AUDIO_STREAM_BLOCK_SIZE_MAX) - ((AUDIO_STREAM_BLOCK_SIZE_MAX) % AUDIO_SAMPLE_SIZE_LSM))
 extern uint8_t g_audio_buffer;
 
@@ -51,7 +51,7 @@ static void priv__stream_battery_push_sample(const CetiBatterySample *p_sample) 
     stream_push_packet(STREAM_SENSOR_BATTERY, p_sample, sizeof(CetiBatterySample));
 }
 
-static void priv__stream_ecg_push_sample(const EcgSample* p_sample) {
+static void priv__stream_ecg_push_sample(const EcgSample *p_sample) {
     stream_push_packet(STREAM_SENSOR_ECG, p_sample, sizeof(EcgSample));
 }
 
@@ -88,7 +88,7 @@ static uint32_t ring_free(void) {
 
 // Write bytes into ring buffer. Caller must ensure enough space.
 static void ring_write(const void *data, uint32_t len) {
-    const  uint8_t *data_bytes = (const uint8_t *)data;
+    const uint8_t *data_bytes = (const uint8_t *)data;
     uint32_t h = s_ring_head;
     for (uint32_t i = 0; i < len; i++) {
         s_ringbuf[h] = data_bytes[i];
@@ -120,8 +120,8 @@ void stream_subscribe(StreamSensorId sensor) {
             stream_subscribe(i + 1);
         }
         return;
-    } 
-    
+    }
+
     // check input range
     if ((sensor < 1) || (sensor > STREAM_SENSOR_COUNT)) {
         return;
@@ -133,7 +133,7 @@ void stream_subscribe(StreamSensorId sensor) {
     }
 
     s_subscriptions |= (1 << sensor);
-    switch(sensor) {
+    switch (sensor) {
         case STREAM_SENSOR_AUDIO:
             acq_audio_register_block_complete_callback(priv__stream_audio_block_complete_callback);
             acq_audio_start(&g_audio_buffer, AUDIO_STREAM_BUFFER_SIZE_BLOCKS, AUDIO_STREAM_BLOCK_SIZE);
@@ -154,7 +154,7 @@ void stream_subscribe(StreamSensorId sensor) {
             gps_wake();
             gps_high_data_rate();
             break;
-            
+
         case STREAM_SENSOR_IMU_ACCEL:
             acq_imu_register_callback(IMU_SENSOR_ACCELEROMETER, priv__stream_accel_push_sample);
             acq_imu_start_sensor(IMU_SENSOR_ACCELEROMETER, 1000 * (uint32_t)tag_config.imu.sensor[IMU_SENSOR_ACCELEROMETER].samplerate_ms);
@@ -164,7 +164,7 @@ void stream_subscribe(StreamSensorId sensor) {
             acq_imu_register_callback(IMU_SENSOR_MAGNETOMETER, priv__stream_mag_push_sample);
             acq_imu_start_sensor(IMU_SENSOR_MAGNETOMETER, 1000 * (uint32_t)tag_config.imu.sensor[IMU_SENSOR_MAGNETOMETER].samplerate_ms);
             break;
-        
+
         case STREAM_SENSOR_IMU_GYRO:
             acq_imu_register_callback(IMU_SENSOR_GYROSCOPE, priv__stream_gyro_push_sample);
             acq_imu_start_sensor(IMU_SENSOR_GYROSCOPE, 1000 * (uint32_t)tag_config.imu.sensor[IMU_SENSOR_GYROSCOPE].samplerate_ms);
@@ -179,7 +179,7 @@ void stream_subscribe(StreamSensorId sensor) {
             acq_ecg_register_sample_callback(priv__stream_ecg_push_sample);
             acq_ecg_start();
             break;
-            
+
         default:
             break;
     }
@@ -192,21 +192,20 @@ void stream_unsubscribe(StreamSensorId sensor) {
             stream_unsubscribe(i + 1);
         }
         return;
-    } 
-    
+    }
+
     // check input range
     if ((sensor < 1) || (sensor > STREAM_SENSOR_COUNT)) {
         return;
     }
 
-
     s_subscriptions &= ~(1u << sensor);
-    switch(sensor) {
+    switch (sensor) {
         case STREAM_SENSOR_AUDIO:
             acq_audio_stop();
             acq_audio_register_block_complete_callback(NULL);
             break;
-            
+
         case STREAM_SENSOR_PRESSURE:
             acq_pressure_stop();
             acq_pressure_register_sample_callback(NULL);
@@ -231,7 +230,7 @@ void stream_unsubscribe(StreamSensorId sensor) {
             acq_imu_stop_sensor(IMU_SENSOR_MAGNETOMETER);
             acq_imu_register_callback(IMU_SENSOR_MAGNETOMETER, NULL);
             break;
-        
+
         case STREAM_SENSOR_IMU_GYRO:
             acq_imu_stop_sensor(IMU_SENSOR_GYROSCOPE);
             acq_imu_register_callback(IMU_SENSOR_GYROSCOPE, NULL);

@@ -1,10 +1,10 @@
 /**
-*   @file      audio/ad7768.c
-*   @brief     Implementation of AD7768-4 Driver.
-*   @project   Project CETI
-*   @copyright Harvard University Wood Lab
-*   @authors   Michael Salino-Hugg
-*****************************************************************************/
+ *   @file      audio/ad7768.c
+ *   @brief     Implementation of AD7768-4 Driver.
+ *   @project   Project CETI
+ *   @copyright Harvard University Wood Lab
+ *   @authors   Michael Salino-Hugg
+ *****************************************************************************/
 
 /******************************************************************************/
 /***************************** Include Files **********************************/
@@ -39,8 +39,7 @@ const uint8_t one_shot_pin_ctrl_mode_sel[3][4] = {
 /*********************
  * Private Functions *
  *********************/
-[[gnu::const]]
-static inline const ad7768_Reg_ChStandby priv__reg_channelStandby_fromRaw(const uint8_t raw) {
+[[gnu::const]] static inline const ad7768_Reg_ChStandby priv__reg_channelStandby_fromRaw(const uint8_t raw) {
     return (ad7768_Reg_ChStandby){
         .ch[0] = _RSHIFT(raw, 0, 1),
         .ch[1] = _RSHIFT(raw, 1, 1),
@@ -49,25 +48,21 @@ static inline const ad7768_Reg_ChStandby priv__reg_channelStandby_fromRaw(const 
     };
 }
 
-[[gnu::const]]
-static inline const uint8_t priv__reg_channelStandby_intoRaw(ad7768_Reg_ChStandby reg) {
+[[gnu::const]] static inline const uint8_t priv__reg_channelStandby_intoRaw(ad7768_Reg_ChStandby reg) {
     return _LSHIFT(reg.ch[0], 0, 1) | _LSHIFT(reg.ch[1], 1, 1) | _LSHIFT(reg.ch[2], 2, 1) | _LSHIFT(reg.ch[3], 3, 1);
 }
 
-[[gnu::const]]
-static inline const ad7768_Reg_ChMode priv__reg_channelMode_fromRaw(const uint8_t raw) {
+[[gnu::const]] static inline const ad7768_Reg_ChMode priv__reg_channelMode_fromRaw(const uint8_t raw) {
     return (ad7768_Reg_ChMode){
         .filter_type = _RSHIFT(raw, 3, 1),
         .dec_rate = _RSHIFT(raw, 0, 3)};
 }
 
-[[gnu::const]]
-static inline const uint8_t priv__reg_channelMode_intoRaw(const ad7768_Reg_ChMode reg) {
+[[gnu::const]] static inline const uint8_t priv__reg_channelMode_intoRaw(const ad7768_Reg_ChMode reg) {
     return _LSHIFT(reg.filter_type, 3, 1) | _LSHIFT(reg.dec_rate, 0, 3);
 }
 
-[[gnu::const]]
-static inline const ad7768_Reg_ChModeSelect priv__reg_channelModeSelect_fromRaw(const uint8_t raw) {
+[[gnu::const]] static inline const ad7768_Reg_ChModeSelect priv__reg_channelModeSelect_fromRaw(const uint8_t raw) {
     return (ad7768_Reg_ChModeSelect){
         .ch = {
             [0] = _RSHIFT(raw, 0, 1),
@@ -76,13 +71,11 @@ static inline const ad7768_Reg_ChModeSelect priv__reg_channelModeSelect_fromRaw(
             [3] = _RSHIFT(raw, 3, 1)}};
 }
 
-[[gnu::const]]
-static inline const uint8_t priv__reg_channelModeSelect_intoRaw(ad7768_Reg_ChModeSelect reg) {
+[[gnu::const]] static inline const uint8_t priv__reg_channelModeSelect_intoRaw(ad7768_Reg_ChModeSelect reg) {
     return _LSHIFT(reg.ch[0], 0, 1) | _LSHIFT(reg.ch[1], 1, 1) | _LSHIFT(reg.ch[2], 2, 1) | _LSHIFT(reg.ch[3], 3, 1) | _LSHIFT(reg.ch[2], 4, 1) | _LSHIFT(reg.ch[3], 5, 1);
 }
 
-[[gnu::const]]
-static inline const ad7768_Reg_PowerMode priv__reg_powerMode_fromRaw(const uint8_t raw) {
+[[gnu::const]] static inline const ad7768_Reg_PowerMode priv__reg_powerMode_fromRaw(const uint8_t raw) {
     return (ad7768_Reg_PowerMode){
         .sleep_mode = _RSHIFT(raw, 7, 1),
         .power_mode = _RSHIFT(raw, 4, 2),
@@ -91,13 +84,11 @@ static inline const ad7768_Reg_PowerMode priv__reg_powerMode_fromRaw(const uint8
     };
 }
 
-[[gnu::const]]
-static inline const uint8_t priv__reg_powerMode_intoRaw(ad7768_Reg_PowerMode reg) {
+[[gnu::const]] static inline const uint8_t priv__reg_powerMode_intoRaw(ad7768_Reg_PowerMode reg) {
     return _LSHIFT(reg.sleep_mode, 7, 1) | _LSHIFT(reg.power_mode, 4, 2) | _LSHIFT(reg.lvds_enable, 3, 1) | _LSHIFT(reg.mclk_div, 0, 2);
 }
 
-[[gnu::const]]
-static inline const ad7768_Reg_GeneralCfg priv__reg_generalCfg_fromRaw(const uint8_t raw) {
+[[gnu::const]] static inline const ad7768_Reg_GeneralCfg priv__reg_generalCfg_fromRaw(const uint8_t raw) {
     return (ad7768_Reg_GeneralCfg){
         .retime_en = _RSHIFT(raw, 5, 1),
         .vcm_pd = _RSHIFT(raw, 4, 1),
@@ -105,13 +96,11 @@ static inline const ad7768_Reg_GeneralCfg priv__reg_generalCfg_fromRaw(const uin
     };
 }
 
-[[gnu::const]]
-static inline const uint8_t priv__reg_generalCfg_intoRaw(ad7768_Reg_GeneralCfg reg) {
+[[gnu::const]] static inline const uint8_t priv__reg_generalCfg_intoRaw(ad7768_Reg_GeneralCfg reg) {
     return _LSHIFT(reg.retime_en, 5, 1) | _LSHIFT(reg.vcm_pd, 4, 1) | _LSHIFT(reg.vcm_vsel, 0, 2);
 }
 
-[[gnu::const]]
-static inline const ad7768_Reg_DataControl priv__reg_dataControl_fromRaw(const uint8_t raw) {
+[[gnu::const]] static inline const ad7768_Reg_DataControl priv__reg_dataControl_fromRaw(const uint8_t raw) {
     return (ad7768_Reg_DataControl){
         .spi_sync = _RSHIFT(raw, 7, 1),
         .single_shot_en = _RSHIFT(raw, 4, 1),
@@ -119,36 +108,30 @@ static inline const ad7768_Reg_DataControl priv__reg_dataControl_fromRaw(const u
     };
 }
 
-[[gnu::const]]
-static inline const uint8_t priv__reg_dataControl_intoRaw(ad7768_Reg_DataControl reg) {
+[[gnu::const]] static inline const uint8_t priv__reg_dataControl_intoRaw(ad7768_Reg_DataControl reg) {
     return _LSHIFT(reg.spi_sync, 7, 1) | _LSHIFT(reg.single_shot_en, 4, 1) | _LSHIFT(reg.spi_reset, 0, 2);
 }
 
-[[gnu::const]]
-static inline const ad7768_Reg_InterfaceCfg priv__reg_interfaceCfg_fromRaw(const uint8_t raw) {
-    return (ad7768_Reg_InterfaceCfg){ 
+[[gnu::const]] static inline const ad7768_Reg_InterfaceCfg priv__reg_interfaceCfg_fromRaw(const uint8_t raw) {
+    return (ad7768_Reg_InterfaceCfg){
         .crc_select = _RSHIFT(raw, 2, 2),
         .dclk_div = _RSHIFT(raw, 0, 2),
     };
 }
 
-[[gnu::const]]
-static inline const uint8_t priv__reg_interfaceCfg_intoRaw(ad7768_Reg_InterfaceCfg reg) {
+[[gnu::const]] static inline const uint8_t priv__reg_interfaceCfg_intoRaw(ad7768_Reg_InterfaceCfg reg) {
     return _LSHIFT(reg.crc_select, 2, 2) | _LSHIFT(reg.dclk_div, 0, 2);
 }
 
-[[gnu::const]]
-static inline const ad7768_Reg_BISTControl priv__reg_bistControl_fromRaw(const uint8_t raw) {
+[[gnu::const]] static inline const ad7768_Reg_BISTControl priv__reg_bistControl_fromRaw(const uint8_t raw) {
     return (ad7768_Reg_BISTControl){.ram_bist_start = _RSHIFT(raw, 0, 1)};
 }
 
-[[gnu::const]]
-static inline const uint8_t priv__reg_bistControl_intoRaw(ad7768_Reg_BISTControl reg) {
+[[gnu::const]] static inline const uint8_t priv__reg_bistControl_intoRaw(ad7768_Reg_BISTControl reg) {
     return _LSHIFT(reg.ram_bist_start, 0, 1);
 }
 
-[[gnu::const]]
-static inline const ad7768_Reg_DeviceStatus priv__reg_deviceStatus_fromRaw(const uint8_t raw) {
+[[gnu::const]] static inline const ad7768_Reg_DeviceStatus priv__reg_deviceStatus_fromRaw(const uint8_t raw) {
     return (ad7768_Reg_DeviceStatus){
         .chip_error = _RSHIFT(raw, 3, 1),
         .no_clock_error = _RSHIFT(raw, 2, 1),

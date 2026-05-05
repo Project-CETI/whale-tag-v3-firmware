@@ -24,7 +24,6 @@ void itm_printf(const char *fmt, ...) {
 }
 #endif
 
-
 extern RTC_HandleTypeDef hrtc;
 extern FX_MEDIA sdio_disk;
 
@@ -46,7 +45,7 @@ void syslog_init(void) {
         Error_Handler();
     }
 
-    UINT fx_open_result = buffer_writer_open(&s_bw, SYSLOG_FILENAME);    
+    UINT fx_open_result = buffer_writer_open(&s_bw, SYSLOG_FILENAME);
     if ((fx_open_result != FX_SUCCESS)) {
         Error_Handler();
     }
@@ -100,7 +99,7 @@ UINT priv__syslog_write(const str identifier[static 1], const char fmt[static 1]
     }
 #endif
 
-    UINT fx_result = buffer_writer_write(&s_bw,  scratch_buffer, (position - scratch_buffer));
+    UINT fx_result = buffer_writer_write(&s_bw, scratch_buffer, (position - scratch_buffer));
     if (fx_result != FX_SUCCESS) {
         Error_Handler();
     }
