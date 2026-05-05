@@ -38,12 +38,12 @@
 #define AD7768_REG_PRECHARGE_BUF_2 0x12
 #define AD7768_REG_POS_REF_BUF 0x13
 #define AD7768_REG_NEG_REF_BUF 0x14
-#define AD7768_REG_CH_OFFSET_1(ch) (0x1E + (ch)*3)
-#define AD7768_REG_CH_OFFSET_2(ch) (0x2A + (ch)*3)
-#define AD7768_REG_CH_GAIN_1(ch) (0x36 + (ch)*3)
-#define AD7768_REG_CH_GAIN_2(ch) (0x42 + (ch)*3)
-#define AD7768_REG_CH_SYNC_OFFSET_1(ch) (0x4E + (ch)*3)
-#define AD7768_REG_CH_SYNC_OFFSET_2(ch) (0x52 + (ch)*3)
+#define AD7768_REG_CH_OFFSET_1(ch) (0x1E + (ch) * 3)
+#define AD7768_REG_CH_OFFSET_2(ch) (0x2A + (ch) * 3)
+#define AD7768_REG_CH_GAIN_1(ch) (0x36 + (ch) * 3)
+#define AD7768_REG_CH_GAIN_2(ch) (0x42 + (ch) * 3)
+#define AD7768_REG_CH_SYNC_OFFSET_1(ch) (0x4E + (ch) * 3)
+#define AD7768_REG_CH_SYNC_OFFSET_2(ch) (0x52 + (ch) * 3)
 #define AD7768_REG_DIAG_METER_RX 0x56
 #define AD7768_REG_DIAG_CTRL 0x57
 #define AD7768_REG_DIAG_MOD_DELAY_CTRL 0x58
@@ -57,25 +57,25 @@
 #define AD7768_READ_CMD(reg) ((uint16_t)((AD7768_SPI_READ(reg) << 8)))
 /* AD7768_REG_CH_MODE_x */
 #define AD7768_CH_MODE_FILTER_TYPE (1 << 3)
-#define AD7768_CH_MODE_DEC_RATE(x) (((x)&0x7) << 0)
+#define AD7768_CH_MODE_DEC_RATE(x) (((x) & 0x7) << 0)
 
 /* AD7768_REG_CH_MODE_SEL */
 #define AD7768_CH_MODE(x) (1 << (x))
 
 /* AD7768_REG_PWR_MODE */
 #define AD7768_PWR_MODE_SLEEP_MODE (1 << 7)
-#define AD7768_PWR_MODE_POWER_MODE(x) (((x)&0x3) << 4)
+#define AD7768_PWR_MODE_POWER_MODE(x) (((x) & 0x3) << 4)
 #define AD7768_PWR_MODE_LVDS_ENABLE (1 << 3)
-#define AD7768_PWR_MODE_MCLK_DIV(x) (((x)&0x3) << 0)
+#define AD7768_PWR_MODE_MCLK_DIV(x) (((x) & 0x3) << 0)
 
 /* AD7768_REG_DATA_CTRL */
 #define AD7768_DATA_CTRL_SPI_SYNC (1 << 7)
 #define AD7768_DATA_CTRL_SINGLE_SHOT_EN (1 << 4)
-#define AD7768_DATA_CTRL_SPI_RESET(x) (((x)&0x3) << 0)
+#define AD7768_DATA_CTRL_SPI_RESET(x) (((x) & 0x3) << 0)
 
 /* AD7768_REG_INTERFACE_CFG */
-#define AD7768_INTERFACE_CFG_CRC_SEL(x) (((x)&0x3) << 2)
-#define AD7768_INTERFACE_CFG_DCLK_DIV(x) (((x)&0x3) << 0)
+#define AD7768_INTERFACE_CFG_CRC_SEL(x) (((x) & 0x3) << 2)
+#define AD7768_INTERFACE_CFG_DCLK_DIV(x) (((x) & 0x3) << 0)
 
 #define AD7768_RESOLUTION 24
 

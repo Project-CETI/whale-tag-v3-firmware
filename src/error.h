@@ -51,10 +51,10 @@ typedef enum {
 } DefaultErrorCode;
 
 #define CETI_STATUS_OK 0
-#define CETI_ERROR(subsystem, error_type, error_code) ((((CetiStatus)(subsystem)&0xFF) << 24) | (((CetiStatus)(error_type)&0xFF) << 16) | (((CetiStatus)(error_code)&0xFFFF)))
+#define CETI_ERROR(subsystem, error_type, error_code) ((((CetiStatus)(subsystem) & 0xFF) << 24) | (((CetiStatus)(error_type) & 0xFF) << 16) | (((CetiStatus)(error_code) & 0xFFFF)))
 #define CETI_ERR_SUBSYSTEM(status) ((status >> 24) & 0xFF)
 #define CETI_ERR_CODE_TYPE(status) ((status >> 16) & 0xFF)
-#define CETI_ERR_CODE(status) ((status)&0xFFFF)
+#define CETI_ERR_CODE(status) ((status) & 0xFFFF)
 
 int error_queue_init(void);
 void error_queue_push(CetiStatus error, void *calling_func);

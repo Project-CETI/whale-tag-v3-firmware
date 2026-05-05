@@ -245,15 +245,16 @@ LINT_DIRS := src test
 LINT_EXCLUDES := 
 LINT_FILES := $(shell find $(LINT_DIRS) -type f \( -iname '*.c' -o -iname '*.h' \) 2> /dev/null)
 LINT_FILES := $(filter-out $(LINT_EXCLUDES),$(LINT_FILES))
+CLANG_FORMAT ?= clang-format
 CLANG_FORMAT_STYLE := --style=file:.github/linters/.clang-format
 
 lint:
 	$(call print0, Checking source formatting)
-	@clang-format $(CLANG_FORMAT_STYLE) --dry-run --Werror $(LINT_FILES)
+	@$(CLANG_FORMAT) $(CLANG_FORMAT_STYLE) --dry-run --Werror $(LINT_FILES)
 
 lint_fix:
 	$(call print0, Fixing source formatting)
-	@clang-format $(CLANG_FORMAT_STYLE) -i $(LINT_FILES)
+	@$(CLANG_FORMAT) $(CLANG_FORMAT_STYLE) -i $(LINT_FILES)
 
 $(DOCKER_IMAGE): Dockerfile packages.txt
 	$(call print0, Building docker image)

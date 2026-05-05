@@ -21,11 +21,11 @@ enum {
     DFU_ALT_COUNT,
 };
 
-#define ADDR_TO_FLASH_BANK(addr) (((((uint32_t)(addr)) - ((uint32_t)&_flash_start)) / FLASH_BANK_SIZE))
-#define ADDR_TO_FLASH_PAGE(addr) (((((uint32_t)(addr)) - ((uint32_t)&_flash_start)) / FLASH_PAGE_SIZE) % (FLASH_PAGE_NB))
-#define ALT_BASE_ADDR(alt) ((DFU_ALT_CONFIG == (alt)) ? ((uint32_t)&_tag_config_flash_start) \
-                            : (DFU_ALT_AOP == (alt))  ? ((uint32_t)&_tag_aop_start)          \
-                                                      : ((uint32_t)&_tag_aop_end))
+#define ADDR_TO_FLASH_BANK(addr) (((((uint32_t)(addr)) - ((uint32_t) & _flash_start)) / FLASH_BANK_SIZE))
+#define ADDR_TO_FLASH_PAGE(addr) (((((uint32_t)(addr)) - ((uint32_t) & _flash_start)) / FLASH_PAGE_SIZE) % (FLASH_PAGE_NB))
+#define ALT_BASE_ADDR(alt) ((DFU_ALT_CONFIG == (alt)) ? ((uint32_t) & _tag_config_flash_start) \
+                            : (DFU_ALT_AOP == (alt))  ? ((uint32_t) & _tag_aop_start)          \
+                                                      : ((uint32_t) & _tag_aop_end))
 
 static uint16_t s_byte_count[DFU_ALT_COUNT] = {0};
 static uint16_t s_current_flash_page[DFU_ALT_COUNT] = {0};
