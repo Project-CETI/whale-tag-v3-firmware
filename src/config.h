@@ -4,7 +4,7 @@
 
 #include <stdint.h>
 
-/// CONFIG VERSION CHANGE LOG 
+/// CONFIG VERSION CHANGE LOG
 /// !!!IMPORTANT!!! update version if any typedefs in this file change
 #define CONFIG_VERSION_ALPHA (0xdeadbeef) // prerelease config version (subject to frequent changes)
 
@@ -47,11 +47,10 @@
 /* GPS CONFIG */
 #define GPS_ENABLED (1)
 
-
 /* IMU CONFIG */
 #define IMU_ENABLED (1)
 #define IMU_ROTATION_SAMPLERATE_mS (50) // 20 Hz
-#define IMU_9DOF_SAMPLERATE_mS (20) // 50 Hz
+#define IMU_9DOF_SAMPLERATE_mS (20)     // 50 Hz
 
 /* PRESSURE CONFIG */
 #define PRESSURE_ENABLED (1)
@@ -126,7 +125,6 @@ typedef enum {
     IMU_SENSOR_COUNT,
 } ImuSensor;
 
-
 typedef struct {
     uint8_t enabled;
     uint16_t samplerate_ms;
@@ -143,7 +141,7 @@ typedef struct {
         uint8_t enabled;
         uint8_t hour;
         uint8_t minute;
-    }time_of_day_release_utc;
+    } time_of_day_release_utc;
     struct {
         uint8_t enabled;
         uint8_t hours;
@@ -157,8 +155,8 @@ typedef struct {
 
 typedef struct {
     uint8_t enabled;
-    float   dive_threshold_bar;
-    float   surface_threshold_bar;
+    float dive_threshold_bar;
+    float surface_threshold_bar;
     uint16_t samplerate_ms;
 } PressureConfig;
 
@@ -202,7 +200,7 @@ typedef struct {
     struct {
         uint8_t available;
     } imu;
-    struct { 
+    struct {
         uint8_t available;
     } pressure;
     struct {
@@ -213,8 +211,8 @@ typedef struct {
 
 typedef struct {
     uint32_t config_version; // used to identify what tag configuration is being used
-    uint32_t hw_version; // used for tracking hardware compatibilty
-    uint32_t fw_version; // used for updating firmware
+    uint32_t hw_version;     // used for tracking hardware compatibilty
+    uint32_t fw_version;     // used for updating firmware
     uint8_t hostname[16];
 
     AudioConfig audio;
@@ -233,8 +231,6 @@ typedef struct {
 
 extern CetiTagRuntimeConfiguration tag_config;
 
-
-
 void aop_update(uint8_t *data, uint16_t data_size);
 
 void config_save(void);
@@ -242,6 +238,6 @@ void config_reload(void);
 int config_init(void);
 
 #include <assert.h>
-_Static_assert(sizeof(CetiTagRuntimeConfiguration) < 8*1024, "!!! Configuration structure exceeds size of allocated config flash region !!!");
+_Static_assert(sizeof(CetiTagRuntimeConfiguration) < 8 * 1024, "!!! Configuration structure exceeds size of allocated config flash region !!!");
 
 #endif // CETI_CONFIG_H

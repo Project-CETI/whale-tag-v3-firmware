@@ -12,7 +12,6 @@
 
 #include "stm32u5xx_hal.h"
 
-
 // defines the section start and end
 extern uint8_t _tag_config_flash_start;
 extern uint8_t _tag_config_flash_end;
@@ -116,7 +115,6 @@ CetiTagRuntimeConfiguration nv_tag_config = {
     }
 };
 /* clang-format on */
-
 
 uint8_t tag_config_valid = 0;
 CetiTagRuntimeConfiguration tag_config = {0};
