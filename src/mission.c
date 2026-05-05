@@ -692,7 +692,6 @@ static void priv__periodic_timer_complete_callback(TIM_HandleTypeDef* tim_baseHa
 static void priv__init_periodic_task_timer(void){
     s_update_periodic_mission_tasks = 0;
 
-
     TIM_ClockConfigTypeDef sClockSourceConfig = {0};
     TIM_MasterConfigTypeDef sMasterConfig = {0};
     
@@ -763,6 +762,10 @@ void mission_init(void) {
         acq_audio_register_block_complete_callback(log_audio_block_complete_callback);
     }
 
+    if (s_enabled_subsystem & EN_ARGOS) {
+        argos_tx_mgr_init();
+    }
+
     /* perform runtime system hardware test to detect available systems */
     if (s_enabled_subsystems & EN_BMS){
         CETI_LOG("Initializing BMS Logging");
@@ -822,7 +825,6 @@ void mission_init(void) {
     }
 
     error_queue_init(); // initialize error queue so we can log when issues occur
-
     mission_battery_init();
 
     if (s_enabled_subsystems & EN_BURN) {

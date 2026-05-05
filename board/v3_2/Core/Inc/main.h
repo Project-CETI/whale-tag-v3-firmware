@@ -158,11 +158,11 @@ void Error_Handler(void);
 #define PRESSURE_TIM_N 3
 #define uS_TIM_N 4
 #define MISSION_TIM_N 5
+#define MISSION_TIM_N 6
 
 #define battery_htim htim2
 #define pressure_htim htim3
 #define uS_htim htim4
-//#define FLASHER_htim htim5
 
 #define GPS_huart huart1
 #define SAT_huart huart2
@@ -194,6 +194,10 @@ void Error_Handler(void);
 #define MISSION_TIM_IRQn EXPAND_AND_CONCAT3(TIM, MISSION_TIM_N, _IRQn)
 #define __HAL_RCC_MISSION_TIM_CLK_ENABLE EXPAND_AND_CONCAT3(__HAL_RCC_TIM, MISSION_TIM_N, _CLK_ENABLE)
 #define __HAL_RCC_MISSION_TIM_CLK_DISABLE EXPAND_AND_CONCAT3(__HAL_RCC_TIM, MISSION_TIM_N, _CLK_DISABLE)
+
+#define ARGOS_TIM_IRQn EXPAND_AND_CONCAT3(TIM, ARGOS_TIM_N, _IRQn)
+#define __HAL_RCC_ARGOS_TIM_CLK_ENABLE EXPAND_AND_CONCAT3(__HAL_RCC_TIM, ARGOS_TIM_N, _CLK_ENABLE)
+#define __HAL_RCC_ARGOS_TIM_CLK_DISABLE EXPAND_AND_CONCAT3(__HAL_RCC_TIM, ARGOS_TIM_N, _CLK_DISABLE)
 
 
 /* USER CODE END Private defines */

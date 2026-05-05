@@ -23,9 +23,11 @@
 #define TX_BASE_INTERVAL_S (90)
 #define TX_VARIENCE_S (TX_BASE_INTERVAL_S / (10))
 
+#define TX_RAND_MAX (0xFFFF)
+#define RAND_PRIME (0x98c3)
+
 /* EXTERNAL DECLARATIONS */
 extern RTC_HandleTypeDef hrtc;
-extern TIM_HandleTypeDef htim2;
 
 /* PUBLIC GLOBAL VARIABLES */
 volatile uint8_t s_argos_tx_ready = 0;
@@ -42,10 +44,9 @@ static uint8_t s_valid_coordinates = 0;
 static float s_latitude = 0.0f;  // (-90.0f to 90.0f)
 static float s_longitude = 0.0f; // (0.0f to 360.0f)
 
-/* FUNCTIONS */
-#define TX_RAND_MAX (0xFFFF)
-#define RAND_PRIME (0x98c3)
+TIM_HandleTypeDef argos_htim;
 
+/* FUNCTIONS */
 /// @brief generates a psudorandom value between 0 and 0xFFFF
 /// @param
 /// @return
@@ -62,6 +63,25 @@ static inline int16_t priv__get_rand_tx_interval_s(void) {
     return TX_BASE_INTERVAL_S - TX_VARIENCE_S + (2 * (int32_t)priv__rand() * TX_VARIENCE_S / TX_RAND_MAX);
 }
 
+/// @brief Argos transmission timer IRQ Handler
+/// @param  
+/// @todo change this in board/{version}/startup_stm32u595xx.s to 
+// avoid naming conflict
+void TIM6_IRQHandler(void) {
+    HAL_TIM_IRQHandler(&argos_htim);
+}
+
+static void priv__timer_msp_deinit(TIM_HandleTypeDef* tim_baseHandle) {
+    __HAL_RCC_ARGOS_TIM_CLK_DISABLE();
+    HAL_NVIC_DisableIRQ(ARGOS_TIM_IRQn);
+}
+
+static void priv__timer_msp_init(TIM_HandleTypeDef* tim_baseHandle) {
+    __HAL_RCC_ARGOS_TIM_CLK_ENABLE();
+    HAL_NVIC_SetPriority(ARGOS_TIM_IRQn, 0, 0);
+    HAL_NVIC_EnableIRQ(ARGOS_TIM_IRQn);
+}
+
 /// @brief timer callback to time duration between consecutive transmissions
 /// @param htim
 void argos_tx_mgr_TIM_IRQ(TIM_HandleTypeDef *htim) {
@@ -74,6 +94,39 @@ void argos_tx_mgr_TIM_IRQ(TIM_HandleTypeDef *htim) {
     }
 }
 
+static int priv__timer_init(void) {
+    TIM_ClockConfigTypeDef sClockSourceConfig = {0};
+    TIM_MasterConfigTypeDef sMasterConfig = {0};
+    
+    HAL_TIM_RegisterCallback(&argos_htim, HAL_TIM_BASE_MSPINIT_CB_ID, priv__timer_msp_init);
+    HAL_TIM_RegisterCallback(&argos_htim, HAL_TIM_BASE_MSPDEINIT_CB_ID, priv__timer_msp_deinit);
+
+    argos_htim.Instance = EXPAND_AND_CONCAT2(TIM, ARGOS_TIM_N);
+    argos_htim.Init.Prescaler = 15999;
+    argos_htim.Init.CounterMode = TIM_COUNTERMODE_UP;
+    argos_htim.Init.Period = 10000;
+    argos_htim.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+    argos_htim.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+    if (HAL_TIM_Base_Init(&argos_htim) != HAL_OK)
+    {
+        return 1;
+    }
+    sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
+    if (HAL_TIM_ConfigClockSource(&argos_htim, &sClockSourceConfig) != HAL_OK)
+    {
+        return 2;
+    }
+    sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
+    sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+    if (HAL_TIMEx_MasterConfigSynchronization(&argos_htim, &sMasterConfig) != HAL_OK)
+    {
+        return 3;
+    }
+
+    HAL_TIM_RegisterCallback(&argos_htim, HAL_TIM_PERIOD_ELAPSED_CB_ID, argos_tx_mgr_TIM_IRQ);
+    return 0;
+}
+ 
 /// @brief enables transmit timer used to time duration between consecutive
 /// transmissions
 /// @param
@@ -81,7 +134,7 @@ static inline void priv__timer_enable(void) {
     if (s_enabled) {
         return; // already enabled
     }
-    HAL_TIM_Base_Start_IT(&htim2);
+    HAL_TIM_Base_Start_IT(&argos_htim);
     s_next_tx_interval_s = priv__get_rand_tx_interval_s();
     s_enabled = 1;
 }
@@ -93,7 +146,7 @@ static inline void priv__timer_disable(void) {
     if (!s_enabled) {
         return;
     }
-    HAL_TIM_Base_Stop_IT(&htim2);
+    HAL_TIM_Base_Stop_IT(&argos_htim);
     s_second_count = 0;
     s_argos_tx_ready = 0;
     s_enabled = 0;
@@ -272,6 +325,11 @@ void argos_tx_mgr_pass_start_alarm_callback(RTC_HandleTypeDef *hrtc) {
 void HAL_RTC_AlarmBEventCallback(RTC_HandleTypeDef *hrtc) {
     priv__timer_disable();                     // stop transmitting
     priv__update_next_satellite_pass_alarms(); // update pass prediction to next pass
+}
+
+/// @brief Initial argos transmission manager
+void argos_tx_mgr_init(void) {
+    priv__timer_init();
 }
 
 /// @brief enables the argos transmission manager
