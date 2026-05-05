@@ -242,7 +242,9 @@ clean: test_clean
 	@$(RM) -f .gitmodules_updated
 
 LINT_DIRS := src test
+LINT_EXCLUDES := 
 LINT_FILES := $(shell find $(LINT_DIRS) -type f \( -iname '*.c' -o -iname '*.h' \) 2> /dev/null)
+LINT_FILES := $(filter-out $(LINT_EXCLUDES),$(LINT_FILES))
 CLANG_FORMAT_STYLE := --style=file:.github/linters/.clang-format
 
 lint:

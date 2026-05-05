@@ -7,7 +7,7 @@ AllowShortCaseLabelsOnASingleLine: true
 IndentCaseLabels: true
 SortIncludes: false
 AlignTrailingComments: true
-AlignArrayOfStructures: Left
+# AlignArrayOfStructures: Left
 PointerAlignment: Right
 BreakBeforeBraces: Attach
 AlignEscapedNewlines: Left
