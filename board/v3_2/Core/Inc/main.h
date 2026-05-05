@@ -158,7 +158,7 @@ void Error_Handler(void);
 #define PRESSURE_TIM_N 3
 #define uS_TIM_N 4
 #define MISSION_TIM_N 5
-#define MISSION_TIM_N 6
+#define ARGOS_TIM_N 6
 
 #define battery_htim htim2
 #define pressure_htim htim3

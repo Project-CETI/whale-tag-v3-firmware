@@ -762,10 +762,6 @@ void mission_init(void) {
         acq_audio_register_block_complete_callback(log_audio_block_complete_callback);
     }
 
-    if (s_enabled_subsystem & EN_ARGOS) {
-        argos_tx_mgr_init();
-    }
-
     /* perform runtime system hardware test to detect available systems */
     if (s_enabled_subsystems & EN_BMS){
         CETI_LOG("Initializing BMS Logging");
@@ -814,6 +810,7 @@ void mission_init(void) {
         CETI_LOG("Initializing ARGOS");
         satellite_start(&tag_config.argos);
         log_argos_init();
+        argos_tx_mgr_init();
     }
 
     if (s_enabled_subsystems & EN_FLASH) {
