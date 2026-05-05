@@ -2,7 +2,11 @@
 name: Test
 
 # Run this workflow every time a new commit pushed to your repository
-on: push
+on: [push, pull_request]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 jobs:
   # Set the job key. The key is displayed as the job name
@@ -11,24 +15,13 @@ jobs:
     name: Test
     runs-on: ubuntu-latest
     steps:
-      # Checks out a copy of your repository on the ubuntu-latest machine
       - name: Checkout Code
         uses: actions/checkout@v4
         with:
-          submodules: true
+          submodules: recursive
 
-      # update submodules
-      - name: Git Submodule Update
-        run: |
-          git submodule update --init --recursive
+      - name: Init unity submodule
+        run: git submodule update --init --checkout --force lib/unity
 
-      - name: Download Dependencies
-        run: |
-          sudo apt-get update
-
-      # Runs the Super-Linter action
-      - name: Compile 
-        run: |
-          make test
-
-          
+      - name: Build and Run Tests 
+        run: make test

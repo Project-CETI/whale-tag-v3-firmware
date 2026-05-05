@@ -93,7 +93,7 @@ C_INCLUDES += -Iboard/$(BOARD)/FileX/Target
 CFLAGS += $(MCU) $(C_DEFS) $(C_INCLUDES) $(COPT) -Wall -fdata-sections -ffunction-sections
 # CFLAGS += -MMD -MP -MF"$(@:%.o=%.d)"
 CFLAGS += -DCFG_TUSB_CONFIG_FILE="\"usb/tusb_config.h\""
-CFLAGS += -funsigned-char
+CFLAGS += -funsigned-char -fshort-enums
 
 # libraries
 LIBS = -lc -lm -lnosys 
