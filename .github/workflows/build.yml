@@ -21,7 +21,7 @@ jobs:
       fail-fast: false
       matrix:
         board: [v3_1_1, v3_2]
-        mode:  [debug, release, bench]
+        mode:  [debug, release]
     steps:
       # Checks out a copy of your repository on the ubuntu-latest machine
       - name: Checkout Code
