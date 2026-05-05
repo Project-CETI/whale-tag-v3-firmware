@@ -1,5 +1,6 @@
 build-essential 
-gcc-arm-none-eabi 
-libnewlib-arm-none-eabi 
-git
 clang-format
+cmake
+gcc-arm-none-eabi 
+git
+libnewlib-arm-none-eabi 
