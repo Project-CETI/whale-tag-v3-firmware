@@ -10,4 +10,6 @@
     },
     "BOARD": "v3_2",
     "MODE": "release",
+
+    "C_Cpp.clang_format_style": "file:.github/linters/.clang-format",
 }
