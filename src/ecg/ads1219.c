@@ -32,7 +32,6 @@ static void priv__ads1219_write_config_register(uint8_t value) {
     HAL_I2C_Mem_Write(&ECG_hi2c, ADS1219_DEV_ADDR, 0x40, 1, &value, 1, 5);
 }
 
-
 static void priv__ads1219_write_cmd(uint8_t cmd) {
     HAL_I2C_Master_Transmit(&ECG_hi2c, ADS1219_DEV_ADDR, &cmd, 1, 5);
 }
@@ -45,11 +44,7 @@ static void priv__ads1219_write_cmd_it(uint8_t *cmd, void (*callback)(I2C_Handle
 }
 
 void ads1219_apply_configuration(const ADS1219_Configuration *configuration) {
-    uint8_t config = _LSHIFT((uint8_t)configuration->vref, 0, 1) 
-        | _LSHIFT((uint8_t)configuration->mode, 1, 1) 
-        | _LSHIFT((uint8_t)configuration->data_rate, 2, 2) 
-        | _LSHIFT((uint8_t)configuration->gain, 4, 1) 
-        | _LSHIFT((uint8_t)configuration->mux, 5, 3);
+    uint8_t config = _LSHIFT((uint8_t)configuration->vref, 0, 1) | _LSHIFT((uint8_t)configuration->mode, 1, 1) | _LSHIFT((uint8_t)configuration->data_rate, 2, 2) | _LSHIFT((uint8_t)configuration->gain, 4, 1) | _LSHIFT((uint8_t)configuration->mux, 5, 3);
     priv__ads1219_write_config_register(config);
 }
 

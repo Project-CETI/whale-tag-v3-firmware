@@ -72,8 +72,10 @@ char *string_desc_arr[] = {
     [STRID_CDC] = "CetiTag CDC",                   // 4: CDC Interface
     [STRID_MSC] = "CetiTag MSC",                   // 5: MSC Interface
     [STRID_VENDOR] = "CetiTag Stream",             // 6: Vendor Stream Interface
-    [STRID_DFU + DFU_ALT_CONFIG] = "@Config Flash/0x083FC000/01*008Kg",   // 7: DFU Alt 1
-    [STRID_DFU + DFU_ALT_AOP] = "@AOP Flash/0x083FCE00/01*008Kg",      // 8: DFU Alt 2
+    [STRID_DFU +
+        DFU_ALT_CONFIG] = "@Config Flash/0x083FC000/01*008Kg", // 7: DFU Alt 1
+    [STRID_DFU +
+        DFU_ALT_AOP] = "@AOP Flash/0x083FCE00/01*008Kg", // 8: DFU Alt 2
 };
 
 //--------------------------------------------------------------------+
@@ -108,25 +110,45 @@ enum {
 
 static uint8_t const desc_ms_os_20[] = {
     // Set header: length, type, windows version, total length
-    U16_TO_U8S_LE(0x000A), U16_TO_U8S_LE(MS_OS_20_SET_HEADER_DESCRIPTOR),
+    U16_TO_U8S_LE(0x000A),
+    U16_TO_U8S_LE(MS_OS_20_SET_HEADER_DESCRIPTOR),
     U32_TO_U8S_LE(0x06030000), // Windows 8.1+ (NTDDI_WINBLUE)
     U16_TO_U8S_LE(MS_OS_20_DESC_LEN),
 
     // Configuration subset header: length, type, config index, reserved, total length
-    U16_TO_U8S_LE(0x0008), U16_TO_U8S_LE(MS_OS_20_SUBSET_HEADER_CONFIGURATION),
-    0, 0,
+    U16_TO_U8S_LE(0x0008),
+    U16_TO_U8S_LE(MS_OS_20_SUBSET_HEADER_CONFIGURATION),
+    0,
+    0,
     U16_TO_U8S_LE(MS_OS_20_DESC_LEN - 0x0A),
 
     //------------- Vendor interface: WinUSB -------------//
     // Function subset header: length, type, first interface, reserved, total length
-    U16_TO_U8S_LE(0x0008), U16_TO_U8S_LE(MS_OS_20_SUBSET_HEADER_FUNCTION),
-    ITF_NUM_VENDOR, 0,
+    U16_TO_U8S_LE(0x0008),
+    U16_TO_U8S_LE(MS_OS_20_SUBSET_HEADER_FUNCTION),
+    ITF_NUM_VENDOR,
+    0,
     U16_TO_U8S_LE(MS_OS_20_FUNC_SUBSET_LEN),
 
     // Compatible ID descriptor
-    U16_TO_U8S_LE(0x0014), U16_TO_U8S_LE(MS_OS_20_FEATURE_COMPATBLE_ID),
-    'W', 'I', 'N', 'U', 'S', 'B', 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    U16_TO_U8S_LE(0x0014),
+    U16_TO_U8S_LE(MS_OS_20_FEATURE_COMPATBLE_ID),
+    'W',
+    'I',
+    'N',
+    'U',
+    'S',
+    'B',
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
 
     // Registry property descriptor: DeviceInterfaceGUIDs
     U16_TO_U8S_LE(0x0084),
@@ -134,27 +156,158 @@ static uint8_t const desc_ms_os_20[] = {
     U16_TO_U8S_LE(0x0007), // REG_MULTI_SZ
     U16_TO_U8S_LE(0x002A), // property name length
     // "DeviceInterfaceGUIDs\0" in UTF-16LE
-    'D', 0, 'e', 0, 'v', 0, 'i', 0, 'c', 0, 'e', 0, 'I', 0, 'n', 0, 't', 0,
-    'e', 0, 'r', 0, 'f', 0, 'a', 0, 'c', 0, 'e', 0, 'G', 0, 'U', 0, 'I', 0,
-    'D', 0, 's', 0, 0, 0,
+    'D',
+    0,
+    'e',
+    0,
+    'v',
+    0,
+    'i',
+    0,
+    'c',
+    0,
+    'e',
+    0,
+    'I',
+    0,
+    'n',
+    0,
+    't',
+    0,
+    'e',
+    0,
+    'r',
+    0,
+    'f',
+    0,
+    'a',
+    0,
+    'c',
+    0,
+    'e',
+    0,
+    'G',
+    0,
+    'U',
+    0,
+    'I',
+    0,
+    'D',
+    0,
+    's',
+    0,
+    0,
+    0,
     U16_TO_U8S_LE(0x0050), // property data length
     // "{CDB3B5AD-293B-4663-AA36-1AAE46463776}\0\0" in UTF-16LE
-    '{', 0, 'C', 0, 'D', 0, 'B', 0, '3', 0, 'B', 0, '5', 0, 'A', 0, 'D', 0,
-    '-', 0, '2', 0, '9', 0, '3', 0, 'B', 0, '-', 0, '4', 0, '6', 0, '6', 0,
-    '3', 0, '-', 0, 'A', 0, 'A', 0, '3', 0, '6', 0, '-', 0, '1', 0, 'A', 0,
-    'A', 0, 'E', 0, '4', 0, '6', 0, '4', 0, '6', 0, '3', 0, '7', 0, '7', 0,
-    '6', 0, '}', 0, 0, 0, 0, 0,
+    '{',
+    0,
+    'C',
+    0,
+    'D',
+    0,
+    'B',
+    0,
+    '3',
+    0,
+    'B',
+    0,
+    '5',
+    0,
+    'A',
+    0,
+    'D',
+    0,
+    '-',
+    0,
+    '2',
+    0,
+    '9',
+    0,
+    '3',
+    0,
+    'B',
+    0,
+    '-',
+    0,
+    '4',
+    0,
+    '6',
+    0,
+    '6',
+    0,
+    '3',
+    0,
+    '-',
+    0,
+    'A',
+    0,
+    'A',
+    0,
+    '3',
+    0,
+    '6',
+    0,
+    '-',
+    0,
+    '1',
+    0,
+    'A',
+    0,
+    'A',
+    0,
+    'E',
+    0,
+    '4',
+    0,
+    '6',
+    0,
+    '4',
+    0,
+    '6',
+    0,
+    '3',
+    0,
+    '7',
+    0,
+    '7',
+    0,
+    '6',
+    0,
+    '}',
+    0,
+    0,
+    0,
+    0,
+    0,
 
     //------------- DFU interface: WinUSB -------------//
     // Function subset header: length, type, first interface, reserved, total length
-    U16_TO_U8S_LE(0x0008), U16_TO_U8S_LE(MS_OS_20_SUBSET_HEADER_FUNCTION),
-    ITF_NUM_DFU, 0,
+    U16_TO_U8S_LE(0x0008),
+    U16_TO_U8S_LE(MS_OS_20_SUBSET_HEADER_FUNCTION),
+    ITF_NUM_DFU,
+    0,
     U16_TO_U8S_LE(MS_OS_20_FUNC_SUBSET_LEN),
 
     // Compatible ID descriptor
-    U16_TO_U8S_LE(0x0014), U16_TO_U8S_LE(MS_OS_20_FEATURE_COMPATBLE_ID),
-    'W', 'I', 'N', 'U', 'S', 'B', 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    U16_TO_U8S_LE(0x0014),
+    U16_TO_U8S_LE(MS_OS_20_FEATURE_COMPATBLE_ID),
+    'W',
+    'I',
+    'N',
+    'U',
+    'S',
+    'B',
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
 
     // Registry property descriptor: DeviceInterfaceGUIDs
     U16_TO_U8S_LE(0x0084),
@@ -162,16 +315,130 @@ static uint8_t const desc_ms_os_20[] = {
     U16_TO_U8S_LE(0x0007), // REG_MULTI_SZ
     U16_TO_U8S_LE(0x002A), // property name length
     // "DeviceInterfaceGUIDs\0" in UTF-16LE
-    'D', 0, 'e', 0, 'v', 0, 'i', 0, 'c', 0, 'e', 0, 'I', 0, 'n', 0, 't', 0,
-    'e', 0, 'r', 0, 'f', 0, 'a', 0, 'c', 0, 'e', 0, 'G', 0, 'U', 0, 'I', 0,
-    'D', 0, 's', 0, 0, 0,
+    'D',
+    0,
+    'e',
+    0,
+    'v',
+    0,
+    'i',
+    0,
+    'c',
+    0,
+    'e',
+    0,
+    'I',
+    0,
+    'n',
+    0,
+    't',
+    0,
+    'e',
+    0,
+    'r',
+    0,
+    'f',
+    0,
+    'a',
+    0,
+    'c',
+    0,
+    'e',
+    0,
+    'G',
+    0,
+    'U',
+    0,
+    'I',
+    0,
+    'D',
+    0,
+    's',
+    0,
+    0,
+    0,
     U16_TO_U8S_LE(0x0050), // property data length
     // "{13EB360B-BC1E-46CB-AC8B-EF3DA47B4062}\0\0" in UTF-16LE
-    '{', 0, '1', 0, '3', 0, 'E', 0, 'B', 0, '3', 0, '6', 0, '0', 0, 'B', 0,
-    '-', 0, 'B', 0, 'C', 0, '1', 0, 'E', 0, '-', 0, '4', 0, '6', 0, 'C', 0,
-    'B', 0, '-', 0, 'A', 0, 'C', 0, '8', 0, 'B', 0, '-', 0, 'E', 0, 'F', 0,
-    '3', 0, 'D', 0, 'A', 0, '4', 0, '7', 0, 'B', 0, '4', 0, '0', 0, '6', 0,
-    '2', 0, '}', 0, 0, 0, 0, 0,
+    '{',
+    0,
+    '1',
+    0,
+    '3',
+    0,
+    'E',
+    0,
+    'B',
+    0,
+    '3',
+    0,
+    '6',
+    0,
+    '0',
+    0,
+    'B',
+    0,
+    '-',
+    0,
+    'B',
+    0,
+    'C',
+    0,
+    '1',
+    0,
+    'E',
+    0,
+    '-',
+    0,
+    '4',
+    0,
+    '6',
+    0,
+    'C',
+    0,
+    'B',
+    0,
+    '-',
+    0,
+    'A',
+    0,
+    'C',
+    0,
+    '8',
+    0,
+    'B',
+    0,
+    '-',
+    0,
+    'E',
+    0,
+    'F',
+    0,
+    '3',
+    0,
+    'D',
+    0,
+    'A',
+    0,
+    '4',
+    0,
+    '7',
+    0,
+    'B',
+    0,
+    '4',
+    0,
+    '0',
+    0,
+    '6',
+    0,
+    '2',
+    0,
+    '}',
+    0,
+    0,
+    0,
+    0,
+    0,
 };
 
 _Static_assert(sizeof(desc_ms_os_20) == MS_OS_20_DESC_LEN, "MS OS 2.0 descriptor length mismatch");
@@ -190,7 +457,8 @@ uint8_t const *tud_descriptor_bos_cb(void) {
 
 // Handle MS OS 2.0 vendor request from host
 bool tud_vendor_control_xfer_cb(uint8_t rhport, uint8_t stage, tusb_control_request_t const *request) {
-    if (stage != CONTROL_STAGE_SETUP) return true;
+    if (stage != CONTROL_STAGE_SETUP)
+        return true;
 
     if (request->bmRequestType_bit.type == TUSB_REQ_TYPE_VENDOR &&
         request->bRequest == VENDOR_REQUEST_MICROSOFT &&
@@ -227,8 +495,7 @@ tusb_desc_device_t const desc_device = {
     .iProduct = 0x02,
     .iSerialNumber = 0x03,
 
-    .bNumConfigurations = 0x01
-};
+    .bNumConfigurations = 0x01};
 
 // Invoked when received GET DEVICE DESCRIPTOR
 // Application return pointer to descriptor
@@ -246,9 +513,9 @@ uint8_t const *tud_descriptor_device_cb(void) {
 
 // DfuSe variant of TUD_DFU_DESCRIPTOR: identical but sets bcdDFUVersion to 0x011A instead of 0x0101
 #define TUD_DFU_DFUSE_DESCRIPTOR(_itfnum, _alt_count, _stridx, _attr, _timeout, _xfer_size) \
-  TU_XSTRCAT(_TUD_DFU_ALT_,_alt_count)(_itfnum, 0, _stridx), \
-  /* Function */ \
-  9, DFU_DESC_FUNCTIONAL, _attr, U16_TO_U8S_LE(_timeout), U16_TO_U8S_LE(_xfer_size), U16_TO_U8S_LE(0x011A)
+    TU_XSTRCAT(_TUD_DFU_ALT_, _alt_count)                                                   \
+    (_itfnum, 0, _stridx), /* Function */                                                   \
+        9, DFU_DESC_FUNCTIONAL, _attr, U16_TO_U8S_LE(_timeout), U16_TO_U8S_LE(_xfer_size), U16_TO_U8S_LE(0x011A)
 
 #if CFG_TUSB_MCU == OPT_MCU_LPC175X_6X || \
     CFG_TUSB_MCU == OPT_MCU_LPC177X_8X || CFG_TUSB_MCU == OPT_MCU_LPC40XX
@@ -262,7 +529,7 @@ uint8_t const *tud_descriptor_device_cb(void) {
 #define EPNUM_MSC_IN 0x85
 
 #define EPNUM_VENDOR_OUT 0x06
-#define EPNUM_VENDOR_IN  0x86
+#define EPNUM_VENDOR_IN 0x86
 
 #elif CFG_TUSB_MCU == OPT_MCU_CXD56
 // CXD56 USB driver has fixed endpoint type (bulk/interrupt/iso) and direction
@@ -276,7 +543,7 @@ uint8_t const *tud_descriptor_device_cb(void) {
 #define EPNUM_MSC_IN 0x84
 
 #define EPNUM_VENDOR_OUT 0x06
-#define EPNUM_VENDOR_IN  0x87
+#define EPNUM_VENDOR_IN 0x87
 
 #elif defined(TUD_ENDPOINT_ONE_DIRECTION_ONLY)
 // MCUs that don't support a same endpoint number with different direction IN
@@ -290,7 +557,7 @@ uint8_t const *tud_descriptor_device_cb(void) {
 #define EPNUM_MSC_IN 0x85
 
 #define EPNUM_VENDOR_OUT 0x06
-#define EPNUM_VENDOR_IN  0x87
+#define EPNUM_VENDOR_IN 0x87
 
 #else
 #define EPNUM_CDC_NOTIF 0x81
@@ -301,7 +568,7 @@ uint8_t const *tud_descriptor_device_cb(void) {
 #define EPNUM_MSC_IN 0x83
 
 #define EPNUM_VENDOR_OUT 0x04
-#define EPNUM_VENDOR_IN  0x84
+#define EPNUM_VENDOR_IN 0x84
 #endif
 
 uint8_t const desc_fs_configuration[] = {

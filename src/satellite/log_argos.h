@@ -12,9 +12,9 @@
 
 typedef struct {
     uint64_t timestamp_us;
-    uint8_t  status;
+    uint8_t status;
     RecoveryArgoModulation tx_type;
-    uint8_t message[2*24 + 1];
+    uint8_t message[2 * 24 + 1];
 } ArgosTxEvent;
 
 void log_argos_init(void);

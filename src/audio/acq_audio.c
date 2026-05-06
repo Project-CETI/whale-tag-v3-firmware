@@ -65,11 +65,10 @@ static DMA_NodeTypeDef s_audio_dma_nodes[32];
 static uint16_t s_audio_dma_node_count = 0;
 static SAI_HandleTypeDef s_audio_hsai;
 
-
 static uint8_t s_audio_enabled = 0;
 static uint8_t s_audio_running = 0;
 
-static void (* s_block_complete_callback)(uint16_t block_index) = NULL;
+static void (*s_block_complete_callback)(uint16_t block_index) = NULL;
 
 #if AUDIO_ADC_PART_NUMBER == ADC_AD7768
 static ad7768_dev audio_adc = {
@@ -134,10 +133,10 @@ HAL_StatusTypeDef acq_audio_sai_init(const AudioConfig p_config[static 1]) {
     s_audio_hsai.SlotInit.SlotSize = SAI_SLOTSIZE_DATASIZE;
     s_audio_hsai.SlotInit.SlotNumber = 16;
 
-    uint16_t sai_channel_mask = (16 == p_config->bitdepth)? (0b0110) : (0x1110);  
+    uint16_t sai_channel_mask = (16 == p_config->bitdepth) ? (0b0110) : (0x1110);
     uint16_t sai_slot_mask = 0;
-    for(int i_ch = 0; i_ch < 4; i_ch++) {
-        sai_slot_mask |= ((p_config->channel_enabled[i_ch] * sai_channel_mask) << (i_ch*4));
+    for (int i_ch = 0; i_ch < 4; i_ch++) {
+        sai_slot_mask |= ((p_config->channel_enabled[i_ch] * sai_channel_mask) << (i_ch * 4));
     }
     s_audio_hsai.SlotInit.SlotActive = sai_slot_mask;
     return HAL_SAI_Init(&s_audio_hsai);
@@ -276,29 +275,28 @@ int acq_audio_init(const AudioConfig p_config[static 1]) {
     }
 
     for (int ch_index = 0; ch_index < 4; ch_index++) {
-        if(p_config->channel_enabled[ch_index]) {
-                audio_adc.channel_standby.ch[ch_index] = AD7768_ENABLED;
-                audio_adc.channel_mode_select.ch[ch_index] = AD7768_MODE_B;
+        if (p_config->channel_enabled[ch_index]) {
+            audio_adc.channel_standby.ch[ch_index] = AD7768_ENABLED;
+            audio_adc.channel_mode_select.ch[ch_index] = AD7768_MODE_B;
         } else {
-                audio_adc.channel_standby.ch[ch_index] = AD7768_STANDBY;
-                audio_adc.channel_mode_select.ch[ch_index] = AD7768_MODE_A;
+            audio_adc.channel_standby.ch[ch_index] = AD7768_STANDBY;
+            audio_adc.channel_mode_select.ch[ch_index] = AD7768_MODE_A;
         }
     }
 
-
     if ((96000 == p_config->samplerate_sps) && (AUDIO_PRIORITIZE_POWER == p_config->priority)) {
         audio_adc.power_mode = (ad7768_Reg_PowerMode){
-                .sleep_mode = AD7768_ACTIVE,
-                .power_mode = AD7768_MEDIAN,
-                .lvds_enable = false,
-                .mclk_div = AD7768_MCLK_DIV_8,    
+            .sleep_mode = AD7768_ACTIVE,
+            .power_mode = AD7768_MEDIAN,
+            .lvds_enable = false,
+            .mclk_div = AD7768_MCLK_DIV_8,
         };
     } else {
         audio_adc.power_mode = (ad7768_Reg_PowerMode){
-                .sleep_mode = AD7768_ACTIVE,
-                .power_mode = AD7768_FAST,
-                .lvds_enable = false,
-                .mclk_div = AD7768_MCLK_DIV_4,    
+            .sleep_mode = AD7768_ACTIVE,
+            .power_mode = AD7768_FAST,
+            .lvds_enable = false,
+            .mclk_div = AD7768_MCLK_DIV_4,
         };
     }
 
@@ -356,21 +354,17 @@ void acq_audio_stop(void) {
 }
 
 void acq_audio_deinit(void) {
-        // ad7768_Reg_PowerMode sleep_mode = {
-        //         .sleep_mode = AD7768_SLEEP,
-        //         .power_mode = AD7768_ECO,
-        //         .lvds_enable = 0,
-        //         .mclk_div = AD7768_MCLK_DIV_32,
-        // };
-        // int ret = ad7768_spi_write(&audio_adc, AD7768_REG_PWR_MODE, priv__reg_powerMode_intoRaw(&sleep_mode));
-        [[maybe_unused]] int ret;
-        ret = ad7768_spi_write(&audio_adc, AD7768_REG_PWR_MODE, 0x80);
+    // ad7768_Reg_PowerMode sleep_mode = {
+    //         .sleep_mode = AD7768_SLEEP,
+    //         .power_mode = AD7768_ECO,
+    //         .lvds_enable = 0,
+    //         .mclk_div = AD7768_MCLK_DIV_32,
+    // };
+    // int ret = ad7768_spi_write(&audio_adc, AD7768_REG_PWR_MODE, priv__reg_powerMode_intoRaw(&sleep_mode));
+    [[maybe_unused]] int ret;
+    ret = ad7768_spi_write(&audio_adc, AD7768_REG_PWR_MODE, 0x80);
 }
-
-
 
 void acq_audio_register_block_complete_callback(void (*callback)(uint16_t)) {
-        s_block_complete_callback = callback;
+    s_block_complete_callback = callback;
 }
-
-

@@ -15,12 +15,12 @@
 // Possible values for HW_VERSION, defined in makefile
 
 #define HW_VERSION_NUCLEO_DEV 0
-// Nucleo based dev setup to verify chip family 
+// Nucleo based dev setup to verify chip family
 
 #define HW_VERSION_3_1_0 1
 // Inital spun v3 board
 
-#define HW_VERSION_3_1_1 2 
+#define HW_VERSION_3_1_1 2
 // 3.1.0 with 16 MHz HSE XTal
 
 #define HW_VERSION_3_2_0 3
@@ -60,6 +60,6 @@
 // Hardware Configuration
 
 #if HW_VERSION == HW_VERSION_NUCLEO_DEV | HW_VERSION == HW_VERSION_3_1_0
-    #error Selected hardware version is no longer supported
+#error Selected hardware version is no longer supported
 #endif
 #endif // CETI_WHALE_TAG_VERSIONING_H

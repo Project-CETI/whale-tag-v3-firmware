@@ -58,18 +58,15 @@ static sh2_Hal_t bno08x = {
 /*******************************************************************************
  * SPI HW Control Methods
  */
-__attribute__((no_instrument_function))
-static void csn(GPIO_PinState state) {
+__attribute__((no_instrument_function)) static void csn(GPIO_PinState state) {
     HAL_GPIO_WritePin(IMU_NCS_GPIO_Output_GPIO_Port, IMU_NCS_GPIO_Output_Pin, state);
 }
 
-__attribute__((no_instrument_function))
-static void ps0_waken(GPIO_PinState state) {
+__attribute__((no_instrument_function)) static void ps0_waken(GPIO_PinState state) {
     HAL_GPIO_WritePin(IMU_PS0_GPIO_Output_GPIO_Port, IMU_PS0_GPIO_Output_Pin, state);
 }
 
-__attribute__((no_instrument_function))
-static void rstn(GPIO_PinState state) {
+__attribute__((no_instrument_function)) static void rstn(GPIO_PinState state) {
     HAL_GPIO_WritePin(IMU_NRESET_GPIO_Output_GPIO_Port, IMU_NRESET_GPIO_Output_Pin, state);
 }
 
@@ -77,17 +74,15 @@ static void rstn(GPIO_PinState state) {
  * SPI Interrupt Callback Methods
  */
 
-[[gnu::no_instrument_function]]
-static void acq_imu_start_spi_transfer(void) {
+[[gnu::no_instrument_function]] static void acq_imu_start_spi_transfer(void) {
     if ((s_spi_state != SPI_IDLE) || (s_rx_buf_len != 0)) {
         return; // spi is busy
     }
 
     // Check NINT pin directly — edge-triggered EXTI misses assertions
     // when NINT is already low (multiple packets queued by BNO08x)
-    if (!s_rx_ready
-        && (HAL_GPIO_ReadPin(IMU_NINT_GPIO_EXTI10_GPIO_Port,
-                             IMU_NINT_GPIO_EXTI10_Pin) == GPIO_PIN_RESET)) {
+    if (!s_rx_ready && (HAL_GPIO_ReadPin(IMU_NINT_GPIO_EXTI10_GPIO_Port,
+                                         IMU_NINT_GPIO_EXTI10_Pin) == GPIO_PIN_RESET)) {
         s_rx_ready = 1;
     }
 
@@ -107,8 +102,7 @@ static void acq_imu_start_spi_transfer(void) {
     }
 }
 
-__attribute__((no_instrument_function))
-void acq_imu_spi_complete_callback(void) {
+__attribute__((no_instrument_function)) void acq_imu_spi_complete_callback(void) {
     // Get length of payload avaiable
     uint16_t rxLen = ((uint16_t)(rxBuf[1] & ~0x80) << 8) | (uint16_t)rxBuf[0];
 
@@ -151,8 +145,7 @@ void acq_imu_spi_complete_callback(void) {
     HAL_PWR_DisableSleepOnExit();
 }
 
-__attribute__((no_instrument_function))
-void acq_imu_EXTI_Callback(void) {
+__attribute__((no_instrument_function)) void acq_imu_EXTI_Callback(void) {
     s_rx_timestamp_us = timing_get_time_since_on_us();
     inReset = 0;
     s_rx_ready = 1;
@@ -166,13 +159,11 @@ void acq_imu_EXTI_Callback(void) {
     }
 }
 
-__attribute__((no_instrument_function))
-void HAL_SPI_TxRxCpltCallback(SPI_HandleTypeDef *hspi) {
+__attribute__((no_instrument_function)) void HAL_SPI_TxRxCpltCallback(SPI_HandleTypeDef *hspi) {
     acq_imu_spi_complete_callback();
 }
 
-__attribute__((no_instrument_function))
-void HAL_SPI_RxCpltCallback(SPI_HandleTypeDef *hspi) {
+__attribute__((no_instrument_function)) void HAL_SPI_RxCpltCallback(SPI_HandleTypeDef *hspi) {
     acq_imu_spi_complete_callback();
 }
 
@@ -204,10 +195,9 @@ static uint64_t s_epoch_diff_us = 0;
 /// @return timestamp in microseconds
 /// @note must be able to call inside of interrupt
 /// @note since the library expects uint32_t for us time keeping and then
-/// internally tracks the number of rollovers, the timer has an additional 
-/// timestamp must be captured and added to the 
-__attribute__((no_instrument_function))
-static uint32_t acq_imu_get_time_us(sh2_Hal_t *self) {
+/// internally tracks the number of rollovers, the timer has an additional
+/// timestamp must be captured and added to the
+__attribute__((no_instrument_function)) static uint32_t acq_imu_get_time_us(sh2_Hal_t *self) {
     if (!s_epoch_set) {
         uint64_t ts = (uint64_t)timing_get_time_since_on_us();
         s_epoch_diff_us = rtc_get_epoch_us() - ts;
@@ -215,7 +205,6 @@ static uint32_t acq_imu_get_time_us(sh2_Hal_t *self) {
         return ts;
     }
     return timing_get_time_since_on_us();
-    
 }
 
 /// @brief initializes imu hardware and opens communication with spi bus
@@ -226,7 +215,6 @@ static int acq_imu_spi_open(sh2_Hal_t *self) {
         return SH2_ERR; // can't open another instance
     }
     s_spi_is_open = 1;
-
 
     // hold in reset
     rstn(GPIO_PIN_RESET);
@@ -365,7 +353,6 @@ sh2_SensorValue_t s_acq_imu_sensor_value_buffer[ACQ_IMU_SENSOR_BUFFER_LENGTH];
 static volatile size_t s_acq_imu_sensor_write_position = 0;
 static volatile size_t s_acq_imu_sensor_read_position = 0;
 
-
 static struct {
     int sensor_id;
     sh2_SensorConfig_t config;
@@ -376,7 +363,7 @@ static struct {
     [IMU_SENSOR_ROTATION] = {SH2_ROTATION_VECTOR, {.reportInterval_us = 50000}},
 };
 
-static ImuCallback s_callback[] ={
+static ImuCallback s_callback[] = {
     [IMU_SENSOR_ACCELEROMETER] = NULL,
     [IMU_SENSOR_GYROSCOPE] = NULL,
     [IMU_SENSOR_MAGNETOMETER] = NULL,
@@ -388,10 +375,10 @@ sh2_SensorValue_t s_accel_sample;
 sh2_SensorValue_t s_gyro_sample;
 sh2_SensorValue_t s_mag_sample;
 
-/// @brief callback callled by sh2 library when an imu event is received on 
-/// the corresponding spi bus. 
-/// @param cookie 
-/// @param pEvent 
+/// @brief callback callled by sh2 library when an imu event is received on
+/// the corresponding spi bus.
+/// @param cookie
+/// @param pEvent
 void acq_imu_sensor_callback(void *cookie, sh2_SensorEvent_t *pEvent) {
     [[maybe_unused]] int status;
 
@@ -412,7 +399,7 @@ void acq_imu_sensor_callback(void *cookie, sh2_SensorEvent_t *pEvent) {
                 s_callback[IMU_SENSOR_GYROSCOPE](&s_gyro_sample);
             }
             break;
-        
+
         case SH2_MAGNETIC_FIELD_CALIBRATED:
             status = sh2_decodeSensorEvent(&s_mag_sample, pEvent);
             if (NULL != s_callback[IMU_SENSOR_MAGNETOMETER]) {
@@ -433,8 +420,8 @@ void acq_imu_sensor_callback(void *cookie, sh2_SensorEvent_t *pEvent) {
 }
 
 /// @brief initializes spi hardware associated with imu
-/// @param  
-static void priv__acq_imu_init_spi(void){
+/// @param
+static void priv__acq_imu_init_spi(void) {
     SPI_AutonomousModeConfTypeDef HAL_SPI_AutonomousMode_Cfg_Struct = {0};
 
     hspi1.Instance = SPI1;
@@ -459,15 +446,13 @@ static void priv__acq_imu_init_spi(void){
     hspi1.Init.IOSwap = SPI_IO_SWAP_DISABLE;
     hspi1.Init.ReadyMasterManagement = SPI_RDY_MASTER_MANAGEMENT_INTERNALLY;
     hspi1.Init.ReadyPolarity = SPI_RDY_POLARITY_HIGH;
-    if (HAL_SPI_Init(&hspi1) != HAL_OK)
-    {
-        //Error_Handler();
+    if (HAL_SPI_Init(&hspi1) != HAL_OK) {
+        // Error_Handler();
     }
     HAL_SPI_AutonomousMode_Cfg_Struct.TriggerState = SPI_AUTO_MODE_DISABLE;
     HAL_SPI_AutonomousMode_Cfg_Struct.TriggerSelection = SPI_GRP1_GPDMA_CH0_TCF_TRG;
     HAL_SPI_AutonomousMode_Cfg_Struct.TriggerPolarity = SPI_TRIG_POLARITY_RISING;
-    if (HAL_SPIEx_SetConfigAutonomousMode(&hspi1, &HAL_SPI_AutonomousMode_Cfg_Struct) != HAL_OK)
-    {
+    if (HAL_SPIEx_SetConfigAutonomousMode(&hspi1, &HAL_SPI_AutonomousMode_Cfg_Struct) != HAL_OK) {
         // Error_Handler();
     }
 }
@@ -475,7 +460,7 @@ static void priv__acq_imu_init_spi(void){
 /******BLOCKING MODE TESTS*************************************************************************/
 
 /// @brief initialize imu hardware
-/// @param  
+/// @param
 void acq_imu_init(void) {
     acq_imu_disable_interrupts();
     __HAL_RCC_SPI1_CLK_ENABLE();
@@ -488,7 +473,7 @@ void acq_imu_init(void) {
     // get product id to verify sensor
 
     acq_imu_enable_interrupts();
-//    HAL_Delay(20);
+    //    HAL_Delay(20);
 
     // Configure IMU orientation to tag frame
 }
@@ -496,27 +481,25 @@ void acq_imu_init(void) {
 /// @brief start data capture of specific imu sensor
 /// @param sensor sensor to start
 /// @param time_interval_us time interval between consecutive sensors
-/// @return 
+/// @return
 int acq_imu_start_sensor(ImuSensor sensor, uint32_t time_interval_us) {
     s_sensor_config[sensor].config.reportInterval_us = time_interval_us;
     s_sensor_config[sensor].config.batchInterval_us = 50000; // grab reports every second
     return sh2_setSensorConfig(s_sensor_config[sensor].sensor_id, &s_sensor_config[sensor].config);
-
 }
 
-/// @brief stop acquisition of specific imu sensor data 
+/// @brief stop acquisition of specific imu sensor data
 /// @param sensor sensor to stop
-/// @return 
+/// @return
 int acq_imu_stop_sensor(ImuSensor sensor) {
     return acq_imu_start_sensor(sensor, 0);
 }
 
-
 /// @brief stop acquisition of all imu sensor data
-/// @param  
+/// @param
 void acq_imu_stop_all(void) {
     for (int i = 0; i < IMU_SENSOR_COUNT; i++) {
-        s_sensor_config[i].config.reportInterval_us  = 0;
+        s_sensor_config[i].config.reportInterval_us = 0;
         int status = sh2_setSensorConfig(s_sensor_config[i].sensor_id, &s_sensor_config[i].config);
         if (status != 0) {
             // ToDo: report error
@@ -525,14 +508,14 @@ void acq_imu_stop_all(void) {
 }
 
 /// @brief stops imu data acquisition and deinitalizes imu hardware
-/// @param  
+/// @param
 void acq_imu_deinit(void) {
     acq_imu_stop_all();
-    //ToDo: Deinitialize hardware
+    // ToDo: Deinitialize hardware
 }
 
 /// @brief imu acquisition task
-/// @param 
+/// @param
 /// @note call periodically in main loop
 void acq_imu_task(void) {
     // process events
@@ -547,25 +530,25 @@ void acq_imu_register_callback(ImuSensor sensor_kind, ImuCallback callback) {
 }
 
 /// @brief Returns latest rotation estimation
-/// @param dst 
-void acq_imu_get_rotation(sh2_SensorValue_t * dst) {
+/// @param dst
+void acq_imu_get_rotation(sh2_SensorValue_t *dst) {
     *dst = s_quat_sample;
 }
 
 /// @brief Returns latest accelerometer sample
-/// @param dst 
-void acq_imu_get_accelerometer(sh2_SensorValue_t * dst) {
+/// @param dst
+void acq_imu_get_accelerometer(sh2_SensorValue_t *dst) {
     *dst = s_accel_sample;
 }
 
 /// @brief Returns latest gyroscope sample
-/// @param dst 
-void acq_imu_get_gyroscope(sh2_SensorValue_t * dst) {
+/// @param dst
+void acq_imu_get_gyroscope(sh2_SensorValue_t *dst) {
     *dst = s_gyro_sample;
 }
 
 /// @brief Returns latest magnetometer sample
-/// @param dst 
-void acq_imu_get_magnetometer(sh2_SensorValue_t * dst) {
+/// @param dst
+void acq_imu_get_magnetometer(sh2_SensorValue_t *dst) {
     *dst = s_mag_sample;
 }

@@ -21,7 +21,6 @@
 #define CMDLINE_MAX 101
 #define BOOTLOADER_REQUEST_MAGIC 0xB00710ADUL
 
-
 extern I2C_HandleTypeDef hi2c1;
 extern I2C_HandleTypeDef hi2c2;
 extern I2C_HandleTypeDef hi2c3;
@@ -69,12 +68,12 @@ static const CdcCommand cdc_options[] = {
     {.key = "shutdown", .description = "powerdown tag", .action = priv__cmd_shutdown},
     {.key = "update", .description = "reboot into DFU system bootloader", .action = priv__cmd_update},
     {.key = "vhf_pinger", .description = "enable/disabled VHF pinger", .action = priv__cmd_vhf_pinger},
-    
+
     // i2c passthrough
     {.key = "i2cdetect", .description = "list devices on specified i2c bus", .action = priv__cmd_i2cdetect},
     {.key = "i2cget", .description = "i2cget [b|w] <bus> <device> [register] [count]", .action = priv__cmd_i2cget},
     {.key = "i2cset", .description = "i2cset [b|w] <bus> <device> <register> <value> [value...]", .action = priv__cmd_i2cset},
-    // 
+    //
 };
 
 #define NUM_COMMANDS (sizeof(cdc_options) / sizeof(cdc_options[0]))
@@ -85,9 +84,9 @@ static const CdcCommand cdc_options[] = {
 static void priv__cmd_audio_negative(int argc, const char *const *argv) {
     if (argc < 2) {
         return;
-    }    
+    }
 
-    switch(argv[1][0]) {
+    switch (argv[1][0]) {
         case '0':
             HAL_GPIO_WritePin(Audio_VN_NEN_GPIO_Output_GPIO_Port, Audio_VN_NEN_GPIO_Output_Pin, GPIO_PIN_SET);
             break;
@@ -95,7 +94,7 @@ static void priv__cmd_audio_negative(int argc, const char *const *argv) {
         case '1':
             HAL_GPIO_WritePin(Audio_VN_NEN_GPIO_Output_GPIO_Port, Audio_VN_NEN_GPIO_Output_Pin, GPIO_PIN_RESET);
             break;
-        
+
         default:
             break;
     }
@@ -107,13 +106,13 @@ static void priv__cmd_audio_negative(int argc, const char *const *argv) {
 static void priv__cmd_audio_positive(int argc, const char *const *argv) {
     if (argc < 2) {
         return;
-    }    
+    }
 
-    switch(argv[1][0]) {
+    switch (argv[1][0]) {
         case '0':
             HAL_GPIO_WritePin(AUDIO_VP_EN_GPIO_Output_GPIO_Port, AUDIO_VP_EN_GPIO_Output_Pin, GPIO_PIN_RESET);
             break;
-        
+
         case '1':
             HAL_GPIO_WritePin(AUDIO_VP_EN_GPIO_Output_GPIO_Port, AUDIO_VP_EN_GPIO_Output_Pin, GPIO_PIN_SET);
             break;
@@ -147,34 +146,33 @@ static void priv__cmd_argos_message(int argc, const char *const *argv) {
             max_length = 24;
             break;
     }
-    char tx_message_ascii[(2 * 24) + 1];    
+    char tx_message_ascii[(2 * 24) + 1];
 
     if (!argos_started) {
         satellite_start(&tag_config.argos);
         argos_started = 1;
     }
 
-    // copy message over to output as long as valid 
+    // copy message over to output as long as valid
     if (argc >= 2) {
         const char *msg = argv[1];
-        for  (int i = 0; i < 2*max_length; i++) {
+        for (int i = 0; i < 2 * max_length; i++) {
             if (!isxdigit((int)msg[i])) {
                 break;
-            } 
+            }
             tx_message_ascii[i] = toupper(msg[i]);
             msg_length++;
         }
     }
 
     // pad output
-    while (msg_length < 2*max_length) {
+    while (msg_length < 2 * max_length) {
         tx_message_ascii[msg_length] = '0';
         msg_length++;
-    } 
+    }
 
     // transmit via argos
     satellite_transmit(tx_message_ascii, 2 * max_length);
-
 }
 
 /// @brief write bms settings to nonvolatile memory
@@ -236,13 +234,13 @@ static void priv__cmd_datetime(int argc, const char *const *argv) {
 static void priv__cmd_flasher(int argc, const char *const *argv) {
     if (argc < 2) {
         return;
-    }    
+    }
 
-    switch(argv[1][0]) {
+    switch (argv[1][0]) {
         case '0':
             HAL_GPIO_WritePin(FLASHER_LED_EN_GPIO_Output_GPIO_Port, FLASHER_LED_EN_GPIO_Output_Pin, GPIO_PIN_RESET);
             break;
-        
+
         case '1':
             HAL_GPIO_WritePin(FLASHER_LED_EN_GPIO_Output_GPIO_Port, FLASHER_LED_EN_GPIO_Output_Pin, GPIO_PIN_SET);
             break;
@@ -265,7 +263,6 @@ static void priv__cmd_help(int argc, const char *const *argv) {
     }
 }
 
-
 extern I2C_HandleTypeDef hi2c1;
 extern I2C_HandleTypeDef hi2c2;
 extern I2C_HandleTypeDef hi2c3;
@@ -275,7 +272,7 @@ static I2C_HandleTypeDef *priv__i2c_bus_from_arg(const char *arg) {
         case '1': return &hi2c1;
         case '2': return &hi2c2;
         case '3': return &hi2c3;
-        default:  return NULL;
+        default: return NULL;
     }
 }
 
@@ -346,8 +343,7 @@ static void priv__cmd_i2cset(int argc, const char *const *argv) {
 
     HAL_StatusTypeDef status = HAL_I2C_Mem_Write(
         hi2c, (dev_addr << 1), reg_addr, I2C_MEMADD_SIZE_8BIT,
-        data, (uint16_t)size, 10
-    );
+        data, (uint16_t)size, 10);
 
     cdc_print((status == HAL_OK) ? "OK" ENDL : "ERROR" ENDL);
 }
@@ -387,8 +383,7 @@ static void priv__cmd_i2cget(int argc, const char *const *argv) {
     if (arg >= argc) {
         uint8_t data[2];
         HAL_StatusTypeDef status = HAL_I2C_Master_Receive(
-            hi2c, (dev_addr << 1), data, (uint16_t)width, 10
-        );
+            hi2c, (dev_addr << 1), data, (uint16_t)width, 10);
         if (status == HAL_OK) {
             char buf[16];
             if (width == 2) {
@@ -408,16 +403,17 @@ static void priv__cmd_i2cget(int argc, const char *const *argv) {
     int count = 1;
     if (arg < argc) {
         count = (int)strtol(argv[arg], NULL, 0);
-        if (count < 1) count = 1;
-        if (count > 16) count = 16;
+        if (count < 1)
+            count = 1;
+        if (count > 16)
+            count = 16;
     }
 
     uint8_t data[32];
     uint16_t size = (uint16_t)(count * width);
     HAL_StatusTypeDef status = HAL_I2C_Mem_Read(
         hi2c, (dev_addr << 1), reg_addr, I2C_MEMADD_SIZE_8BIT,
-        data, size, 10
-    );
+        data, size, 10);
 
     if (status == HAL_OK) {
         for (int i = 0; i < count; i++) {
@@ -437,8 +433,8 @@ static void priv__cmd_i2cget(int argc, const char *const *argv) {
 }
 
 /// @brief relinquish control of arribada module's nrest line so stlink can program it.
-/// @param argc 
-/// @param argv 
+/// @param argc
+/// @param argv
 static void priv__cmd_program_argos(int argc, const char *const *argv) {
     GPIO_InitTypeDef GPIO_InitStruct = {
         .Pin = SAT_NRST_GPIO_Output_Pin,
@@ -447,7 +443,6 @@ static void priv__cmd_program_argos(int argc, const char *const *argv) {
     };
     HAL_GPIO_Init(SAT_NRST_GPIO_Output_GPIO_Port, &GPIO_InitStruct);
 }
-
 
 static void priv__cmd_restart(int argc, const char *const *argv) {
     NVIC_SystemReset();
@@ -486,14 +481,14 @@ static void priv__cmd_update(int argc, const char *const *argv) {
 static void priv__cmd_vhf_pinger(int argc, const char *const *argv) {
     if (argc < 2) {
         return;
-    }    
+    }
 
-    #ifdef VHF_EN_GPIO_Output_GPIO_Port
-    switch(argv[1][0]) {
+#ifdef VHF_EN_GPIO_Output_GPIO_Port
+    switch (argv[1][0]) {
         case '0':
             HAL_GPIO_WritePin(VHF_EN_GPIO_Output_GPIO_Port, VHF_EN_GPIO_Output_Pin, GPIO_PIN_RESET);
             break;
-        
+
         case '1':
             HAL_GPIO_WritePin(VHF_EN_GPIO_Output_GPIO_Port, VHF_EN_GPIO_Output_Pin, GPIO_PIN_SET);
             break;
@@ -501,12 +496,10 @@ static void priv__cmd_vhf_pinger(int argc, const char *const *argv) {
         default:
             break;
     }
-    #endif
+#endif
 }
 
-
-[[maybe_unused]] 
-static void priv__not_implemented(int argc, const char *const *argv) {
+[[maybe_unused]] static void priv__not_implemented(int argc, const char *const *argv) {
     cdc_print(argv[0]);
     cdc_print(" is not implemented yet" ENDL);
 }
@@ -527,14 +520,19 @@ static void cdc_execute(void) {
     char *p = s_cmdline;
 
     while (*p && argc < 8) {
-        while (*p == ' ') p++;
-        if (!*p) break;
+        while (*p == ' ')
+            p++;
+        if (!*p)
+            break;
         argv[argc++] = p;
-        while (*p && *p != ' ') p++;
-        if (*p) *p++ = '\0';
+        while (*p && *p != ' ')
+            p++;
+        if (*p)
+            *p++ = '\0';
     }
 
-    if (argc == 0) return;
+    if (argc == 0)
+        return;
 
     for (size_t i = 0; i < NUM_COMMANDS; i++) {
         if (strcmp(argv[0], cdc_options[i].key) == 0) {
@@ -552,13 +550,14 @@ static void cdc_execute(void) {
 
 void usb_cdc_init(void) {
     s_cmdlen = 0;
-    
+
     // needed for cdc command
 }
 
 void usb_cdc_task(void) {
 #if CFG_TUD_CDC
-    if (!tud_cdc_connected()) return;
+    if (!tud_cdc_connected())
+        return;
 
     while (tud_cdc_available()) {
         char buf[64];

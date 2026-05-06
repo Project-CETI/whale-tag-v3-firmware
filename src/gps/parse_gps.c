@@ -12,16 +12,14 @@ static int s_parsed_rmc_outdated = 1;
 static GpsCoord s_latest_coord;
 static GpsSentence s_latest_valid_rmc_sentence = {};
 
-[[gnu::pure]]
-static inline int priv__is_field(uint8_t c) {
+[[gnu::pure]] static inline int priv__is_field(uint8_t c) {
     return (isprint((unsigned char)(c)) && (c) != ',' && (c) != '*');
 }
 
-[[gnu::pure]]
-static inline const uint8_t * priv__next_field(const uint8_t *field) {
-    if (NULL == field) { 
+[[gnu::pure]] static inline const uint8_t *priv__next_field(const uint8_t *field) {
+    if (NULL == field) {
         return NULL;
-    } 
+    }
     while (priv__is_field(*field)) {
         field++;
     }
@@ -38,15 +36,14 @@ static inline const uint8_t * priv__next_field(const uint8_t *field) {
 /// @return 0 == invalid RMC NMEA message; 1 == valid nmea message with valid coord
 /// @note this was modified from minmea (https://github.com/kosma/minmea) to be
 /// degeneralized and reduce the amount of work
-[[gnu::pure]]
-static GpsCoord priv__parse_rmc(const uint8_t *sentence) {
+[[gnu::pure]] static GpsCoord priv__parse_rmc(const uint8_t *sentence) {
     GpsCoord coordinates = {.valid = 0};
     const uint8_t *field = sentence;
 
     if (NULL == sentence) {
         return coordinates;
     }
-    
+
     // t - type
     if ('$' != sentence[0]) {
         return coordinates;
@@ -64,18 +61,24 @@ static GpsCoord priv__parse_rmc(const uint8_t *sentence) {
     // check validity
     const uint8_t *time_field = priv__next_field(field);
     // skip time field for now
-    
+
     const uint8_t *valid_field = priv__next_field(time_field);
-    
-    if (NULL == valid_field) { return coordinates; }
-    { 
-        if ('A' != *valid_field) { return coordinates; }
+
+    if (NULL == valid_field) {
+        return coordinates;
+    }
+    {
+        if ('A' != *valid_field) {
+            return coordinates;
+        }
     }
     // frame is valid RMC. parse!!!
-        
+
     // parse meaningful values;
     // Minimum required: integer time.
-    if (NULL == time_field) { return coordinates; }
+    if (NULL == time_field) {
+        return coordinates;
+    }
     { // hour and minute
         for (int f = 0; f < 6; f++) {
             if (!isdigit((unsigned char)time_field[f]))
@@ -92,7 +95,9 @@ static GpsCoord priv__parse_rmc(const uint8_t *sentence) {
     }
 
     const uint8_t *latitude_field = priv__next_field(valid_field);
-    if (NULL == latitude_field) { return coordinates; }
+    if (NULL == latitude_field) {
+        return coordinates;
+    }
     { // latitude
         for (int f = 0; f < 4; f++) {
             if (!isdigit((unsigned char)latitude_field[f]))
@@ -117,7 +122,9 @@ static GpsCoord priv__parse_rmc(const uint8_t *sentence) {
     }
 
     const uint8_t *latitude_sign_field = priv__next_field(latitude_field);
-    if (NULL == latitude_sign_field) { return coordinates; }
+    if (NULL == latitude_sign_field) {
+        return coordinates;
+    }
     { // latitude sign
         if ('S' == *latitude_sign_field) {
             coordinates.latitude_sign = 1;
@@ -206,8 +213,7 @@ static GpsCoord priv__parse_rmc(const uint8_t *sentence) {
     return coordinates;
 }
 
-[[gnu::pure]]
-static int priv__validate_rmc_sentence(const uint8_t *sentence) {
+[[gnu::pure]] static int priv__validate_rmc_sentence(const uint8_t *sentence) {
     const uint8_t *field = sentence;
 
     // t - type
@@ -237,25 +243,25 @@ static int priv__validate_rmc_sentence(const uint8_t *sentence) {
     }
     {
 
-    if ('A' != *field) {
-        return 0;
-    }
+        if ('A' != *field) {
+            return 0;
+        }
     }
     field = priv__next_field(field);
     if (NULL == field) {
         return 0;
     }
     return 1;
-} 
+}
 
 void parse_gps_push_sentence(const GpsSentence *p_sentence) {
-    if (priv__validate_rmc_sentence(p_sentence->msg)){
+    if (priv__validate_rmc_sentence(p_sentence->msg)) {
         s_latest_valid_rmc_sentence = *p_sentence;
         s_parsed_rmc_outdated = 1;
     }
 }
 
-GpsCoord parse_gps_get_latest_coordinates(void) {  
+GpsCoord parse_gps_get_latest_coordinates(void) {
     // update coord if newer coord available
     if (s_parsed_rmc_outdated) {
         GpsCoord new_coord = priv__parse_rmc(s_latest_valid_rmc_sentence.msg);
@@ -265,5 +271,5 @@ GpsCoord parse_gps_get_latest_coordinates(void) {
         }
     }
 
-    return s_latest_coord;    
+    return s_latest_coord;
 }

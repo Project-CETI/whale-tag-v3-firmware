@@ -13,7 +13,6 @@
 #include "main.h"
 #include "tim.h"
 
-
 #include <string.h>
 
 extern TIM_HandleTypeDef pressure_htim;
@@ -58,7 +57,7 @@ static void priv__acq_pressure_timer_complete_cb(TIM_HandleTypeDef *htim) {
 /// @brief Initialize pressure acquistion system
 /// @param
 void acq_pressure_init(uint16_t samplerate_ms) {
-    if(s_initialized) {
+    if (s_initialized) {
         acq_pressure_deinit();
     }
 

@@ -13,7 +13,6 @@
 
 #include <stdint.h> //for uint8_t
 
-
 #define NMEA_MAX_SIZE (82)
 #define GPS_BUFFER_SIZE (NMEA_MAX_SIZE + 1)
 

@@ -6,6 +6,7 @@ TEST_C_INCLUDE_FLAGS += -Ilib/sh2
 # TEST_C_INCLUDE_FLAGS += -Iboard/$(BOARD)/Core/Inc
 
 TEST_C_OPT = -O0 -g -fsanitize=address,undefined -fno-omit-frame-pointer
+TEST_C_OPT += -fshort-enums -funsigned-char
 TEST_C_WARNINGS = -Wall -Wextra -Wno-unused-function -Wdate-time 
 TEST_C_DEF = -DUNIT_TEST -D_FORTIFY_SOURCE=2 -DUNITY_INCLUDE_DOUBLE
 TEST_CFLAGS = $(TEST_C_OPT) $(TEST_C_WARNINGS) $(TEST_C_DEF) $(TEST_C_INCLUDE_FLAGS)
@@ -39,7 +40,7 @@ TEST_OUT_DIRS :=  $(sort $(dir $(TEST_BIN)) $(dir $(GENERATED_TEST_OBJS)))
 
 # Tools/dependencies
 $(UNITY_SRC):
-	git submodule update --init --recursive -- $(UNITY_DIR)
+	git submodule update --init --checkout --recursive -- $(UNITY_DIR)
 
 $(UNITY_DIR)/Makefile: $(UNITY_SRC)
 	@cd $(UNITY_DIR) && cmake -DCMAKE_C_FLAGS=-DUNITY_INCLUDE_DOUBLE .
@@ -53,7 +54,7 @@ $(TEST_OUT_DIRS):
 	@mkdir -p $@
 
 # .c -> .c.o
-$(TEST_BUILD_DIR)/%.o: test/% | $(TEST_OUT_DIRS)
+$(TEST_BUILD_DIR)/%.o: test/% $(UNITY) | $(TEST_OUT_DIRS)
 	$(call print2,Compiling:,$<,$@)
 	@$(TEST_CC) $(TEST_CFLAGS) -MMD -MP -o $@ -c $<
 

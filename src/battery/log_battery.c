@@ -18,7 +18,6 @@
 #include <app_filex.h>
 #include <stdio.h>
 
-
 /********* Buffered File *****************************************************/
 #define LOG_BATTERY_ENCODE_BUFFER_FLUSH_THRESHOLD (3 * 1024)
 #define LOG_BATTERY_ENCODE_BUFFER_SIZE (LOG_BATTERY_ENCODE_BUFFER_FLUSH_THRESHOLD + 512)
@@ -54,7 +53,7 @@ static char *log_battery_csv_header =
 /// @brief converts the raw value of the BMS status register to a human
 /// readable string.
 /// @param raw raw status register value.
-/// @return 
+/// @return
 /// @note not thread safe
 static const char *priv__status_to_str(uint16_t raw) {
     static char status_string[72] = ""; // max string length is 65
@@ -80,17 +79,37 @@ static const char *priv__status_to_str(uint16_t raw) {
     }
 
     // detect flags
-    if (_RSHIFT(raw, 15, 1)) { flags[flag_count++] = "PA";  }
-    if (_RSHIFT(raw, 1, 1))  { flags[flag_count++] = "POR"; }
+    if (_RSHIFT(raw, 15, 1)) {
+        flags[flag_count++] = "PA";
+    }
+    if (_RSHIFT(raw, 1, 1)) {
+        flags[flag_count++] = "POR";
+    }
     // if(_RSHIFT(raw, 7, 1)) flags[flag_count++] = "dSOCi"; //ignored indicates interger change in SoC
-    if (_RSHIFT(raw, 2, 1))  { flags[flag_count++] = "Imn"; }
-    if (_RSHIFT(raw, 6, 1))  { flags[flag_count++] = "Imx"; }
-    if (_RSHIFT(raw, 8, 1))  { flags[flag_count++] = "Vmn"; }
-    if (_RSHIFT(raw, 12, 1)) { flags[flag_count++] = "Vmx"; }
-    if (_RSHIFT(raw, 9, 1))  { flags[flag_count++] = "Tmn"; }
-    if (_RSHIFT(raw, 13, 1)) { flags[flag_count++] = "Tmx"; }
-    if (_RSHIFT(raw, 10, 1)) { flags[flag_count++] = "Smn"; }
-    if (_RSHIFT(raw, 14, 1)) { flags[flag_count++] = "Smx"; }
+    if (_RSHIFT(raw, 2, 1)) {
+        flags[flag_count++] = "Imn";
+    }
+    if (_RSHIFT(raw, 6, 1)) {
+        flags[flag_count++] = "Imx";
+    }
+    if (_RSHIFT(raw, 8, 1)) {
+        flags[flag_count++] = "Vmn";
+    }
+    if (_RSHIFT(raw, 12, 1)) {
+        flags[flag_count++] = "Vmx";
+    }
+    if (_RSHIFT(raw, 9, 1)) {
+        flags[flag_count++] = "Tmn";
+    }
+    if (_RSHIFT(raw, 13, 1)) {
+        flags[flag_count++] = "Tmx";
+    }
+    if (_RSHIFT(raw, 10, 1)) {
+        flags[flag_count++] = "Smn";
+    }
+    if (_RSHIFT(raw, 14, 1)) {
+        flags[flag_count++] = "Smx";
+    }
 
     // generate string
     for (int j = 0; j < flag_count; j++) {
@@ -107,7 +126,7 @@ static const char *priv__status_to_str(uint16_t raw) {
 /// @brief converts the raw value of the BMS protAlert register to a human
 /// readable string.
 /// @param raw raw protAlert register value.
-/// @return 
+/// @return
 /// @note not thread safe
 static const char *priv__protAlrt_to_str(uint16_t raw) {
     static char protAlrt_string[160] = "";
@@ -129,22 +148,54 @@ static const char *priv__protAlrt_to_str(uint16_t raw) {
         return protAlrt_string;
     }
 
-    if (_RSHIFT(raw, 15, 1)) { flags[flag_count++] = "ChgWDT";    }
-    if (_RSHIFT(raw, 14, 1)) { flags[flag_count++] = "TooHotC";   }
-    if (_RSHIFT(raw, 13, 1)) { flags[flag_count++] = "Full";      }
-    if (_RSHIFT(raw, 12, 1)) { flags[flag_count++] = "TooColdC";  }
-    if (_RSHIFT(raw, 11, 1)) { flags[flag_count++] = "OVP";       }
-    if (_RSHIFT(raw, 10, 1)) { flags[flag_count++] = "OCCP";      }
-    if (_RSHIFT(raw, 9, 1))  { flags[flag_count++] = "Qovflw";    }
-    if (_RSHIFT(raw, 8, 1))  { flags[flag_count++] = "PrepF";     }
-    if (_RSHIFT(raw, 7, 1))  { flags[flag_count++] = "Imbalance"; }
-    if (_RSHIFT(raw, 6, 1))  { flags[flag_count++] = "PermFail";  }
-    if (_RSHIFT(raw, 5, 1))  { flags[flag_count++] = "DieHot";    }
-    if (_RSHIFT(raw, 4, 1))  { flags[flag_count++] = "TooHotD";   }
-    if (_RSHIFT(raw, 3, 1))  { flags[flag_count++] = "UVP";       }
-    if (_RSHIFT(raw, 2, 1))  { flags[flag_count++] = "ODCP";      }
-    if (_RSHIFT(raw, 1, 1))  { flags[flag_count++] = "ResDFault"; }
-    if (_RSHIFT(raw, 0, 1))  { flags[flag_count++] = "LDet";      }
+    if (_RSHIFT(raw, 15, 1)) {
+        flags[flag_count++] = "ChgWDT";
+    }
+    if (_RSHIFT(raw, 14, 1)) {
+        flags[flag_count++] = "TooHotC";
+    }
+    if (_RSHIFT(raw, 13, 1)) {
+        flags[flag_count++] = "Full";
+    }
+    if (_RSHIFT(raw, 12, 1)) {
+        flags[flag_count++] = "TooColdC";
+    }
+    if (_RSHIFT(raw, 11, 1)) {
+        flags[flag_count++] = "OVP";
+    }
+    if (_RSHIFT(raw, 10, 1)) {
+        flags[flag_count++] = "OCCP";
+    }
+    if (_RSHIFT(raw, 9, 1)) {
+        flags[flag_count++] = "Qovflw";
+    }
+    if (_RSHIFT(raw, 8, 1)) {
+        flags[flag_count++] = "PrepF";
+    }
+    if (_RSHIFT(raw, 7, 1)) {
+        flags[flag_count++] = "Imbalance";
+    }
+    if (_RSHIFT(raw, 6, 1)) {
+        flags[flag_count++] = "PermFail";
+    }
+    if (_RSHIFT(raw, 5, 1)) {
+        flags[flag_count++] = "DieHot";
+    }
+    if (_RSHIFT(raw, 4, 1)) {
+        flags[flag_count++] = "TooHotD";
+    }
+    if (_RSHIFT(raw, 3, 1)) {
+        flags[flag_count++] = "UVP";
+    }
+    if (_RSHIFT(raw, 2, 1)) {
+        flags[flag_count++] = "ODCP";
+    }
+    if (_RSHIFT(raw, 1, 1)) {
+        flags[flag_count++] = "ResDFault";
+    }
+    if (_RSHIFT(raw, 0, 1)) {
+        flags[flag_count++] = "LDet";
+    }
 
     // generate string
     for (int j = 0; j < flag_count; j++) {
@@ -159,7 +210,7 @@ static const char *priv__protAlrt_to_str(uint16_t raw) {
 }
 
 /// @brief opens/creates a new csv file. initializes csv header
-/// @param filename 
+/// @param filename
 static void priv__open_csv_file(char *filename) {
     /* Create/open battery csv file */
     UINT fx_create_result = fx_file_create(&sdio_disk, filename);
@@ -172,9 +223,8 @@ static void priv__open_csv_file(char *filename) {
     if (FX_SUCCESS != fx_open_result) {
         error_queue_push(CETI_ERROR(ERR_SUBSYS_LOG_BMS, ERR_TYPE_FILEX, fx_open_result), priv__open_csv_file);
     }
-    
-    metadata_log_file_creation(filename, DATA_TYPE_BMS, DATA_FORMAT_CSV, 0);
 
+    metadata_log_file_creation(filename, DATA_TYPE_BMS, DATA_FORMAT_CSV, 0);
 
     /* file was newly created. Initialize header */
     if (FX_ALREADY_CREATED != fx_create_result) {
@@ -234,21 +284,20 @@ void log_battery_buffer_sample(const CetiBatterySample *p_sample) {
     } else {
         s_sample_buffer_write_cursor = next_w_pos;
     }
-    if(log_battery_sample_buffer_is_half_full()) {
+    if (log_battery_sample_buffer_is_half_full()) {
         HAL_PWR_DisableSleepOnExit();
     }
-
 }
 
 /// @brief initializes battery logging subsystem
-/// @param  
+/// @param
 void log_battery_init(void) {
     // create output file for battery data
     priv__open_csv_file(LOG_BATTERY_FILENAME);
 }
 
 /// @brief Perfom non-time critical logging tasks. Call periodically.
-/// @param  
+/// @param
 void log_battery_task(void) {
     // check if new samples to log
     while (s_sample_buffer_read_cursor != s_sample_buffer_write_cursor) {
@@ -264,10 +313,10 @@ void log_battery_task(void) {
 }
 
 /// @brief returns if the sample buffer is atleast half full.
-/// @param  
+/// @param
 /// @return bool
 int log_battery_sample_buffer_is_half_full(void) {
     int8_t buffered_samples = ((int8_t)s_sample_buffer_write_cursor - (int8_t)s_sample_buffer_read_cursor);
-    buffered_samples = (buffered_samples >= 0) ? buffered_samples :  LOG_BATTERY_BUFFER_SIZE + buffered_samples;
-    return (buffered_samples >= LOG_BATTERY_BUFFER_SIZE/2);
+    buffered_samples = (buffered_samples >= 0) ? buffered_samples : LOG_BATTERY_BUFFER_SIZE + buffered_samples;
+    return (buffered_samples >= LOG_BATTERY_BUFFER_SIZE / 2);
 }

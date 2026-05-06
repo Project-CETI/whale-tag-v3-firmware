@@ -46,7 +46,7 @@
 void SystemClock_Config(void);
 
 #define BOOTLOADER_REQUEST_MAGIC 0xB00710ADUL
-#define STM32U5_SYSTEM_MEMORY    0x0BF90000UL
+#define STM32U5_SYSTEM_MEMORY 0x0BF90000UL
 
 #define FAULT_TOLERANT_SIZE (3 * 1024)
 uint8_t fault_tolerant_buffer[FAULT_TOLERANT_SIZE];
@@ -163,12 +163,11 @@ int verify_i2c_bus_1(void) {
     return 0;
 }
 
-
-/// @brief This function sets jumps to the built-in STM32 bootloader programmatically 
-/// @param  
+/// @brief This function sets jumps to the built-in STM32 bootloader programmatically
+/// @param
 /// @note Although we CAN reload the flash of this system via our normal tinyUSB DMA
 /// this would be an unsafe operation as we will be replacing instructions a method addresses
-/// mid program. This bootloader exists seperate from the system's FLASH making it a safe 
+/// mid program. This bootloader exists seperate from the system's FLASH making it a safe
 /// alternative. (MSH)
 static void jump_to_system_bootloader(void) {
     volatile uint32_t sys_mem = STM32U5_SYSTEM_MEMORY;
@@ -202,7 +201,8 @@ static void jump_to_system_bootloader(void) {
     void (*sys_boot)(void) = (void (*)(void))boot_pc;
     sys_boot();
 
-    while (1); // never reached
+    while (1)
+        ; // never reached
 }
 
 void mission_loop(void) {
@@ -222,8 +222,8 @@ void mission_loop(void) {
 }
 
 /// @brief Main
-/// @param  
-/// @return 
+/// @param
+/// @return
 int main(void) {
     HAL_Init();
 
@@ -267,10 +267,9 @@ int main(void) {
         led_error();
     }
     fx_fault_tolerant_enable(&sdio_disk, fault_tolerant_buffer, FAULT_TOLERANT_SIZE); // enable fault tolerance
-    
+
     /* load system configuration from nonvolatile memory */
     config_init();
-
 
     // verify and update volume name
     char volume_name[12];
@@ -285,9 +284,9 @@ int main(void) {
     MX_I2C1_Init();
 
 #ifdef BENCHMARK
-if (!usb_iface_present()) {
-    profile_init();
-}
+    if (!usb_iface_present()) {
+        profile_init();
+    }
 #endif
 
     /* basic BMS validation */
@@ -298,7 +297,7 @@ if (!usb_iface_present()) {
             CETI_ERR("Consider rewriting NV memory!!!!");
             CETI_LOG("Attempting to overlay values:");
             bms_ctl_temporary_overwrite_nv_values();
-    //        bms_ctl_program_nonvolatile_memory();
+            //        bms_ctl_program_nonvolatile_memory();
         }
         bms_ctl_reset_FETs(); // enable charging and discharging
     }
@@ -373,36 +372,34 @@ if (!usb_iface_present()) {
         /* Enter Mission loop */
         // create new deployment directory
         RTC_DateTypeDef date;
-        
+
         HAL_RTC_GetDate(&hrtc, &date, RTC_FORMAT_BIN);
-        
+
         char directory_base[16] = {};
         char directory[32] = {};
         snprintf(
-            directory_base, sizeof(directory_base) - 1, 
+            directory_base, sizeof(directory_base) - 1,
             "20%02d-%02d-%02d",
-            date.Year, date.Month, date.Date
-        );
+            date.Year, date.Month, date.Date);
         int index = 0;
         UINT fx_create_dir_result = FX_SUCCESS;
         do {
             snprintf(
-                directory, sizeof(directory) - 1, 
+                directory, sizeof(directory) - 1,
                 "%s_%02d",
-                directory_base, index
-            );
+                directory_base, index);
             fx_create_dir_result = fx_directory_create(&sdio_disk, directory);
             if (FX_SUCCESS != fx_create_dir_result && FX_ALREADY_CREATED != fx_create_dir_result) {
                 CETI_ERR("Failed to create mission directory");
                 Error_Handler();
             }
             index++;
-        } while(fx_create_dir_result != FX_SUCCESS);
+        } while (fx_create_dir_result != FX_SUCCESS);
         fx_directory_default_set(&sdio_disk, directory);
 
         // generate mission metadata
         metadata_create(directory);
-        
+
         // initialize mission
         mission_init();
 #ifdef BENCHMARK
@@ -410,7 +407,6 @@ if (!usb_iface_present()) {
 #endif
         // do the thing
         mission_loop();
-
     }
     // we should never get here
     Error_Handler();

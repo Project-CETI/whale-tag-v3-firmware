@@ -55,7 +55,7 @@ static inline void priv__power_en(GPIO_PinState state) {
 static GpsSentence s_current_sentence = {0};
 
 uint64_t s_callback_timestamp_us;
-static void (*s_msg_complete_callback)(const GpsSentence * p_sentence) = NULL;
+static void (*s_msg_complete_callback)(const GpsSentence *p_sentence) = NULL;
 
 /// @brief seperates a set of bytes into gps nmea messages
 /// @param bytes pointer to bytes to process
@@ -74,8 +74,8 @@ static void priv__gps_rx_process_bytes(const uint8_t *bytes, uint16_t position) 
                 // copy sentence to buffer
                 s_current_sentence.msg[s_current_sentence.msg_len++] = bytes[i];
             } else {
-                //end of sentence
-                // advance sentence buffer
+                // end of sentence
+                //  advance sentence buffer
                 s_current_sentence.msg_len = s_current_sentence.msg_len;
                 s_current_sentence.msg[s_current_sentence.msg_len] = 0;
 
@@ -83,7 +83,7 @@ static void priv__gps_rx_process_bytes(const uint8_t *bytes, uint16_t position) 
                 if (NULL != s_msg_complete_callback) {
                     s_msg_complete_callback(&s_current_sentence);
                 }
-                
+
                 /* setup next message */
                 s_current_sentence.msg_len = 0;
             }

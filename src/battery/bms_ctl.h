@@ -18,5 +18,4 @@ int bms_ctl_reset_FETs(void);
 int bms_ctl_disable_FETs(void);
 CetiStatus bms_disable_FETs(void);
 
-
 #endif // CETI_BMS_CTL_H

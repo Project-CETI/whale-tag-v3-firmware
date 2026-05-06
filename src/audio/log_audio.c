@@ -10,7 +10,7 @@
 // Block: largest DMA transferable sample aligned size
 // Page: size half of entire audio buffer
 
- // local files
+// local files
 #include "log_audio.h"
 #include "acq_audio.h"
 
@@ -34,7 +34,7 @@
 #define TARGET_AUDIO_FILE_DURATION_S (5 * 60)
 
 #define AUDIO_PAGE_SIZE_BYTES (AUDIO_LOG_BLOCK_SIZE * AUDIO_LOG_BUFFER_SIZE_BLOCKS / 2)
-#define AUDIO_BLOCKS_PER_PAGE (AUDIO_LOG_BUFFER_SIZE_BLOCKS/2)
+#define AUDIO_BLOCKS_PER_PAGE (AUDIO_LOG_BUFFER_SIZE_BLOCKS / 2)
 
 #define AUDIO_BUFFER_BLOCK_TO_HALF(block) ((block) / (AUDIO_LOG_BUFFER_SIZE_BLOCKS / 2))
 
@@ -62,8 +62,8 @@ static uint64_t s_current_filesize_bytes = 0;
 
 // public variables
 union {
-    uint8_t block[AUDIO_LOG_BUFFER_SIZE_BLOCKS][AUDIO_LOG_BLOCK_SIZE];        // accessed for DMA
-    uint8_t half[2][AUDIO_PAGE_SIZE_BYTES]; // access for SD card write
+    uint8_t block[AUDIO_LOG_BUFFER_SIZE_BLOCKS][AUDIO_LOG_BLOCK_SIZE]; // accessed for DMA
+    uint8_t half[2][AUDIO_PAGE_SIZE_BYTES];                            // access for SD card write
 } g_audio_buffer;
 
 uint8_t *log_audio_buffer = g_audio_buffer.block[0];
@@ -77,10 +77,9 @@ uint8_t *log_audio_buffer = g_audio_buffer.block[0];
 static void log_audio_create_raw_file(void) {
     /* Create file based on RTC time */
     s_audio_start_time_us = rtc_get_epoch_us();
-    snprintf(s_audio_filename, sizeof(s_audio_filename) - 1, 
-        "%lld.%s", 
-        s_audio_start_time_us, s_audio_filename_extension 
-    );
+    snprintf(s_audio_filename, sizeof(s_audio_filename) - 1,
+             "%lld.%s",
+             s_audio_start_time_us, s_audio_filename_extension);
 
     /* Create/open audio file */
     UINT fx_create_result = fx_file_create(&sdio_disk, s_audio_filename);
@@ -99,7 +98,7 @@ static void log_audio_create_raw_file(void) {
 
     s_current_filesize_bytes = 0;
     CETI_LOG("New audio file \"%s\" allocated", s_audio_filename);
-    UINT fx_allocation_result = fx_file_allocate(&s_audio_file, s_expected_filesize_pages*AUDIO_PAGE_SIZE_BYTES);
+    UINT fx_allocation_result = fx_file_allocate(&s_audio_file, s_expected_filesize_pages * AUDIO_PAGE_SIZE_BYTES);
     if ((FX_SUCCESS != fx_allocation_result)) {
         error_queue_push(CETI_ERROR(ERR_SUBSYS_LOG_AUDIO, ERR_TYPE_FILEX, fx_allocation_result), log_audio_create_raw_file);
         return;
@@ -128,7 +127,7 @@ int log_audio_raw_write(uint8_t *pData, uint32_t size) {
     }
     s_current_filesize_bytes += size;
     // check if new file needs to be created
-    if(s_current_filesize_bytes >= s_expected_filesize_pages*AUDIO_PAGE_SIZE_BYTES) {
+    if (s_current_filesize_bytes >= s_expected_filesize_pages * AUDIO_PAGE_SIZE_BYTES) {
         fx_file_close(&s_audio_file);
         log_audio_create_raw_file();
     }
@@ -142,7 +141,7 @@ int log_audio_raw_write(uint8_t *pData, uint32_t size) {
 /// @note Computes the expected file size and creates the first audio
 ///       file. Does nothing if audio is disabled in settings.
 void log_audio_init(const AudioConfig *settings) {
-    if (!settings->enabled){
+    if (!settings->enabled) {
         return;
     }
 
@@ -151,17 +150,16 @@ void log_audio_init(const AudioConfig *settings) {
         channel_count += settings->channel_enabled[i];
     }
 
-    uint32_t bytes_per_sample = (settings->bitdepth/8) * channel_count;
-    uint32_t samples_per_block = AUDIO_LOG_BLOCK_SIZE/ bytes_per_sample;
+    uint32_t bytes_per_sample = (settings->bitdepth / 8) * channel_count;
+    uint32_t samples_per_block = AUDIO_LOG_BLOCK_SIZE / bytes_per_sample;
     uint32_t samples_per_page = samples_per_block * AUDIO_BLOCKS_PER_PAGE;
     uint64_t target_filesize_samples = TARGET_AUDIO_FILE_DURATION_S * settings->samplerate_sps;
-    
+
     // round target_filesize to nearest number of pages for expected file size
-    s_expected_filesize_pages = (target_filesize_samples + (samples_per_page/2)) / samples_per_page;
-    snprintf(s_audio_filename_extension, sizeof(s_audio_filename_extension) - 1, 
-        "be.%dbit.%dch.%ldsps.bin", 
-        settings->bitdepth, channel_count, settings->samplerate_sps 
-    );
+    s_expected_filesize_pages = (target_filesize_samples + (samples_per_page / 2)) / samples_per_page;
+    snprintf(s_audio_filename_extension, sizeof(s_audio_filename_extension) - 1,
+             "be.%dbit.%dch.%ldsps.bin",
+             settings->bitdepth, channel_count, settings->samplerate_sps);
 
     // enable audio acquisition
 #if AUDIO_LOG_TYPE == AUDIO_LOG_RAW

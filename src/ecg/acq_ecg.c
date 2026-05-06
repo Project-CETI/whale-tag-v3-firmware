@@ -48,7 +48,6 @@ void acq_ecg_EXTI_Callback(void) {
 void acq_ecg_deinit(void) {
     acq_ecg_stop();
 
-
     /* disable acq_ecg interrupt */
     HAL_NVIC_DisableIRQ(EXTI2_IRQn);
     // ToDo: reconfigure ECG_NDRDY as analog to save power
@@ -79,8 +78,7 @@ void acq_ecg_init(void) {
     // Send a reset command
     ads1219_reset();
     HAL_Delay(1);
-    
-    
+
     // configure adc
     const ADS1219_Configuration adc_config = {
         .vref = ADS1219_VREF_EXTERNAL,
@@ -112,6 +110,6 @@ void acq_ecg_stop(void) {
     ads1219_stop();
 }
 
-void acq_ecg_register_sample_callback(void(*callback)(const EcgSample *p_sample)) {
+void acq_ecg_register_sample_callback(void (*callback)(const EcgSample *p_sample)) {
     s_sample_complete_callback = callback;
 }

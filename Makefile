@@ -241,34 +241,20 @@ clean: test_clean
 	@$(RM) -f $(AOP_H)
 	@$(RM) -f .gitmodules_updated
 
+LINT_DIRS := src test
+LINT_EXCLUDES := 
+LINT_FILES := $(shell find $(LINT_DIRS) -type f \( -iname '*.c' -o -iname '*.h' \) 2> /dev/null)
+LINT_FILES := $(filter-out $(LINT_EXCLUDES),$(LINT_FILES))
+CLANG_FORMAT ?= clang-format
+CLANG_FORMAT_STYLE := --style=file:.github/linters/.clang-format
+
 lint:
-	docker run \
-		-e RUN_LOCAL=true \
-		-e VALIDATE_CLANG_FORMAT=true \
-		-e LINTER_RULES_PATH=.github/linters \
-		-e DEFAULT_BRANCH=main \
-		-e FILTER_REGEX_EXCLUDE='.*(board|lib)/.*' \
-		-v $(PWD)/.:/tmp/lint \
-		--rm ghcr.io/super-linter/super-linter:latest
+	$(call print0, Checking source formatting)
+	@$(CLANG_FORMAT) $(CLANG_FORMAT_STYLE) --dry-run --Werror $(LINT_FILES)
 
 lint_fix:
-	docker run \
-		-e RUN_LOCAL=true \
-		-e VALIDATE_CPP=false \
-		-e VALIDATE_DOCKERFILE_HADOLINT=false \
-		-e VALIDATE_GITHUB_ACTIONS=false \
-		-e VALIDATE_JSCPD=false \
-		-e VALIDATE_MARKDOWN=false \
-		-e VALIDATE_NATURAL_LANGUAGE=false \
-		-e VALIDATE_YAML=false \
-		-e VALIDATE_YAML_PRETTIER=false \
-		-e VALIDATE_GITLEAKS=false \
-		-e FIX_CLANG_FORMAT=true \
-		-e LINTER_RULES_PATH=.github/linters \
-		-e DEFAULT_BRANCH=main \
-		-e FILTER_REGEX_EXCLUDE='.*(board|lib)/.*' \
-		-v $(shell pwd):/tmp/lint \
-		--rm ghcr.io/super-linter/super-linter:latest
+	$(call print0, Fixing source formatting)
+	@$(CLANG_FORMAT) $(CLANG_FORMAT_STYLE) -i $(LINT_FILES)
 
 $(DOCKER_IMAGE): Dockerfile packages.txt
 	$(call print0, Building docker image)

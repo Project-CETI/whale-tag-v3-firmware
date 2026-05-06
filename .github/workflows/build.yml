@@ -2,65 +2,87 @@
 name: Build
 
 # Run this workflow every time a new commit pushed to your repository
-on: push
+on: [push, pull_request]
+
+# Cancel in-progress runs on the same ref when a new commit lands.
+# Main is exempt so release-bearing tag/branch builds always finish.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 jobs:
   # Set the job key. The key is displayed as the job name
   # when a job name is not provided
-  build_debug:
+  build:
     # Name the Job
-    name: Build Debug
-    # Set the type of machine to run on
+    name: Build ${{ matrix.board }} ${{ matrix.mode }}
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        board: [v3_1_1, v3_2]
+        mode:  [debug, release]
     steps:
-        # Checks out a copy of your repository on the ubuntu-latest machine
-        - name: Checkout Code
-          uses: actions/checkout@v4
-          with:
-            submodules: true
+      # Checks out a copy of your repository on the ubuntu-latest machine
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          
+      - name: Install ARM toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y $(tr -d '\r' < packages.txt)
+      - name: Build
+        run: make BOARD=${{ matrix.board }} MODE=${{ matrix.mode }}
 
-        # update submodules
-        - name: Git Submodule Update
-          run: |
-            git submodule update --init --recursive
+      - name: Upload firmware
+        uses: actions/upload-artifact@v4
+        with:
+          name: ceti-whale-tag-${{ matrix.board }}-${{ matrix.mode }}
+          path: |
+            build/${{ matrix.board }}/${{ matrix.mode }}/*.elf
+            build/${{ matrix.board }}/${{ matrix.mode }}/*.hex
+            build/${{ matrix.board }}/${{ matrix.mode }}/*.bin
+          if-no-files-found: error
 
-        - name: Download Dependencies
-          run: |
-            sudo apt-get update
-            sudo apt-get install dos2unix
-            dos2unix packages.txt
-            sudo apt-get install -y $(cat packages.txt)
-
-        - name: Compile Debug
-          run: |
-            make DEBUG=1
-
-    # Set the job key. The key is displayed as the job name
-  # when a job name is not provided
-  build_release:
-    # Name the Job
-    name: Build Release
-    # Set the type of machine to run on
+  release:
+    name: Release
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
-        # Checks out a copy of your repository on the ubuntu-latest machine
-        - name: Checkout Code
-          uses: actions/checkout@v4
-          with:
-            submodules: true
+      - name: Checkout data dictionary
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: data_dictionary.yaml
+          sparse-checkout-cone-mode: false
 
-        # update submodules
-        - name: Git Submodule Update
-          run: |
-            git submodule update --init --recursive
+      - name: Download release-mode artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          pattern: ceti-whale-tag-*-release
 
-        - name: Download Dependencies
-          run: |
-            sudo apt-get update
-            sudo apt-get install dos2unix
-            dos2unix packages.txt
-            sudo apt-get install -y $(cat packages.txt)
+      - name: Stage release assets
+        run: |
+          mkdir release-assets
+          for dir in artifacts/ceti-whale-tag-*-release; do
+            name=$(basename "$dir")
+            board=${name#ceti-whale-tag-}
+            board=${board%-release}
+            cp "$dir"/ceti-whale-tag.elf \
+               "release-assets/ceti-whale-tag-${board}.elf"
+          done
+          cp data_dictionary.yaml release-assets/
 
-        - name: Compile Release
-          run: |
-            make DEBUG=0
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            release-assets/*.elf
+            release-assets/data_dictionary.yaml
+          generate_release_notes: true
+          fail_on_unmatched_files: true
