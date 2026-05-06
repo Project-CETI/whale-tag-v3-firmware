@@ -14,22 +14,22 @@
 #include "audio/acq_audio.h"
 
 typedef struct {
-    uint8_t  sync_symbol;
-    uint8_t  packet_id;
+    uint8_t sync_symbol;
+    uint8_t packet_id;
     uint16_t packet_len;
 } StreamPacketHeader;
 
 // Sensor IDs used in the streaming protocol
 typedef enum {
-    STREAM_SENSOR_PRESSURE  = 1,
-    STREAM_SENSOR_BATTERY   = 2,
+    STREAM_SENSOR_PRESSURE = 1,
+    STREAM_SENSOR_BATTERY = 2,
     STREAM_SENSOR_IMU_ACCEL = 3,
-    STREAM_SENSOR_IMU_GYRO  = 4,
-    STREAM_SENSOR_IMU_MAG   = 5,
-    STREAM_SENSOR_IMU_QUAT  = 6,
-    STREAM_SENSOR_ECG       = 7,
-    STREAM_SENSOR_GPS       = 8,
-    STREAM_SENSOR_AUDIO     = 9,
+    STREAM_SENSOR_IMU_GYRO = 4,
+    STREAM_SENSOR_IMU_MAG = 5,
+    STREAM_SENSOR_IMU_QUAT = 6,
+    STREAM_SENSOR_ECG = 7,
+    STREAM_SENSOR_GPS = 8,
+    STREAM_SENSOR_AUDIO = 9,
 } StreamSensorId;
 
 #define STREAM_SENSOR_COUNT 9
@@ -38,10 +38,10 @@ typedef enum {
 #define STREAM_SYNC_BYTE 0xCE
 
 // Subscription commands (host -> device via vendor OUT)
-#define STREAM_CMD_SUBSCRIBE   0x01
+#define STREAM_CMD_SUBSCRIBE 0x01
 #define STREAM_CMD_UNSUBSCRIBE 0x02
-#define STREAM_CMD_LIST        0x03
-#define STREAM_SENSOR_ALL      0xFF
+#define STREAM_CMD_LIST 0x03
+#define STREAM_SENSOR_ALL 0xFF
 
 void stream_init(void);
 void stream_task(void);

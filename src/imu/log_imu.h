@@ -9,7 +9,6 @@
 #ifndef CETI_LOG_IMU_H
 #define CETI_LOG_IMU_H
 
-
 #include <sh2_SensorValue.h>
 #include "acq_imu.h"
 

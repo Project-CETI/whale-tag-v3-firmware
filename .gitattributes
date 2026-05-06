@@ -1,0 +1,18 @@
+# Files consumed by Linux tools (CI runners, Makefile recipes) must use LF
+# regardless of the contributor's core.autocrlf setting. Without this,
+# committing from Windows can introduce CRLF and break shell parsing /
+# `apt-get install $(cat packages.txt)`.
+*.sh         text eol=lf
+*.mk         text eol=lf
+Makefile     text eol=lf
+Dockerfile   text eol=lf
+packages.txt text eol=lf
+
+# Workflow / linter config — also Linux-side
+*.yml        text eol=lf
+*.yaml       text eol=lf
+
+# Firmware and image outputs — never line-end-normalize
+*.bin        binary
+*.elf        binary
+*.hex        binary

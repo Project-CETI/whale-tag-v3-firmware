@@ -28,6 +28,6 @@ typedef struct {
 } GpsCoord;
 
 void parse_gps_push_sentence(const GpsSentence *p_sentence);
-GpsCoord parse_gps_get_latest_coordinates(void);  
+GpsCoord parse_gps_get_latest_coordinates(void);
 
 #endif // CETI_PARSE_GPS_H_

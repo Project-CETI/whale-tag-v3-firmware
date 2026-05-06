@@ -45,7 +45,7 @@ static void vendor_process_rx(void) {
 
                 // Build a stream packet with sensor_id=0 (control)
                 resp[0] = STREAM_SYNC_BYTE;
-                resp[1] = 0x00; // control response
+                resp[1] = 0x00;             // control response
                 resp[2] = sizeof(uint32_t); // payload length low
                 resp[3] = 0;                // payload length high
                 memcpy(&resp[sizeof(StreamPacketHeader)], &mask, sizeof(uint32_t));

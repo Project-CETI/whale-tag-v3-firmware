@@ -218,11 +218,10 @@ int max17320_get_average_power_mw(double *pAvg_mW) {
     uint16_t read = 0;
     WT_TRY(max17320_read(MAX17320_REG_AVG_POWER, &read));
     if (pAvg_mW != NULL) {
-        *pAvg_mW = MAX17320_CELL_COUNT*((double)((int16_t)read))*1.6*(0.005/R_SENSE_VAL);
+        *pAvg_mW = MAX17320_CELL_COUNT * ((double)((int16_t)read)) * 1.6 * (0.005 / R_SENSE_VAL);
     }
     return 0;
 }
-
 
 int max17320_get_state_of_charge_raw(uint16_t *pSoc) {
     return max17320_read(MAX17320_REG_REP_SOC, pSoc);

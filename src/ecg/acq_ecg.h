@@ -22,6 +22,6 @@ void acq_ecg_init(void);
 void acq_ecg_deinit(void);
 void acq_ecg_start(void);
 void acq_ecg_stop(void);
-void acq_ecg_register_sample_callback(void(*callback)(const EcgSample *p_sample));
+void acq_ecg_register_sample_callback(void (*callback)(const EcgSample *p_sample));
 
 #endif // CETI_ACQ_ECG_H

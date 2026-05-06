@@ -30,8 +30,7 @@ typedef struct {
 #define BMS_CELL_CAPACITY_mAh 2050
 #elif BMS_CELLS == BMS_CELL_EFEST_18650
 #define BMS_CELL_CAPACITY_mAh 4000
-#endif //BMS_CELLS
-
+#endif // BMS_CELLS
 
 const NvExpected g_nv_expected[] = {
     {.name = "NRSENSE", .addr = 0x1cf, .value = 0x03e8},
@@ -59,7 +58,6 @@ const NvExpected g_nv_expected[] = {
     {.name = "NVEMPTY", .addr = 0x19e, .value = 0x9659},
     {.name = "NFULLSOCTHR", .addr = 0x1c6, .value = 0x5005},
     {.name = NULL},
-
 };
 
 /**
@@ -162,12 +160,12 @@ int bms_ctl_reset_FETs(void) {
 CetiStatus bms_disable_FETs(void) {
     CetiStatus hw_result = CETI_STATUS_OK;
     hw_result = max17320_disable_charging();
-    if (CETI_STATUS_OK != hw_result) { 
+    if (CETI_STATUS_OK != hw_result) {
         return hw_result;
     }
     charging_disabled = 1;
-    hw_result = max17320_disable_discharging(); 
-    if (CETI_STATUS_OK != hw_result) { 
+    hw_result = max17320_disable_discharging();
+    if (CETI_STATUS_OK != hw_result) {
         return hw_result;
     }
     discharging_disabled = 1;

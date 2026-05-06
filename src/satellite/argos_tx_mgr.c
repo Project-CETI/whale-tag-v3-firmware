@@ -17,7 +17,6 @@
 
 #include <stdint.h>
 
-
 /* MACROS */
 #define TX_TIMER_PERIOD_MS (30000)
 #define TX_BASE_INTERVAL_S (90)
@@ -336,17 +335,14 @@ void argos_tx_mgr_init(void) {
 /// @param
 void argos_tx_mgr_enable(ArgosTxStrategy strategy) {
     // revert to timed tx if aop table older than 1 month
-    if ((ARGOS_TX_STRATEGY_PATH_PREDICTOR == strategy)  
-        && (nv_aop_data.timestamp_s + (30*24*60*60) < rtc_get_epoch_s())
-    ) {
+    if ((ARGOS_TX_STRATEGY_PATH_PREDICTOR == strategy) && (nv_aop_data.timestamp_s + (30 * 24 * 60 * 60) < rtc_get_epoch_s())) {
         error_queue_push(CETI_ERROR(ERR_SUBSYS_ARGOS, ERR_TYPE_DEFAULT, ERR_OUTDATED_AOP_TABLE), argos_tx_mgr_enable);
         s_strategy = ARGOS_TX_STRATEGY_TIMER;
     } else {
         s_strategy = strategy;
     }
 
-    
-    switch( s_strategy ) {
+    switch (s_strategy) {
         case ARGOS_TX_STRATEGY_TIMER: {
             s_argos_tx_ready = 1;
             priv__timer_enable();
@@ -360,7 +356,7 @@ void argos_tx_mgr_enable(ArgosTxStrategy strategy) {
 /// @brief disables the argos transmission manager
 /// @param
 void argos_tx_mgr_disable(void) {
-    if (ARGOS_TX_STRATEGY_PATH_PREDICTOR == s_strategy){
+    if (ARGOS_TX_STRATEGY_PATH_PREDICTOR == s_strategy) {
         HAL_RTC_DeactivateAlarm(&hrtc, RTC_ALARM_A); // disable pass alarms
         HAL_RTC_DeactivateAlarm(&hrtc, RTC_ALARM_B);
     }

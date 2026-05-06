@@ -6,9 +6,9 @@
  *   @copyright Harvard University Wood Lab
  *   @authors   Michael Salino-Hugg
  *****************************************************************************/
- #ifndef CETI_MISSION_LOG_H__
- #define CETI_MISSION_LOG_H__
- 
+#ifndef CETI_MISSION_LOG_H__
+#define CETI_MISSION_LOG_H__
+
 #include "mission.h" // { MissionState, MissionTransitionCause }
 
 int mission_log_init(void);

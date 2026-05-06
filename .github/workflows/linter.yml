@@ -1,35 +1,24 @@
 ---
-name: Super-Linter
+name: Lint
 
-# Run this workflow every time a new commit pushed to your repository
-on: push
+on: [push, pull_request]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 jobs:
-  # Set the job key. The key is displayed as the job name
-  # when a job name is not provided
-  super-lint:
-    name: Lint code base
+  lint:
+    name: clang-format
     runs-on: ubuntu-latest
-
-    permissions:
-      contents: read
-      packages: read
-      # To report GitHub Actions status checks
-      statuses: write
-
     steps:
-      # Checks out a copy of your repository on the ubuntu-latest machine
       - name: Checkout code
         uses: actions/checkout@v4
-        with:
-          # super-linter needs the full git history to get the
-          # list of files that changed across commits
-          fetch-depth: 0
 
-      # Runs the Super-Linter action
-      - name: Run Super-Linter
-        uses: super-linter/super-linter@v7.1.0
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          VALIDATE_CLANG_FORMAT: true
-          FILTER_REGEX_EXCLUDE: '.*(board|lib)/.*'
+      - name: Install clang-format
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang-format
+
+      - name: Run clang-format
+        run: make lint

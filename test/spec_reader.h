@@ -23,11 +23,11 @@
 #define SPEC_FILE "data_dictionary.yaml"
 #endif
 
-#define SPEC_MAX_FIELDS       16
-#define SPEC_MAX_FIELD_NAME   64
-#define SPEC_MAX_FORMAT       16
-#define SPEC_MAX_NOTE_VALUES  8
-#define SPEC_MAX_NOTE_LEN     32
+#define SPEC_MAX_FIELDS 16
+#define SPEC_MAX_FIELD_NAME 64
+#define SPEC_MAX_FORMAT 16
+#define SPEC_MAX_NOTE_VALUES 8
+#define SPEC_MAX_NOTE_LEN 32
 
 typedef struct {
     char name[SPEC_MAX_FIELD_NAME];
@@ -52,20 +52,25 @@ typedef struct {
 
 static inline int spec__indent(const char *line) {
     int n = 0;
-    while (line[n] == ' ') n++;
+    while (line[n] == ' ')
+        n++;
     return n;
 }
 
 static inline int spec__extract_quoted(const char *line, const char *key,
                                        char *out, size_t out_sz) {
     const char *k = strstr(line, key);
-    if (!k) return 0;
+    if (!k)
+        return 0;
     const char *q1 = strchr(k, '"');
-    if (!q1) return 0;
+    if (!q1)
+        return 0;
     const char *q2 = strchr(q1 + 1, '"');
-    if (!q2) return 0;
+    if (!q2)
+        return 0;
     size_t len = (size_t)(q2 - q1 - 1);
-    if (len >= out_sz) len = out_sz - 1;
+    if (len >= out_sz)
+        len = out_sz - 1;
     memcpy(out, q1 + 1, len);
     out[len] = '\0';
     return 1;
@@ -73,18 +78,22 @@ static inline int spec__extract_quoted(const char *line, const char *key,
 
 static inline int spec__extract_int(const char *line, const char *key, int *out) {
     const char *k = strstr(line, key);
-    if (!k) return 0;
+    if (!k)
+        return 0;
     const char *colon = strchr(k, ':');
-    if (!colon) return 0;
+    if (!colon)
+        return 0;
     *out = atoi(colon + 1);
     return 1;
 }
 
 static inline int spec__extract_double(const char *line, const char *key, double *out) {
     const char *k = strstr(line, key);
-    if (!k) return 0;
+    if (!k)
+        return 0;
     const char *colon = strchr(k, ':');
-    if (!colon) return 0;
+    if (!colon)
+        return 0;
     *out = atof(colon + 1);
     return 1;
 }
@@ -176,7 +185,8 @@ static int spec_parse(const char *filename, FileSpec *spec) {
                 continue;
             }
 
-            if (!cur_field) continue;
+            if (!cur_field)
+                continue;
 
             /* field-level keys */
             if (strstr(trimmed, "format:")) {

@@ -10,7 +10,6 @@
 
 #include <stdint.h>
 
-
 typedef struct {
     uint64_t time_us;
     uint32_t error;
@@ -23,9 +22,9 @@ typedef struct {
     uint16_t protection_alert;
 } CetiBatterySample;
 
-void acq_battery_get(CetiBatterySample * p_sample);
+void acq_battery_get(CetiBatterySample *p_sample);
 void acq_battery_init(void);
-void acq_battery_register_callback(void (* callback)(const CetiBatterySample *));
+void acq_battery_register_callback(void (*callback)(const CetiBatterySample *));
 void acq_battery_start(void);
 void acq_battery_stop(void);
 

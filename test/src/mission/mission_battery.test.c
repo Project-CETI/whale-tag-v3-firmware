@@ -12,12 +12,11 @@ CetiTagRuntimeConfiguration tag_config = {
     },
 };
 
-//ToDo: move to mock
+// ToDo: move to mock
 static CetiBatterySample s_sample = {};
-void acq_battery_get(CetiBatterySample * p_sample) {
+void acq_battery_get(CetiBatterySample *p_sample) {
     *p_sample = s_sample;
 }
-
 
 void setUp(void) {
 }

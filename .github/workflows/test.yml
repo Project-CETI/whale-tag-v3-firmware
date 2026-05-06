@@ -20,6 +20,14 @@ jobs:
         with:
           submodules: recursive
 
+<<<<<<< dev/issue/2
+=======
+      - name: Install CMake
+        run: |
+          sudo apt-get update 
+          sudo apt-get install -y cmake
+
+>>>>>>> main
       - name: Init unity submodule
         run: git submodule update --init --checkout --force lib/unity
 
