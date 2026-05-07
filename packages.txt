@@ -1,6 +1,7 @@
 build-essential 
+ca-certificates
 clang-format
 cmake
 gcc-arm-none-eabi 
 git
-libnewlib-arm-none-eabi 
+libnewlib-arm-none-eabi
