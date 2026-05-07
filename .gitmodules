@@ -19,5 +19,3 @@
 [submodule "lib/unity"]
 	path = lib/unity
 	url = https://github.com/ThrowTheSwitch/Unity.git
-	update = none
-	shallow = true
