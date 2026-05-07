@@ -63,19 +63,19 @@ static inline int16_t priv__get_rand_tx_interval_s(void) {
 }
 
 /// @brief Argos transmission timer IRQ Handler
-/// @param  
-/// @todo change this in board/{version}/startup_stm32u595xx.s to 
+/// @param
+/// @todo change this in board/{version}/startup_stm32u595xx.s to
 // avoid naming conflict
 void TIM6_IRQHandler(void) {
     HAL_TIM_IRQHandler(&argos_htim);
 }
 
-static void priv__timer_msp_deinit(TIM_HandleTypeDef* tim_baseHandle) {
+static void priv__timer_msp_deinit(TIM_HandleTypeDef *tim_baseHandle) {
     __HAL_RCC_ARGOS_TIM_CLK_DISABLE();
     HAL_NVIC_DisableIRQ(ARGOS_TIM_IRQn);
 }
 
-static void priv__timer_msp_init(TIM_HandleTypeDef* tim_baseHandle) {
+static void priv__timer_msp_init(TIM_HandleTypeDef *tim_baseHandle) {
     __HAL_RCC_ARGOS_TIM_CLK_ENABLE();
     HAL_NVIC_SetPriority(ARGOS_TIM_IRQn, 0, 0);
     HAL_NVIC_EnableIRQ(ARGOS_TIM_IRQn);
@@ -96,7 +96,7 @@ void argos_tx_mgr_TIM_IRQ(TIM_HandleTypeDef *htim) {
 static int priv__timer_init(void) {
     TIM_ClockConfigTypeDef sClockSourceConfig = {0};
     TIM_MasterConfigTypeDef sMasterConfig = {0};
-    
+
     HAL_TIM_RegisterCallback(&argos_htim, HAL_TIM_BASE_MSPINIT_CB_ID, priv__timer_msp_init);
     HAL_TIM_RegisterCallback(&argos_htim, HAL_TIM_BASE_MSPDEINIT_CB_ID, priv__timer_msp_deinit);
 
@@ -106,26 +106,23 @@ static int priv__timer_init(void) {
     argos_htim.Init.Period = 10000;
     argos_htim.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
     argos_htim.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
-    if (HAL_TIM_Base_Init(&argos_htim) != HAL_OK)
-    {
+    if (HAL_TIM_Base_Init(&argos_htim) != HAL_OK) {
         return 1;
     }
     sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
-    if (HAL_TIM_ConfigClockSource(&argos_htim, &sClockSourceConfig) != HAL_OK)
-    {
+    if (HAL_TIM_ConfigClockSource(&argos_htim, &sClockSourceConfig) != HAL_OK) {
         return 2;
     }
     sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
     sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
-    if (HAL_TIMEx_MasterConfigSynchronization(&argos_htim, &sMasterConfig) != HAL_OK)
-    {
+    if (HAL_TIMEx_MasterConfigSynchronization(&argos_htim, &sMasterConfig) != HAL_OK) {
         return 3;
     }
 
     HAL_TIM_RegisterCallback(&argos_htim, HAL_TIM_PERIOD_ELAPSED_CB_ID, argos_tx_mgr_TIM_IRQ);
     return 0;
 }
- 
+
 /// @brief enables transmit timer used to time duration between consecutive
 /// transmissions
 /// @param
