@@ -707,11 +707,33 @@ static void priv__init_periodic_task_timer(void) {
 /// @brief Initialize mission state machine
 /// @param
 void mission_init(void) {
+    // clang-format off
     // hardware_mask
-    s_enabled_subsystems = (tag_config.hw_config.audio.available * EN_AUDIO) | (tag_config.hw_config.argos.available * EN_ARGOS) | (tag_config.hw_config.bms.available * EN_BMS) | (tag_config.hw_config.burnwire.available * EN_BURN) | (tag_config.hw_config.ecg.available * EN_ECG) | (tag_config.hw_config.flasher.available * EN_FLASH) | (tag_config.hw_config.water_sensor.available * EN_WATER_SENSE) | (tag_config.hw_config.gps.available * EN_GPS) | (tag_config.hw_config.imu.available * EN_IMU) | (tag_config.hw_config.pressure.available * EN_PRESSURE) | (tag_config.hw_config.vhf_pinger.available * EN_VHF);
+    s_enabled_subsystems = (tag_config.hw_config.audio.available * EN_AUDIO) 
+        | (tag_config.hw_config.argos.available * EN_ARGOS) 
+        | (tag_config.hw_config.bms.available * EN_BMS) 
+        | (tag_config.hw_config.burnwire.available * EN_BURN) 
+        | (tag_config.hw_config.ecg.available * EN_ECG) 
+        | (tag_config.hw_config.flasher.available * EN_FLASH) 
+        | (tag_config.hw_config.water_sensor.available * EN_WATER_SENSE) 
+        | (tag_config.hw_config.gps.available * EN_GPS) 
+        | (tag_config.hw_config.imu.available * EN_IMU) 
+        | (tag_config.hw_config.pressure.available * EN_PRESSURE) 
+        | (tag_config.hw_config.vhf_pinger.available * EN_VHF);
 
     // software mask
-    s_enabled_subsystems &= ((tag_config.audio.enabled * EN_AUDIO) | (tag_config.argos.enabled * EN_ARGOS) | (tag_config.battery.enabled * EN_BMS) | (tag_config.burnwire.enabled * EN_BURN) | (tag_config.ecg.enabled * EN_ECG) | (tag_config.flasher.enabled * EN_FLASH) | (tag_config.hw_config.water_sensor.available * EN_WATER_SENSE) | (tag_config.gps.enabled * EN_GPS) | (tag_config.imu.enabled * EN_IMU) | (tag_config.pressure.enabled * EN_PRESSURE) | (tag_config.vhf.enabled * EN_VHF));
+    s_enabled_subsystems &= ((tag_config.audio.enabled * EN_AUDIO) 
+        | (tag_config.argos.enabled * EN_ARGOS) 
+        | (tag_config.battery.enabled * EN_BMS) 
+        | (tag_config.burnwire.enabled * EN_BURN) 
+        | (tag_config.ecg.enabled * EN_ECG) 
+        | (tag_config.flasher.enabled * EN_FLASH) 
+        | (tag_config.hw_config.water_sensor.available * EN_WATER_SENSE) 
+        | (tag_config.gps.enabled * EN_GPS) 
+        | (tag_config.imu.enabled * EN_IMU) 
+        | (tag_config.pressure.enabled * EN_PRESSURE) 
+        | (tag_config.vhf.enabled * EN_VHF));
+    // clang-format on
 
     if (s_enabled_subsystems & EN_AUDIO) {
         CETI_LOG("Initializing Audio Logging");
@@ -917,7 +939,16 @@ void mission_sleep(void) {
     }
 
     __disable_irq();
-    if (!((s_active_subsystems & EN_BMS) && log_battery_sample_buffer_is_half_full()) && !((s_active_subsystems & EN_IMU) && log_imu_any_buffer_half_full()) && !((s_active_subsystems & EN_ECG) && log_ecg_sample_buffer_is_half_full()) && !((s_active_subsystems & EN_PRESSURE) && log_pressure_sample_buffer_is_half_full()) && !((s_active_subsystems & EN_ARGOS) && argos_tx_mgr_ready_to_tx()) && !((s_active_subsystems & EN_GPS) && log_gps_buffer_is_half_full()) && !s_update_periodic_mission_tasks) {
+    // clang-format off
+    if (!((s_active_subsystems & EN_BMS) && log_battery_sample_buffer_is_half_full()) 
+        && !((s_active_subsystems & EN_IMU) && log_imu_any_buffer_half_full()) 
+        && !((s_active_subsystems & EN_ECG) && log_ecg_sample_buffer_is_half_full()) 
+        && !((s_active_subsystems & EN_PRESSURE) && log_pressure_sample_buffer_is_half_full()) 
+        && !((s_active_subsystems & EN_ARGOS) && argos_tx_mgr_ready_to_tx()) 
+        && !((s_active_subsystems & EN_GPS) && log_gps_buffer_is_half_full()) 
+        && !s_update_periodic_mission_tasks
+    ) {
+        // clang-format on
         // nothing to currently do!
         // go to sleep until next interrupt
         switch (s_state_sleep_depth[s_state]) {

@@ -34,7 +34,7 @@ typedef enum {
     MISSION_TRANSITION_UNKNOWN,
 } MissionTransitionCause;
 
-#define STARTING_STATE MISSION_STATE_RECORD_SURFACE
+#define STARTING_STATE MISSION_STATE_RETRIEVE
 
 void mission_init(void);
 void mission_task(void);
