@@ -148,13 +148,8 @@ DOCKER_IMAGE = stm32_build_img
 # default target
 all: .gitmodules_updated $(C_SRCS_FILE) $(BUILD_DIR)/$(TARGET).bin $(BUILD_DIR)/$(TARGET).elf $(BUILD_DIR)/$(TARGET).hex
 
-build: $(DOCKER_IMAGE)
-	$(call print0, Running make inside docker)
-	docker run --rm \
-		--user $(USER):$(USER_GROUP) \
-		--volume $(PWD):/ceti-firmware \
-		$(DOCKER_IMAGE) \
-			"make $(MAKEFLAGS) $(filter-out build,$(MAKECMDGOALS))"
+# default target insider docker
+build: docker_all
 
 # src/version_hw.h
 $(VERSION_H):
@@ -256,11 +251,23 @@ lint_fix:
 	$(call print0, Fixing source formatting)
 	@$(CLANG_FORMAT) $(CLANG_FORMAT_STYLE) -i $(LINT_FILES)
 
+docker_%: $(DOCKER_IMAGE) FORCE
+	$(call print0, Running 'make $*' inside docker)
+	docker run --rm \
+		--user $(USER):$(USER_GROUP) \
+		--volume $(PWD):/ceti-firmware \
+		$(DOCKER_IMAGE) \
+			"make $(MAKEFLAGS) $*"
+
 $(DOCKER_IMAGE): Dockerfile packages.txt
 	$(call print0, Building docker image)
 	docker build -t $(DOCKER_IMAGE) .
 
+# add this as a dependency to force the dependent target to build
+FORCE:
+
 .PHONY: all \
+	FORCE \
 	build \
 	clean \
 	debug \
