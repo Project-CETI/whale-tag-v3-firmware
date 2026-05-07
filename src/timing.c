@@ -80,7 +80,7 @@ timing_get_time_since_on_us(void) {
     return (uint64_t)uS_htim.Instance->CNT;
 }
 
-void rtc_set_datetime(const RTC_DateTypeDef p_date[static 1], const RTC_TimeTypeDef p_time[static 1]) {
+void rtc_set_datetime(const RTC_DateTypeDef *p_date, const RTC_TimeTypeDef *p_time) {
     RTC_TimeTypeDef mut_time = *p_time;
     RTC_DateTypeDef mut_date = *p_date;
     HAL_RTC_SetTime(&hrtc, &mut_time, RTC_FORMAT_BCD);

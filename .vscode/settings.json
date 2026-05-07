@@ -8,7 +8,7 @@
         "log_syslog.h": "c",
         "mission.h": "c"
     },
-    "BOARD": "v3_2",
+    "BOARD": "v3_1_1",
     "MODE": "release",
 
     "C_Cpp.clang_format_style": "file:.github/linters/.clang-format",
