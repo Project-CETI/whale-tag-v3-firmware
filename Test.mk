@@ -40,7 +40,9 @@ TEST_OUT_DIRS :=  $(sort $(dir $(TEST_BIN)) $(dir $(GENERATED_TEST_OBJS)))
 
 # Tools/dependencies
 $(UNITY_SRC):
-	git submodule update --init --checkout --recursive -- $(UNITY_DIR)
+	@if [ "$(SKIP_GIT)" -eq "0" ]; then \
+		git submodule update --init --checkout --recursive -- $(UNITY_DIR); \
+	fi
 
 $(UNITY_DIR)/Makefile: $(UNITY_SRC)
 	@cd $(UNITY_DIR) && cmake -DCMAKE_C_FLAGS=-DUNITY_INCLUDE_DOUBLE .

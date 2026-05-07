@@ -11,14 +11,17 @@ jobs:
   lint:
     name: clang-format
     runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      packages: read
+    container:
+      image: ghcr.io/project-ceti/whale-tag-v3-firmware/build-env:latest
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Install clang-format
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y clang-format
+        uses: actions/checkout@v6
 
       - name: Run clang-format
         run: make lint

@@ -161,9 +161,13 @@ $(VERSION_H):
 	@echo "#endif // CETI_WHALE_TAG_VERSIONING_H" >> $@
 
 #update git submodules
+SKIP_GIT ?= 0
+
 .gitmodules_updated: .gitmodules
-	$(call print0,Updating git submodules)
-	@git submodule update --init --recursive
+	@if [ "$(SKIP_GIT)" -eq "0" ]; then \
+		$(call print0,Updating git submodules); \
+		@git submodule update --init --recursive; \
+    fi
 	@touch .gitmodules_updated
 
 # mkdirs

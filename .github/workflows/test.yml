@@ -14,19 +14,19 @@ jobs:
   test:
     name: Test
     runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      packages: read
+    container:
+      image: ghcr.io/project-ceti/whale-tag-v3-firmware/build-env:latest
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           submodules: recursive
 
-      - name: Install CMake
-        run: |
-          sudo apt-get update 
-          sudo apt-get install -y cmake
-
-      - name: Init unity submodule
-        run: git submodule update --init --checkout --force lib/unity
-
-      - name: Build and Run Tests 
-        run: make test
+      - name: Build and Run Tests
+        run: make test SKIP_GIT=1

@@ -17,27 +17,30 @@ jobs:
     # Name the Job
     name: Build ${{ matrix.board }} ${{ matrix.mode }}
     runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      packages: read
+    container:
+      image: ghcr.io/project-ceti/whale-tag-v3-firmware/build-env:latest
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
     strategy:
       fail-fast: false
       matrix:
         board: [v3_1_1, v3_2]
         mode:  [debug, release]
     steps:
-      # Checks out a copy of your repository on the ubuntu-latest machine
       - name: Checkout Code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           submodules: recursive
-          
-      - name: Install ARM toolchain
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y $(tr -d '\r' < packages.txt)
+
       - name: Build
-        run: make BOARD=${{ matrix.board }} MODE=${{ matrix.mode }}
+        run: make BOARD=${{ matrix.board }} MODE=${{ matrix.mode }} SKIP_GIT=1
 
       - name: Upload firmware
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ceti-whale-tag-${{ matrix.board }}-${{ matrix.mode }}
           path: |
@@ -55,7 +58,7 @@ jobs:
       contents: write
     steps:
       - name: Checkout data dictionary
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           sparse-checkout: data_dictionary.yaml
           sparse-checkout-cone-mode: false
@@ -79,7 +82,7 @@ jobs:
           cp data_dictionary.yaml release-assets/
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           files: |
             release-assets/*.elf
